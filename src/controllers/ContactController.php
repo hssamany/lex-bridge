@@ -42,7 +42,7 @@ final class ContactController
             $formattedContacts[] = [
                 'id' => $contact->lexContactId,
                 'companyName' => $contact->companyName,
-                'customerNumber' => $contact->customerNumber
+                'customerNumber' => $contact->lexCustomerNumber
             ];
         }
         

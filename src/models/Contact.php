@@ -8,7 +8,7 @@ final class Contact
     public readonly string $lexContactId;
     public readonly string $organizationId;
     public readonly int $version;
-    public readonly int $customerNumber;
+    public readonly int $lexCustomerNumber;
     public readonly string $companyName;
     public readonly bool $allowTaxFreeInvoices;
     public readonly array $billingAddresses;
@@ -19,7 +19,7 @@ final class Contact
         $this->lexContactId = $data['id'] ?? '';
         $this->organizationId = $data['organizationId'] ?? '';
         $this->version = $data['version'] ?? 0;
-        $this->customerNumber = $data['roles']['customer']['number'] ?? 0;
+        $this->lexCustomerNumber = $data['roles']['customer']['number'] ?? 0;
         $this->companyName = $data['company']['name'] ?? '';
         $this->allowTaxFreeInvoices = $data['company']['allowTaxFreeInvoices'] ?? false;
         $this->billingAddresses = $data['addresses']['billing'] ?? [];
@@ -34,7 +34,7 @@ final class Contact
             'version' => $this->version,
             'roles' => [
                 'customer' => [
-                    'number' => $this->customerNumber
+                    'number' => $this->lexCustomerNumber
                 ]
             ],
             'company' => [
@@ -57,7 +57,7 @@ final class Contact
         string $id,
         string $organizationId,
         int $version,
-        int $customerNumber,
+        int $lexCustomerNumber,
         string $companyName,
         bool $allowTaxFreeInvoices = false,
         array $billingAddresses = [],
@@ -70,7 +70,7 @@ final class Contact
             'version' => $version,
             'roles' => [
                 'customer' => [
-                    'number' => $customerNumber
+                    'number' => $lexCustomerNumber
                 ]
             ],
             'company' => [
