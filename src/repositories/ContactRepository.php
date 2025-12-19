@@ -31,81 +31,13 @@ class ContactRepository
         
         $stmt = $this -> db -> prepare($sql);
         
-        return $stmt -> execute
-        ([
+        return $stmt -> execute( [
             ':lex_contact_id' => $contact->lexContactId,
-            ':organization_id' => $contact->organizationId,
-            ':version' => $contact->version,
             ':lex_customer_number' => $contact->lexCustomerNumber,
-            ':company_name' => $contact->companyName,
-            ':allow_tax_free_invoices' => $contact->allowTaxFreeInvoices ? 1 : 0,
-            ':archived' => $contact->archived ? 1 : 0
+            ':company_name' => $contact->companyName
         ]);
     }
     
-    /**
-     * Insert a new contact into the customer table
-     * 
-     * @param Contact $contact Contact object to insert
-     * @return bool True if insert was successful
-     */
-    public function insertContact(Contact $contact): bool
-    {
-        $sql = "INSERT INTO customer 
-                (lex_contact_id, organization_id, version, lex_customer_number, 
-                 company_name, allow_tax_free_invoices, archived, created_at, updated_at)
-                VALUES 
-                (:lex_contact_id, :organization_id, :version, :lex_customer_number,
-                 :company_name, :allow_tax_free_invoices, :archived, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)";
-        
-        $stmt = $this->db->prepare($sql);
-        
-        return $stmt->execute([
-            ':lex_contact_id' => $contact->lexContactId,
-            ':organization_id' => $contact->organizationId,
-            ':version' => $contact->version,
-            ':lex_customer_number' => $contact->lexCustomerNumber,
-            ':company_name' => $contact->companyName,
-            ':allow_tax_free_invoices' => $contact->allowTaxFreeInvoices ? 1 : 0,
-            ':archived' => $contact->archived ? 1 : 0
-        ]);
-    }
-    
-    /**
-     * Insert or update a contact (upsert)
-     * 
-     * @param Contact $contact Contact object to save
-     * @return bool True if operation was successful
-     */
-    public function saveContact(Contact $contact): bool
-    {
-        $sql = "INSERT INTO customer 
-                (lex_contact_id, organization_id, version, lex_customer_number, 
-                 company_name, allow_tax_free_invoices, archived, created_at, updated_at)
-                VALUES 
-                (:lex_contact_id, :organization_id, :version, :lex_customer_number,
-                 :company_name, :allow_tax_free_invoices, :archived, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                ON DUPLICATE KEY UPDATE
-                    organization_id = VALUES(organization_id),
-                    version = VALUES(version),
-                    lex_customer_number = VALUES(lex_customer_number),
-                    company_name = VALUES(company_name),
-                    allow_tax_free_invoices = VALUES(allow_tax_free_invoices),
-                    archived = VALUES(archived),
-                    updated_at = CURRENT_TIMESTAMP";
-        
-        $stmt = $this->db->prepare($sql);
-        
-        return $stmt->execute([
-            ':lex_contact_id' => $contact->lexContactId,
-            ':organization_id' => $contact->organizationId,
-            ':version' => $contact->version,
-            ':lex_customer_number' => $contact->lexCustomerNumber,
-            ':company_name' => $contact->companyName,
-            ':allow_tax_free_invoices' => $contact->allowTaxFreeInvoices ? 1 : 0,
-            ':archived' => $contact->archived ? 1 : 0
-        ]);
-    }
     
     /**
      * Find a contact by lex_contact_id
@@ -115,9 +47,12 @@ class ContactRepository
      */
     public function findByLexContactId(string $lexContactId): ?Contact
     {
-        $sql = "SELECT * FROM customer WHERE lex_contact_id = :lex_contact_id LIMIT 1";
+        $sql = "SELECT * 
+                FROM customer 
+                WHERE lex_contact_id = :lex_contact_id 
+                LIMIT 1";
         
-        $stmt = $this->db->prepare($sql);
+        $stmt = $this-> db-> prepare($sql);
         $stmt->execute([':lex_contact_id' => $lexContactId]);
         
         $row = $stmt->fetch();
