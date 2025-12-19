@@ -5,7 +5,7 @@
  */
 final class Contact
 {
-    public readonly string $id;
+    public readonly string $lexContactId;
     public readonly string $organizationId;
     public readonly int $version;
     public readonly int $customerNumber;
@@ -16,7 +16,7 @@ final class Contact
     
     public function __construct(array $data)
     {
-        $this->id = $data['id'] ?? '';
+        $this->lexContactId = $data['id'] ?? '';
         $this->organizationId = $data['organizationId'] ?? '';
         $this->version = $data['version'] ?? 0;
         $this->customerNumber = $data['roles']['customer']['number'] ?? 0;
@@ -29,7 +29,7 @@ final class Contact
     public function toArray(): array
     {
         $result = [
-            'id' => $this->id,
+            'id' => $this->lexContactId,
             'organizationId' => $this->organizationId,
             'version' => $this->version,
             'roles' => [
