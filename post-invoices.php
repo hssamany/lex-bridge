@@ -6,17 +6,15 @@ require_once 'src/http/HttpClient.php';
 require_once 'src/models/Invoice.php';
 require_once 'src/services/InvoiceService.php';
 require_once 'src/controllers/InvoiceController.php';
+require_once 'config.php';
 
 // Initialize dependencies
-$apiClient = new HttpClient(
-    'fkpxdwUiPqDBymjHKuszrge_hxXITqay0p-sQBrvujZ6XcRP',
-    'https://api.lexware.io/v1'
-);
+$apiClient = new HttpClient($apiKey, $baseUrl);
 $invoiceService = new InvoiceService($apiClient);
 $invoiceController = new InvoiceController($invoiceService);
 
 // Create invoice object
-$invoice = new Invoice([
+$testData = [
     "archived" => false,
     "voucherDate" => "2027-02-22T00:00:00.000+01:00",
     "address" => [
@@ -62,7 +60,9 @@ $invoice = new Invoice([
     "title" => "Rechnung",
     "introduction" => "Ihre bestellten Positionen stellen wir Ihnen hiermit in Rechnung",
     "remark" => "Vielen Dank für Ihren Einkauf"
-]);
+];
+
+$invoice = new Invoice($testData);
 
 // Create invoice using controller
 $invoiceData = $invoiceController->createInvoice($invoice);
