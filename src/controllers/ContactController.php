@@ -12,6 +12,19 @@ final class ContactController
         $this->contactService = $contactService;
     }
     
+    
+    public function processResult($data) 
+    {
+        $parsedContacts = [];
+        
+        if (isset($data['content']) && is_array($data['content'])) {
+            foreach ($data['content'] as $contactData) {
+                $parsedContacts[] = new Contact($contactData);
+            }
+        }
+        return $parsedContacts;
+    }
+
     /**
      * Retrieve and display contacts
      * 
@@ -24,9 +37,10 @@ final class ContactController
         $contacts = $response->getData([$this, 'processResult']) ?? [];
         
         $formattedContacts = [];
+
         foreach ($contacts as $contact) {
             $formattedContacts[] = [
-                'id' => $contact->id,
+                'id' => $contact->lexContactId,
                 'companyName' => $contact->companyName,
                 'customerNumber' => $contact->customerNumber
             ];
@@ -38,18 +52,5 @@ final class ContactController
             'error' => $response->getError(),
             'contacts' => $formattedContacts
         ];
-    }
-    
-
-    public function processResult($data) 
-    {
-        $parsedContacts = [];
-        
-        if (isset($data['content']) && is_array($data['content'])) {
-            foreach ($data['content'] as $contactData) {
-                $parsedContacts[] = new Contact($contactData);
-            }
-        }
-        return $parsedContacts;
     }
 }
