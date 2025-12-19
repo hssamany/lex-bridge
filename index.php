@@ -89,7 +89,7 @@ unset($_SESSION['contactsData']);
 </head>
 <body>
     <h1><?php echo "Hello, World!"; ?></h1>
-    <form action="lex-client-invoice.php" method="post">
+    <form action="post-invoices.php" method="post">
         <button type="submit" class="btn">Execute LEX Client</button>
     </form>
     <form action="get-contacts.php" method="get">

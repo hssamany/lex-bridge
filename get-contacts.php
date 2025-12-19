@@ -6,12 +6,10 @@ require_once 'src/http/HttpClient.php';
 require_once 'src/models/Contact.php';
 require_once 'src/services/ContactService.php';
 require_once 'src/controllers/ContactController.php';
+require_once 'config.php';
 
 // Initialize dependencies
-$apiClient = new HttpClient(
-    'fkpxdwUiPqDBymjHKuszrge_hxXITqay0p-sQBrvujZ6XcRP',
-    'https://api.lexware.io/v1'
-);
+$apiClient = new HttpClient($apiKey, $baseUrl);
 
 $contactService = new ContactService($apiClient);
 $contactController = new ContactController($contactService);
