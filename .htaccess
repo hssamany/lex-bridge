@@ -1,0 +1,11 @@
+# Redirect all requests to public/ directory
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # If the request is not for public directory
+    RewriteCond %{REQUEST_URI} !^/lex-bridge/public/
+    
+    # Rewrite to public directory
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
