@@ -10,7 +10,6 @@ require_once 'config.php';
 
 // Initialize dependencies
 $apiClient = new HttpClient($apiKey, $baseUrl);
-
 $contactService = new ContactService($apiClient);
 $contactController = new ContactController($contactService);
 
