@@ -44,24 +44,6 @@
         </div>
     </div>
     
-    <script>
-        function openTab(evt, tabName) {
-            // Hide all tab content
-            var tabContents = document.getElementsByClassName("tab-content");
-            for (var i = 0; i < tabContents.length; i++) {
-                tabContents[i].classList.remove("active");
-            }
-            
-            // Remove active class from all tabs
-            var tabs = document.getElementsByClassName("tab");
-            for (var i = 0; i < tabs.length; i++) {
-                tabs[i].classList.remove("active");
-            }
-            
-            // Show current tab and mark button as active
-            document.getElementById(tabName).classList.add("active");
-            evt.currentTarget.classList.add("active");
-        }
-    </script>
+    <script src="js/app.js"></script>
 </body>
 </html>
