@@ -17,18 +17,6 @@ final class ContactController
     }
     
     
-    public function processResult($data) 
-    {
-        $parsedContacts = [];
-        
-        if (isset($data['content']) && is_array($data['content'])) {
-            foreach ($data['content'] as $contactData) {
-                $parsedContacts[] = new Contact($contactData);
-            }
-        }
-        return $parsedContacts;
-    }
-
     /**
      * Retrieve and display contacts
      * 
@@ -38,7 +26,7 @@ final class ContactController
     public function getContacts(int $page = 0): array
     {
         $response = $this->contactService->getContacts($page);        
-        $contacts = $response->getData([$this, 'processResult']) ?? [];
+        $contacts = $response->getData(fn($d) => Contact::fromResponseData($d)) ?? [];
         
         $formattedContacts = [];
 

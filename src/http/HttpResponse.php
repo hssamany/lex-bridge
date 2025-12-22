@@ -53,6 +53,7 @@ final class HttpResponse
             $data = $this->toArray();
             return $callback($data);
         }
+        
         return null;
     }
 }

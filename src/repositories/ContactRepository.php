@@ -31,11 +31,13 @@ class ContactRepository
         
         $stmt = $this -> db -> prepare($sql);
         
-        return $stmt -> execute( [
-            ':lex_contact_id' => $contact->lexContactId,
-            ':lex_customer_number' => $contact->lexCustomerNumber,
-            ':company_name' => $contact->companyName
-        ]);
+        $params = [
+            ':lex_contact_id' => $contact -> lexContactId,
+            ':lex_customer_number' => $contact -> lexCustomerNumber,
+            ':company_name' => $contact -> companyName
+        ];
+        
+        return $stmt->execute($params);
     }
     
     
@@ -57,8 +59,8 @@ class ContactRepository
         
         $row = $stmt->fetch();
         
-        if (!$row) {
-            return null;
+        if (!$row){  
+            return null; 
         }
         
         // Convert database row to Contact format

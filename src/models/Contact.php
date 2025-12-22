@@ -26,6 +26,34 @@ final class Contact
         $this->archived = $data['archived'] ?? false;
     }
     
+    /**
+     * Create Contact instance from array data
+     * 
+     * @param array $data Contact data array
+     * @return self
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self($data);
+    }
+    
+    /**
+     * Create array of Contact instances from API response data
+     * 
+     * @param array $data Response data containing 'content' array
+     * @return array Array of Contact instances
+     */
+    public static function fromResponseData(array $data): array
+    {
+        $parsedContacts = [];
+        if (isset($data['content']) && is_array($data['content'])) {
+            foreach ($data['content'] as $contactData) {
+                $parsedContacts[] = self::fromArray($contactData);
+            }
+        }
+        return $parsedContacts;
+    }
+    
     public function toArray(): array
     {
         $result = [
