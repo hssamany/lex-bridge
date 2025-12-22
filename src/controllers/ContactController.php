@@ -20,12 +20,12 @@ final class ContactController
      */
     public function getContacts(int $page = 0): array
     {
-        $result = $this->contactService->syncContacts($page);
+        $result = $this->contactService -> syncContacts($page);
         $response = $result['response'];
         $contacts = $result['contacts'];
         
         // Convert Contact objects to arrays for JSON serialization
-        $formattedContacts = array_map(fn($contact) => $contact->toArray(), $contacts);
+        $formattedContacts = array_map(fn($c) => $c->toArray(), $contacts);
                 
         return [
             'statusCode' => $response->getStatusCode(),
