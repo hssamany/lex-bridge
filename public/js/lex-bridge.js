@@ -22,10 +22,71 @@ class LexBridge {
     init() {
         this.initializeTabManager();
         this.setupEventListeners();
+        this.attachFormHandlers();
+        this.checkForNotifications();
         
         if (this.config.debug) {
             console.log('LexBridge application initialized');
         }
+    }
+    
+    /**
+     * Check for notifications from PHP (sync results, etc.)
+     */
+    checkForNotifications() {
+        if (this.config.debug) {
+            console.log('Checking for notifications...');
+        }
+        
+        // Only show notification if status is in URL (meaning operation just completed)
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasStatusParam = urlParams.has('status');
+        
+        if (!hasStatusParam) {
+            // No status in URL = just a regular page load, don't show notification
+            return;
+        }
+        
+        // Check for operation status (only set after an action like sync)
+        const opStatus = window.operationStatus;
+        if (opStatus) {
+            // Check for contact sync results with count
+            const contactsData = window.contactsData;
+            if (contactsData && contactsData.statusCode) {
+                if (contactsData.isSuccess) {
+                    const count = contactsData.contacts ? contactsData.contacts.length : 0;
+                    this.notify(
+                        `Successfully synchronized ${count} contact${count !== 1 ? 's' : ''}`,
+                        'success',
+                        'Sync Complete'
+                    );
+                } else if (contactsData.error) {
+                    this.notify(
+                        contactsData.error,
+                        'error',
+                        'Sync Failed'
+                    );
+                }
+            } else if (opStatus.status === 'success') {
+                // Generic success message
+                this.notify(opStatus.message, 'success');
+            } else if (opStatus.status === 'error') {
+                // Generic error message
+                this.notify(opStatus.message, 'error');
+            }
+            
+            // Clean up URL by removing status parameter (prevent notification on reload)
+            this.cleanupUrl();
+        }
+    }
+    
+    /**
+     * Remove status parameter from URL without page reload
+     */
+    cleanupUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('status');
+        window.history.replaceState({}, '', url.toString());
     }
     
     /**
@@ -53,6 +114,74 @@ class LexBridge {
         document.addEventListener('invoiceCreated', (e) => {
             this.notify('Invoice created successfully!', 'success');
         });
+    }
+    
+    /**
+     * Attach handlers to forms (sync, post, etc.)
+     */
+    attachFormHandlers() {
+        // Handle sync contacts form
+        const syncForm = document.querySelector('form[action*="get-contacts"]');
+        if (syncForm) {
+            syncForm.addEventListener('submit', (e) => {
+                this.handleSyncStart(e);
+            });
+        }
+        
+        // Handle post invoices form
+        const postForm = document.querySelector('form[action*="post-invoices"]');
+        if (postForm) {
+            postForm.addEventListener('submit', (e) => {
+                this.handlePostStart(e);
+            });
+        }
+    }
+    
+    /**
+     * Handle sync contacts start - show spinning animation
+     * @param {Event} e - Submit event
+     */
+    handleSyncStart(e) {
+        const form = e.currentTarget;
+        const button = form.querySelector('button[type="submit"]');
+        const icon = button.querySelector('.btn-icon');
+        
+        if (button && icon) {
+            // Disable button
+            button.disabled = true;
+            
+            // Store original content
+            button.dataset.originalText = button.innerHTML;
+            
+            // Add spinning animation and change text
+            button.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronizing...';
+        }
+        
+        if (this.config.debug) {
+            console.log('Starting contact synchronization...');
+        }
+        
+        // Form will submit normally, animation will stop on page reload
+    }
+    
+    /**
+     * Handle post invoices start - show spinning animation
+     * @param {Event} e - Submit event
+     */
+    handlePostStart(e) {
+        const form = e.currentTarget;
+        const button = form.querySelector('button[type="submit"]');
+        const icon = button.querySelector('.btn-icon');
+        
+        if (button && icon) {
+            button.disabled = true;
+            button.dataset.originalText = button.innerHTML;
+            button.innerHTML = '<span class="btn-icon spinning">↻</span> Posting...';
+        }
+        
+        if (this.config.debug) {
+            console.log('Starting invoice posting...');
+        }
     }
     
     /**
@@ -119,20 +248,89 @@ class LexBridge {
      * Display notification
      * @param {string} message - Message to display
      * @param {string} type - Type of notification (success, error, info, warning)
+     * @param {string} title - Optional title for the notification
+     * @param {number} duration - Duration in milliseconds (default: 5000)
      */
-    notify(message, type = 'info') {
-        // Simple console notification for now
-        const emoji = {
-            success: '✅',
-            error: '❌',
-            info: 'ℹ️',
-            warning: '⚠️'
+    notify(message, type = 'info', title = '', duration = 5000) {
+        this.showToast(message, type, title, duration);
+        
+        // Also log to console if debug enabled
+        if (this.config.debug) {
+            const emoji = {
+                success: '✅',
+                error: '❌',
+                info: 'ℹ️',
+                warning: '⚠️'
+            };
+            console.log(`${emoji[type] || 'ℹ️'} [${type.toUpperCase()}]`, message);
+        }
+    }
+    
+    /**
+     * Show toast notification
+     * @param {string} message - Message to display
+     * @param {string} type - Type of notification (success, error, info, warning)
+     * @param {string} title - Optional title
+     * @param {number} duration - Duration in milliseconds
+     */
+    showToast(message, type = 'info', title = '', duration = 5000) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        
+        const icons = {
+            success: '✓',
+            error: '✕',
+            info: 'ℹ',
+            warning: '⚠'
         };
         
-        console.log(`${emoji[type] || 'ℹ️'} [${type.toUpperCase()}]`, message);
+        const titles = {
+            success: title || 'Success',
+            error: title || 'Error',
+            info: title || 'Info',
+            warning: title || 'Warning'
+        };
         
-        // Future: Integrate with toast notification library
-        // this.showToast(message, type);
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <span class="toast-icon">${icons[type] || icons.info}</span>
+            <div class="toast-content">
+                <div class="toast-title">${titles[type]}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close" aria-label="Close">×</button>
+        `;
+        
+        // Add close button handler
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', () => {
+            this.removeToast(toast);
+        });
+        
+        // Add to container
+        container.appendChild(toast);
+        
+        // Auto remove after duration
+        setTimeout(() => {
+            this.removeToast(toast);
+        }, duration);
+    }
+    
+    /**
+     * Remove toast with animation
+     * @param {HTMLElement} toast - Toast element to remove
+     */
+    removeToast(toast) {
+        if (!toast || !toast.parentElement) return;
+        
+        toast.classList.add('removing');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
     }
     
     /**

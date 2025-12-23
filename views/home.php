@@ -7,15 +7,19 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+    <?php if ($status === 'success' || $status === 'error'): ?>
+        <script>
+            // Pass operation status to JavaScript for toast notification
+            window.operationStatus = {
+                status: '<?php echo $status; ?>',
+                message: '<?php echo $status === 'error' ? addslashes($_SESSION['error'] ?? 'An error occurred') : 'Operation completed successfully'; ?>'
+            };
+        </script>
+    <?php endif; ?>
+    
     <div class="container">
         <div class="header">
             <h1>LEX Bridge - Management System</h1>
-            
-            <?php if ($status === 'success'): ?>
-                <div class="alert alert-success">✓ Operation completed successfully!</div>
-            <?php elseif ($status === 'error'): ?>
-                <div class="alert alert-danger">✗ <?= htmlspecialchars($_SESSION['error'] ?? 'An error occurred') ?></div>
-            <?php endif; ?>
         </div>
         
         <!-- Tab Navigation with Actions -->
@@ -55,6 +59,9 @@
             </div>
         </div>
     </div>
+    
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
     
     <!-- JavaScript Components -->
     <script src="js/components/tab-manager.js"></script>

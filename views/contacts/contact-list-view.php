@@ -1,12 +1,10 @@
 <?php if (!empty($contactsData['contacts'])): ?>
+    <script>
+        // Pass contact sync data to JavaScript
+        window.contactsData = <?php echo json_encode($contactsData); ?>;
+    </script>
     <div class="contacts-container">
         <h2>Contacts</h2>
-        <div class="status <?php echo $contactsData['isSuccess'] ? 'success' : 'error'; ?>">
-            <strong>Status Code:</strong> <?php echo $contactsData['statusCode']; ?>
-            <?php if ($contactsData['error']): ?>
-                <br><strong>Error:</strong> <?php echo htmlspecialchars($contactsData['error']); ?>
-            <?php endif; ?>
-        </div>
         
         <table>
             <thead>
