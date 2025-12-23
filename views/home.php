@@ -17,12 +17,12 @@
     
     <!-- Tab Navigation -->
     <div class="tabs">
-        <button class="tab active" onclick="openTab(event, 'contacts')">Contacts</button>
-        <button class="tab" onclick="openTab(event, 'invoices')">Invoices</button>
+        <button class="tab" data-tab="contacts">Contacts</button>
+        <button class="tab" data-tab="invoices">Invoices</button>
     </div>
     
     <!-- Contacts Tab -->
-    <div id="contacts" class="tab-content active">
+    <div id="contacts" class="tab-content">
         <form action="?action=get-contacts" method="get" style="display: inline;">
             <input type="hidden" name="action" value="get-contacts">
             <input type="hidden" name="page" value="0">
@@ -44,6 +44,9 @@
         </div>
     </div>
     
+    <!-- JavaScript Components -->
+    <script src="js/components/tab-manager.js"></script>
+    <script src="js/lex-bridge.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
