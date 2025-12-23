@@ -7,40 +7,52 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <h1>LEX Bridge - Management System</h1>
-    
-    <?php if ($status === 'success'): ?>
-        <div class="alert alert-success">✓ Operation completed successfully!</div>
-    <?php elseif ($status === 'error'): ?>
-        <div class="alert alert-danger">✗ <?= htmlspecialchars($_SESSION['error'] ?? 'An error occurred') ?></div>
-    <?php endif; ?>
-    
-    <!-- Tab Navigation -->
-    <div class="tabs">
-        <button class="tab" data-tab="contacts">Contacts</button>
-        <button class="tab" data-tab="invoices">Invoices</button>
-    </div>
-    
-    <!-- Contacts Tab -->
-    <div id="contacts" class="tab-content">
-        <form action="?action=get-contacts" method="get" style="display: inline;">
-            <input type="hidden" name="action" value="get-contacts">
-            <input type="hidden" name="page" value="0">
-            <button type="submit" class="btn btn-secondary">Synchronize Contacts</button>
-        </form>
+    <div class="container">
+        <div class="header">
+            <h1>LEX Bridge - Management System</h1>
+            
+            <?php if ($status === 'success'): ?>
+                <div class="alert alert-success">✓ Operation completed successfully!</div>
+            <?php elseif ($status === 'error'): ?>
+                <div class="alert alert-danger">✗ <?= htmlspecialchars($_SESSION['error'] ?? 'An error occurred') ?></div>
+            <?php endif; ?>
+        </div>
         
-        <?php include __DIR__ . '/contacts/contact-list-view.php'; ?>
-    </div>
-    
-    <!-- Invoices Tab -->
-    <div id="invoices" class="tab-content">
-        <form action="post-invoices.php" method="post" style="display: inline;">
-            <button type="submit" class="btn">Post Invoices</button>
-        </form>
+        <!-- Tab Navigation with Actions -->
+        <div class="tab-header">
+            <div class="tab-navigation">
+                <button class="tab" data-tab="contacts">Contacts</button>
+                <button class="tab" data-tab="invoices">Invoices</button>
+            </div>
+            <div class="tab-actions">
+                <!-- Action buttons shown/hidden based on active tab -->
+                <form action="?action=get-contacts" method="get" class="tab-action" data-for="contacts">
+                    <input type="hidden" name="action" value="get-contacts">
+                    <input type="hidden" name="page" value="0">
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon">↻</span> Sync Contacts
+                    </button>
+                </form>
+                
+                <form action="post-invoices.php" method="post" class="tab-action" data-for="invoices" style="display: none;">
+                    <button type="submit" class="btn btn-primary">
+                        <span class="btn-icon">✓</span> Post Invoices
+                    </button>
+                </form>
+            </div>
+        </div>
         
-        <div class="contacts-container">
-            <h2>Invoices</h2>
-            <p>Invoice management coming soon...</p>
+        <!-- Contacts Tab -->
+        <div id="contacts" class="tab-content">
+            <?php include __DIR__ . '/contacts/contact-list-view.php'; ?>
+        </div>
+        
+        <!-- Invoices Tab -->
+        <div id="invoices" class="tab-content">
+            <div class="contacts-container">
+                <h2>Invoices</h2>
+                <p>Invoice management coming soon...</p>
+            </div>
         </div>
     </div>
     

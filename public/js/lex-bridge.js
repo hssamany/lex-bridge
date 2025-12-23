@@ -64,6 +64,9 @@ class LexBridge {
             console.log('Tab changed to:', tabName);
         }
         
+        // Show/hide appropriate action buttons
+        this.updateActionButtons(tabName);
+        
         // Lazy load content or perform actions based on tab
         switch(tabName) {
             case 'contacts':
@@ -73,6 +76,18 @@ class LexBridge {
                 this.loadInvoicesIfNeeded();
                 break;
         }
+    }
+    
+    /**
+     * Show/hide action buttons based on active tab
+     * @param {string} tabName - Active tab name
+     */
+    updateActionButtons(tabName) {
+        const actionButtons = document.querySelectorAll('.tab-action');
+        actionButtons.forEach(action => {
+            const forTab = action.getAttribute('data-for');
+            action.style.display = forTab === tabName ? 'block' : 'none';
+        });
     }
     
     /**
