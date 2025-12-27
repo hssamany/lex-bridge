@@ -68,8 +68,12 @@ final class Application
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['error']);
         
+        // Create view instance
+        require_once __DIR__ . '/../views/home/homeView.php';
+        $homeView = new HomeView($status, $contactsData, $error);
+        
         // Display view
-        $this->render('home', compact('contactsData', 'status', 'error'));
+        $this->render('home/home', compact('contactsData', 'status', 'error', 'homeView'));
     }
     
     /**

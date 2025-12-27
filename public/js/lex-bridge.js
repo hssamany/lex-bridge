@@ -26,7 +26,7 @@ class LexBridge {
         await this.initializeTabManager();
         this.setupEventListeners();
         this.attachFormHandlers();
-        this.checkForNotifications();
+        // checkForNotifications() is now handled by HomePage
         
         if (this.config.debug) {
             console.log('LexBridge application initialized');
@@ -52,94 +52,6 @@ class LexBridge {
     destroy  = () => this.tabManager != null ? this.tabManager.destroy() : null;
     
 
-    /**
-     * Check for notifications from PHP (sync results, etc.)
-     */
-    checkForNotifications() {
-        
-        if (this.config.debug) {
-            console.log('Checking for notifications...');
-        }
-        
-        // Only show notification if status is in URL (meaning operation just completed)
-        const urlParams = new URLSearchParams(window.location.search);
-        const hasStatusParam = urlParams.has('status');
-        
-        if (!hasStatusParam) {
-            // No status in URL = just a regular page load, don't show notification
-            return;
-        }
-        
-        // Check for operation status from tab-manager container
-        const container = document.getElementById('tab-manager-container');
-        const statusData = container?.dataset.operationStatus;
-        
-        let opStatus = null;
-        if (statusData) {
-            try {
-                opStatus = JSON.parse(statusData);
-            } catch (error) {
-                console.error('Error parsing operation status:', error);
-            }
-        }
-
-        if (opStatus) {
-            
-            // Try to get contacts data from data attribute
-            const contactsContainer = document.querySelector('.contacts-container[data-contacts]');
-            let contactsData = null;
-            
-            if (contactsContainer?.dataset.contacts) {
-                try {
-                    contactsData = JSON.parse(contactsContainer.dataset.contacts);
-                } catch (error) {
-                    console.error('Error parsing contacts data:', error);
-                }
-            }
-            
-            const count = contactsData?.contacts ? contactsData.contacts.length : 0;
-
-            if (contactsData && contactsData.statusCode) {
-
-                if (contactsData.isSuccess) {
-                    this.notify(
-                        `Successfully synchronized ${count} contact${count !== 1 ? 's' : ''}`,
-                        'success',
-                        'Sync Complete'
-                    );
-                } else if (contactsData.error) {
-                    this.notify ( contactsData.error, 'error','Sync Failed');
-                }
-
-            } else if (opStatus.status === 'success') {
-                this.notify(opStatus.message, 'success');
-            } else if (opStatus.status === 'error') {
-                this.notify(opStatus.message, 'error');
-            }
-            
-            // Clean up data attribute
-            if (container) {
-                delete container.dataset.operationStatus;
-            }
-            
-            // Clean up data attribute
-            if (container) {
-                delete container.dataset.operationStatus;
-            }
-            
-            // Clean up URL by removing status parameter (prevent notification on reload)
-            this.cleanupUrl();
-        }
-    }
-    
-    /**
-     * Remove status parameter from URL without page reload
-     */
-    cleanupUrl() {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('status');
-        window.history.replaceState({}, '', url.toString());
-    }
     
     /**
      * Initialize ToastNotifier component

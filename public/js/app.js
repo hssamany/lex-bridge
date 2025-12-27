@@ -2,15 +2,20 @@
 
 /**
  * Application Entry Point
- * Creates and initializes the LexBridge application
  */
-const app = new LexBridge();
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    app.init();
+// Initialize the home page when DOM is ready
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Create and initialize home page
+        const homePage = new HomePage();
+        await homePage.init();
+        
+        // Store reference globally for console access
+        window.LexBridge = homePage.lexBridge;
+        
+    } catch (error) {
+        console.error('Application initialization failed:', error);
+    }
 });
-
-// Export globally for console access
-window.LexBridge = app;
 
