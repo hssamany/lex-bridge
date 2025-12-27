@@ -63,6 +63,18 @@
     <!-- Toast Notification Container -->
     <div id="toast-container"></div>
     
+    <!-- Toast Message Template -->
+    <template id="toast-msg-template">
+        <div class="toast">
+            <span class="toast-icon"></span>
+            <div class="toast-content">
+                <div class="toast-title"></div>
+                <div class="toast-message"></div>
+            </div>
+            <button class="toast-close" aria-label="Close">×</button>
+        </div>
+    </template>
+    
     <!-- JavaScript Components -->
     <script src="js/components/tab-manager.js"></script>
     <script src="js/lex-bridge.js"></script>

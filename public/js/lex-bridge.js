@@ -5,7 +5,7 @@
  * Handles initialization and global application state
  */
 class LexBridge {
-    // Static version property
+    
     static version = '1.0.0';
     
     constructor() {
@@ -20,6 +20,7 @@ class LexBridge {
      * Initialize the application
      */
     init() {
+
         this.initializeTabManager();
         this.setupEventListeners();
         this.attachFormHandlers();
@@ -30,10 +31,30 @@ class LexBridge {
         }
     }
     
+      
+    /**
+     * Update application configuration
+     * @param {object} newConfig - Configuration options to update
+     */
+    configure = (newConfig) => this.config = { ...this.config, ...newConfig };
+    
+    /**
+     * Get current configuration
+     * @returns {object} Current configuration
+     */
+    getConfig  = () => ({ ... this.config });
+    
+    /**
+     * Destroy application instance (cleanup)
+     */
+    destroy  = () => this.tabManager != null ? this.tabManager.destroy() : null;
+    
+
     /**
      * Check for notifications from PHP (sync results, etc.)
      */
     checkForNotifications() {
+        
         if (this.config.debug) {
             console.log('Checking for notifications...');
         }
@@ -49,9 +70,11 @@ class LexBridge {
         
         // Check for operation status (only set after an action like sync)
         const opStatus = window.operationStatus;
+
         if (opStatus) {
-            // Check for contact sync results with count
+            
             const contactsData = window.contactsData;
+
             if (contactsData && contactsData.statusCode) {
                 if (contactsData.isSuccess) {
                     const count = contactsData.contacts ? contactsData.contacts.length : 0;
@@ -61,17 +84,11 @@ class LexBridge {
                         'Sync Complete'
                     );
                 } else if (contactsData.error) {
-                    this.notify(
-                        contactsData.error,
-                        'error',
-                        'Sync Failed'
-                    );
+                    this.notify ( contactsData.error, 'error','Sync Failed');
                 }
             } else if (opStatus.status === 'success') {
-                // Generic success message
                 this.notify(opStatus.message, 'success');
             } else if (opStatus.status === 'error') {
-                // Generic error message
                 this.notify(opStatus.message, 'error');
             }
             
@@ -106,7 +123,7 @@ class LexBridge {
      * Set up application-wide event listeners
      */
     setupEventListeners() {
-        // Listen for custom events from components
+        
         document.addEventListener('contactUpdated', (e) => {
             this.notify('Contact updated successfully!', 'success');
         });
@@ -142,26 +159,20 @@ class LexBridge {
      * @param {Event} e - Submit event
      */
     handleSyncStart(e) {
+
         const form = e.currentTarget;
         const button = form.querySelector('button[type="submit"]');
         const icon = button.querySelector('.btn-icon');
         
         if (button && icon) {
-            // Disable button
-            button.disabled = true;
-            
-            // Store original content
+            button.disabled = true;            
             button.dataset.originalText = button.innerHTML;
-            
-            // Add spinning animation and change text
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronizing...';
         }
         
         if (this.config.debug) {
             console.log('Starting contact synchronization...');
         }
-        
-        // Form will submit normally, animation will stop on page reload
     }
     
     /**
@@ -169,6 +180,7 @@ class LexBridge {
      * @param {Event} e - Submit event
      */
     handlePostStart(e) {
+
         const form = e.currentTarget;
         const button = form.querySelector('button[type="submit"]');
         const icon = button.querySelector('.btn-icon');
@@ -189,14 +201,13 @@ class LexBridge {
      * @param {string} tabName - Name of activated tab
      */
     onTabChange(tabName) {
+
         if (this.config.debug) {
             console.log('Tab changed to:', tabName);
         }
         
-        // Show/hide appropriate action buttons
         this.updateActionButtons(tabName);
         
-        // Lazy load content or perform actions based on tab
         switch(tabName) {
             case 'contacts':
                 this.loadContactsIfNeeded();
@@ -274,48 +285,70 @@ class LexBridge {
      * @param {number} duration - Duration in milliseconds
      */
     showToast(message, type = 'info', title = '', duration = 5000) {
-        const container = document.getElementById('toast-container');
-        if (!container) return;
-        
-        const icons = {
-            success: '✓',
-            error: '✕',
-            info: 'ℹ',
-            warning: '⚠'
-        };
-        
-        const titles = {
-            success: title || 'Success',
-            error: title || 'Error',
-            info: title || 'Info',
-            warning: title || 'Warning'
-        };
-        
-        // Create toast element
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <span class="toast-icon">${icons[type] || icons.info}</span>
-            <div class="toast-content">
-                <div class="toast-title">${titles[type]}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close" aria-label="Close">×</button>
-        `;
-        
-        // Add close button handler
-        const closeBtn = toast.querySelector('.toast-close');
-        closeBtn.addEventListener('click', () => {
-            this.removeToast(toast);
-        });
-        
-        // Add to container
-        container.appendChild(toast);
-        
-        // Auto remove after duration
-        setTimeout(() => {
-            this.removeToast(toast);
-        }, duration);
+
+        try {
+
+            const container = document.getElementById('toast-container');
+
+            if (!container) {
+                throw new Error('Toast container not found');
+            }
+            
+            const icons = {
+                success: '✓',
+                error: '✕',
+                info: 'ℹ',
+                warning: '⚠'
+            };
+            
+            const titles = {
+                success: title || 'Success',
+                warning: title || 'Warning',
+                error: title || 'Error',
+                info: title || 'Info'
+            };
+            
+            // Get template from DOM
+            const template = document.getElementById('toast-msg-template');
+
+            if (!template) {
+                throw new Error('Toast template not found');
+            }
+            
+            // Clone template content
+            const toast = template.content.cloneNode(true).querySelector('.toast');
+
+            if (!toast) {
+                throw new Error('Toast element not found in template');
+            }
+            
+            toast.classList.add(type);
+            
+            // Fill in the content
+            toast.querySelector('.toast-icon').textContent = icons[type] || icons.info;
+            toast.querySelector('.toast-title').textContent = titles[type];
+            toast.querySelector('.toast-message').textContent = message;
+            
+            // Add close button handler
+            toast.querySelector('.toast-close')?.addEventListener('click', () => {
+                this.removeToast(toast);
+            });
+            
+            // Add to container
+            container.appendChild(toast);
+            
+            // Auto remove after duration
+            setTimeout(() => {
+                this.removeToast(toast);
+            }, duration);
+            
+        } catch (error) {
+            console.error('Toast notification error:', error.message);
+            // Fallback: could use browser alert or console
+            if (this.config.debug) {
+                alert(`Toast Error: ${error.message}\nMessage: ${message}`);
+            }
+        }
     }
     
     /**
@@ -370,34 +403,7 @@ class LexBridge {
             this.notify(error.message, 'error');
             throw error;
         }
-    }
-    
-    /**
-     * Update application configuration
-     * @param {object} newConfig - Configuration options to update
-     */
-    configure(newConfig) {
-        this.config = { ...this.config, ...newConfig };
-    }
-    
-    /**
-     * Get current configuration
-     * @returns {object} Current configuration
-     */
-    getConfig() {
-        return { ...this.config };
-    }
-    
-    /**
-     * Destroy application instance (cleanup)
-     */
-    destroy() {
-        if (this.tabManager) {
-            this.tabManager.destroy();
-        }
-        
-        console.log('LexBridge application destroyed');
-    }
+    }  
 }
 
 // Export to global scope
