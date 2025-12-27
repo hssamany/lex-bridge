@@ -10,12 +10,21 @@ final class Application
     private HttpClient $apiClient;
     private ContactService $contactService;
     private ContactController $contactController;
+    private InvoiceService $invoiceService;
+    private InvoiceController $invoiceController;
     
     public function __construct(string $apiKey, string $baseUrl)
     {
         $this->apiClient = new HttpClient($apiKey, $baseUrl);
+        
+        // Contact dependencies
         $this->contactService = new ContactService($this->apiClient);
         $this->contactController = new ContactController($this->contactService);
+        
+        // Invoice dependencies
+        $invoiceRepository = new InvoiceRepository();
+        $this->invoiceService = new InvoiceService($this->apiClient, $invoiceRepository);
+        $this->invoiceController = new InvoiceController($this->invoiceService);
     }
     
     /**
@@ -28,6 +37,7 @@ final class Application
         try {
             match($action) {
                 'get-contacts' => $this->handleGetContacts(),
+                'get-invoices' => $this->handleGetInvoices(),
                 'home' => $this->displayHome(),
                 default => $this->handle404()
             };
@@ -51,6 +61,16 @@ final class Application
     }
     
     /**
+     * Handle get-invoices action
+     */
+    private function handleGetInvoices(): void
+    {
+        $_SESSION['invoicesData'] = $this->invoiceController->getInvoices();
+        
+        $this->redirect('?action=home&status=success');
+    }
+    
+    /**
      * Display home page
      */
     private function displayHome(): void
@@ -62,6 +82,11 @@ final class Application
             'contacts' => []
         ];
         
+        $invoicesData = $_SESSION['invoicesData'] ?? [
+            'success' => false,
+            'invoices' => []
+        ];
+        
         $status = $_GET['status'] ?? null;
         
         // Clear one-time messages
@@ -70,10 +95,10 @@ final class Application
         
         // Create view instance
         require_once __DIR__ . '/../views/home/homeView.php';
-        $homeView = new HomeView($status, $contactsData, $error);
+        $homeView = new HomeView($status, $contactsData, $error, $invoicesData);
         
         // Display view
-        $this->render('home/home', compact('contactsData', 'status', 'error', 'homeView'));
+        $this->render('home/home', compact('contactsData', 'invoicesData', 'status', 'error', 'homeView'));
     }
     
     /**

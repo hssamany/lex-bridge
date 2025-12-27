@@ -10,13 +10,15 @@ class HomeView
 {
     private ?string $status;
     private ?array $contactsData;
+    private ?array $invoicesData;
     private ?string $error;
     
-    public function __construct(?string $status, ?array $contactsData, ?string $error = null)
+    public function __construct(?string $status, ?array $contactsData, ?string $error = null, ?array $invoicesData = null)
     {
         $this->status = $status;
         $this->contactsData = $contactsData;
         $this->error = $error;
+        $this->invoicesData = $invoicesData;
     }
     
     /**
@@ -73,9 +75,8 @@ class HomeView
      */
     public function renderInvoicesTabContent(): void
     {
-        echo '<div class="contacts-container">';
-        echo '<h2>Invoices</h2>';
-        echo '<p>Invoice management coming soon...</p>';
-        echo '</div>';
+        // Make invoicesData available to the included view
+        $invoicesData = $this->invoicesData;
+        include __DIR__ . '/../invoices/invoice-list-view.php';
     }
 }

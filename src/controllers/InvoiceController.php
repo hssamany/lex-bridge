@@ -13,14 +13,29 @@ final class InvoiceController
     }
     
     /**
+     * Get all invoices
+     * 
+     * @return array Formatted invoices list response data
+     */
+    public function getInvoices(): array
+    {
+        $invoices = $this->invoiceService->getInvoices();
+        
+        return [
+            'success' => true,
+            'invoices' => $invoices
+        ];
+    }
+    
+    /**
      * Create an invoice and prepare data for view
      * 
      * @param Invoice $invoice Invoice object to create
      * @return array Formatted invoice response data
      */
-    public function createInvoice(Invoice $invoice): array
+    public function transferInvoiceToLexware(Invoice $invoice): array
     {
-        $response = $this->invoiceService->createInvoice($invoice);
+        $response = $this->invoiceService->transferInvoiceToLexware($invoice);
         
         return [
             'hasError' => $response->getError() !== null,

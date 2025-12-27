@@ -92,10 +92,13 @@ class LexBridge {
                 label: 'Invoices',
                 content: invoicesContent,
                 action: {
-                    url: 'post-invoices.php',
-                    method: 'post',
-                    icon: '✓',
-                    label: 'Post Invoices'
+                    url: '?action=get-invoices',
+                    method: 'get',
+                    icon: '↻',
+                    label: 'Refresh Invoices',
+                    hiddenFields: {
+                        action: 'get-invoices'
+                    }
                 }
             }
         ];
@@ -140,6 +143,12 @@ class LexBridge {
             this.handleSyncStart(e);
         });
         
+        // Handle refresh invoices form
+        const refreshInvoicesForm = document.querySelector('form[action*="get-invoices"]');
+        refreshInvoicesForm?.addEventListener('submit', (e) => {
+            this.handleRefreshInvoicesStart(e);
+        });
+        
         // Handle post invoices form
         const postForm = document.querySelector('form[action*="post-invoices"]');
         postForm?.addEventListener('submit', (e) => {
@@ -165,6 +174,27 @@ class LexBridge {
         
         if (this.config.debug) {
             console.log('Starting contact synchronization...');
+        }
+    }
+    
+    /**
+     * Handle refresh invoices start - show spinning animation
+     * @param {Event} e - Submit event
+     */
+    handleRefreshInvoicesStart(e) {
+
+        const form = e.currentTarget;
+        const button = form.querySelector('button[type="submit"]');
+        const icon = button.querySelector('.btn-icon');
+        
+        if (button && icon) {
+            button.disabled = true;            
+            button.dataset.originalText = button.innerHTML;
+            button.innerHTML = '<span class="btn-icon spinning">↻</span> Refreshing...';
+        }
+        
+        if (this.config.debug) {
+            console.log('Starting invoice refresh...');
         }
     }
     
@@ -237,7 +267,21 @@ class LexBridge {
      * Load invoices if not already loaded
      */
     loadInvoicesIfNeeded() {
-        // Future: Lazy load invoice data
+        const invoicesContainer = document.querySelector('.invoices-container');
+        const hasInvoices = invoicesContainer?.hasAttribute('data-invoices');
+        
+        // If no invoices data is present, trigger automatic load
+        if (!hasInvoices) {
+            if (this.config.debug) {
+                console.log('No invoices loaded, triggering automatic load...');
+            }
+            
+            // Find and submit the refresh invoices form
+            const refreshForm = document.querySelector('form[action*="get-invoices"]');
+            if (refreshForm) {
+                refreshForm.submit();
+            }
+        }
     }
     
     /**
