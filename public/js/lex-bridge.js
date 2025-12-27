@@ -20,10 +20,10 @@ class LexBridge {
     /**
      * Initialize the application
      */
-    init() {
+    async init() {
 
         this.initializeToastNotifier();
-        this.initializeTabManager();
+        await this.initializeTabManager();
         this.setupEventListeners();
         this.attachFormHandlers();
         this.checkForNotifications();
@@ -70,16 +70,38 @@ class LexBridge {
             return;
         }
         
-        // Check for operation status (only set after an action like sync)
-        const opStatus = window.operationStatus;
+        // Check for operation status from tab-manager container
+        const container = document.getElementById('tab-manager-container');
+        const statusData = container?.dataset.operationStatus;
+        
+        let opStatus = null;
+        if (statusData) {
+            try {
+                opStatus = JSON.parse(statusData);
+            } catch (error) {
+                console.error('Error parsing operation status:', error);
+            }
+        }
 
         if (opStatus) {
             
-            const contactsData = window.contactsData;
+            // Try to get contacts data from data attribute
+            const contactsContainer = document.querySelector('.contacts-container[data-contacts]');
+            let contactsData = null;
+            
+            if (contactsContainer?.dataset.contacts) {
+                try {
+                    contactsData = JSON.parse(contactsContainer.dataset.contacts);
+                } catch (error) {
+                    console.error('Error parsing contacts data:', error);
+                }
+            }
+            
+            const count = contactsData?.contacts ? contactsData.contacts.length : 0;
 
             if (contactsData && contactsData.statusCode) {
+
                 if (contactsData.isSuccess) {
-                    const count = contactsData.contacts ? contactsData.contacts.length : 0;
                     this.notify(
                         `Successfully synchronized ${count} contact${count !== 1 ? 's' : ''}`,
                         'success',
@@ -88,10 +110,21 @@ class LexBridge {
                 } else if (contactsData.error) {
                     this.notify ( contactsData.error, 'error','Sync Failed');
                 }
+
             } else if (opStatus.status === 'success') {
                 this.notify(opStatus.message, 'success');
             } else if (opStatus.status === 'error') {
                 this.notify(opStatus.message, 'error');
+            }
+            
+            // Clean up data attribute
+            if (container) {
+                delete container.dataset.operationStatus;
+            }
+            
+            // Clean up data attribute
+            if (container) {
+                delete container.dataset.operationStatus;
             }
             
             // Clean up URL by removing status parameter (prevent notification on reload)
@@ -120,13 +153,54 @@ class LexBridge {
     /**
      * Initialize TabManager component
      */
-    initializeTabManager() {
+    async initializeTabManager() {
+        // Get tab content from templates
+        const contactsContent = document.getElementById('contacts-tab-content')?.innerHTML || '<p>Loading contacts...</p>';
+        const invoicesContent = document.getElementById('invoices-tab-content')?.innerHTML || '<p>Invoice management coming soon...</p>';
+        
+        // Define tabs configuration
+        const tabsConfig = [
+            {
+                id: 'contacts',
+                label: 'Contacts',
+                content: contactsContent,
+                action: {
+                    url: '?action=get-contacts',
+                    method: 'get',
+                    icon: '↻',
+                    label: 'Sync Contacts',
+                    hiddenFields: {
+                        action: 'get-contacts',
+                        page: '0'
+                    }
+                }
+            },
+            {
+                id: 'invoices',
+                label: 'Invoices',
+                content: invoicesContent,
+                action: {
+                    url: 'post-invoices.php',
+                    method: 'post',
+                    icon: '✓',
+                    label: 'Post Invoices'
+                }
+            }
+        ];
+        
         this.tabManager = new TabManager({
-            tabSelector: '.tab',
-            contentSelector: '.tab-content',
-            urlHash: true,
+            containerId: 'tab-manager-container',
+            tabs: tabsConfig,
             defaultTab: 'contacts',
-            onChange: (tabName) => this.onTabChange(tabName)
+            debug: this.config.debug
+        });
+        
+        // Wait for TabManager to be ready
+        await this.tabManager.initPromise;
+        
+        // Set callback for tab changes
+        this.tabManager.onTabChange((tabName) => {
+            this.onTabChange(tabName);
         });
     }
     
@@ -150,19 +224,15 @@ class LexBridge {
     attachFormHandlers() {
         // Handle sync contacts form
         const syncForm = document.querySelector('form[action*="get-contacts"]');
-        if (syncForm) {
-            syncForm.addEventListener('submit', (e) => {
-                this.handleSyncStart(e);
-            });
-        }
+        syncForm?.addEventListener('submit', (e) => {
+            this.handleSyncStart(e);
+        });
         
         // Handle post invoices form
         const postForm = document.querySelector('form[action*="post-invoices"]');
-        if (postForm) {
-            postForm.addEventListener('submit', (e) => {
-                this.handlePostStart(e);
-            });
-        }
+        postForm?.addEventListener('submit', (e) => {
+            this.handlePostStart(e);
+        });
     }
     
     /**

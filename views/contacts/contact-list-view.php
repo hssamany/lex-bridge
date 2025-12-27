@@ -1,9 +1,8 @@
 <?php if (!empty($contactsData['contacts'])): ?>
-    <script>
-        // Pass contact sync data to JavaScript
-        window.contactsData = <?php echo json_encode($contactsData); ?>;
-    </script>
-    <div class="contacts-container">
+    <div 
+        class="contacts-container" 
+        data-contacts='<?php echo htmlspecialchars(json_encode($contactsData), ENT_QUOTES, 'UTF-8'); ?>'
+    >
         <h2>Contacts</h2>
         
         <table>
@@ -26,8 +25,10 @@
         </table>
         <p><strong>Total:</strong> <?= count($contactsData['contacts']) ?> contacts</p>
     </div>
+
 <?php elseif (isset($contactsData)): ?>
     <div class="contacts-container">
         <p>No contacts found. Click "Refresh Contacts" to load data.</p>
     </div>
+    
 <?php endif; ?>
