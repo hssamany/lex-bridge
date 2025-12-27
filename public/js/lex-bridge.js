@@ -10,6 +10,7 @@ class LexBridge {
     
     constructor() {
         this.tabManager = null;
+        this.toastNotifier = null;
         this.config = {
             apiEndpoint: window.location.origin,
             debug: true
@@ -21,6 +22,7 @@ class LexBridge {
      */
     init() {
 
+        this.initializeToastNotifier();
         this.initializeTabManager();
         this.setupEventListeners();
         this.attachFormHandlers();
@@ -104,6 +106,15 @@ class LexBridge {
         const url = new URL(window.location.href);
         url.searchParams.delete('status');
         window.history.replaceState({}, '', url.toString());
+    }
+    
+    /**
+     * Initialize ToastNotifier component
+     */
+    initializeToastNotifier() {
+        this.toastNotifier = new ToastNotifier({
+            debug: this.config.debug
+        });
     }
     
     /**
@@ -263,7 +274,9 @@ class LexBridge {
      * @param {number} duration - Duration in milliseconds (default: 5000)
      */
     notify(message, type = 'info', title = '', duration = 5000) {
-        this.showToast(message, type, title, duration);
+        if (this.toastNotifier) {
+            this.toastNotifier.show(message, type, title, duration);
+        }
         
         // Also log to console if debug enabled
         if (this.config.debug) {
@@ -275,95 +288,6 @@ class LexBridge {
             };
             console.log(`${emoji[type] || 'ℹ️'} [${type.toUpperCase()}]`, message);
         }
-    }
-    
-    /**
-     * Show toast notification
-     * @param {string} message - Message to display
-     * @param {string} type - Type of notification (success, error, info, warning)
-     * @param {string} title - Optional title
-     * @param {number} duration - Duration in milliseconds
-     */
-    showToast(message, type = 'info', title = '', duration = 5000) {
-
-        try {
-
-            const container = document.getElementById('toast-container');
-
-            if (!container) {
-                throw new Error('Toast container not found');
-            }
-            
-            const icons = {
-                success: '✓',
-                error: '✕',
-                info: 'ℹ',
-                warning: '⚠'
-            };
-            
-            const titles = {
-                success: title || 'Success',
-                warning: title || 'Warning',
-                error: title || 'Error',
-                info: title || 'Info'
-            };
-            
-            // Get template from DOM
-            const template = document.getElementById('toast-msg-template');
-
-            if (!template) {
-                throw new Error('Toast template not found');
-            }
-            
-            // Clone template content
-            const toast = template.content.cloneNode(true).querySelector('.toast');
-
-            if (!toast) {
-                throw new Error('Toast element not found in template');
-            }
-            
-            toast.classList.add(type);
-            
-            // Fill in the content
-            toast.querySelector('.toast-icon').textContent = icons[type] || icons.info;
-            toast.querySelector('.toast-title').textContent = titles[type];
-            toast.querySelector('.toast-message').textContent = message;
-            
-            // Add close button handler
-            toast.querySelector('.toast-close')?.addEventListener('click', () => {
-                this.removeToast(toast);
-            });
-            
-            // Add to container
-            container.appendChild(toast);
-            
-            // Auto remove after duration
-            setTimeout(() => {
-                this.removeToast(toast);
-            }, duration);
-            
-        } catch (error) {
-            console.error('Toast notification error:', error.message);
-            // Fallback: could use browser alert or console
-            if (this.config.debug) {
-                alert(`Toast Error: ${error.message}\nMessage: ${message}`);
-            }
-        }
-    }
-    
-    /**
-     * Remove toast with animation
-     * @param {HTMLElement} toast - Toast element to remove
-     */
-    removeToast(toast) {
-        if (!toast || !toast.parentElement) return;
-        
-        toast.classList.add('removing');
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.parentElement.removeChild(toast);
-            }
-        }, 300);
     }
     
     /**
