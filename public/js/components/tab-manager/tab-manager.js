@@ -126,7 +126,7 @@ class TabManager {
      * Build tabs dynamically from configuration
      */
     async buildTabs() {
-        
+
         if (!this.container) {
             throw new Error('Container not found');
         }
@@ -166,8 +166,10 @@ class TabManager {
         // Setup event listeners
         this.setupEventListeners();
         
-        // Activate default tab
-        const defaultTab = this.config.defaultTab || this.tabsData[0]?.id;
+        // Check URL parameter for tab, otherwise use default
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabFromUrl = urlParams.get('tab');
+        const defaultTab = tabFromUrl || this.config.defaultTab || this.tabsData[0]?.id;
         if (defaultTab) {
             this.activateTab(defaultTab);
         }

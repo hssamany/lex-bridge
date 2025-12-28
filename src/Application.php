@@ -58,7 +58,7 @@ final class Application
         
         $_SESSION['contactsData'] = $this->contactController->getContacts($page);
         
-        $this->redirect('?action=home&status=success');
+        $this->redirect('?action=home&status=success&tab=contacts');
     }
     
     /**
@@ -68,7 +68,7 @@ final class Application
     {
         $_SESSION['invoicesData'] = $this->invoiceController->getInvoices();
         
-        $this->redirect('?action=home&status=success');
+        $this->redirect('?action=home&status=success&tab=invoices');
     }
     
     /**
@@ -90,10 +90,10 @@ final class Application
         $_SESSION['invoicesData'] = $this->invoiceController->getInvoices();
         
         if ($result['isSuccess']) {
-            $this->redirect('?action=home&status=success');
+            $this->redirect('?action=home&status=success&tab=invoices');
         } else {
             $_SESSION['error'] = $result['error'] ?? 'Transfer failed';
-            $this->redirect('?action=home&status=error');
+            $this->redirect('?action=home&status=error&tab=invoices');
         }
     }
     
