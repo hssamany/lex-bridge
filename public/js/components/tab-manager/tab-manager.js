@@ -255,21 +255,10 @@ class TabManager {
             const form = document.createElement('form');
             form.className = 'tab-action';
             form.dataset.for = tabData.id;
+            form.name = action.name || 'get-' + tabData.id; // Use action.name or fallback to 'get-{id}'
             form.style.display = 'none';
             
-            if (action.url) form.action = action.url;
-            if (action.method) form.method = action.method;
-            
-            // Add hidden fields if provided
-            if (action.hiddenFields) {
-                Object.entries(action.hiddenFields).forEach(([name, value]) => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = name;
-                    input.value = value;
-                    form.appendChild(input);
-                });
-            }
+            // No action attribute needed - handled by JavaScript
             
             const button = document.createElement('button');
             button.type = 'submit';

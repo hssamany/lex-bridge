@@ -3,128 +3,129 @@
 declare(strict_types=1);
 
 /**
- * Main Application class - handles routing and request lifecycle
+ * Main Application class - serves initial HTML only
+ * All data loading happens via AJAX to /api/
  */
 final class Application
 {
-    private HttpClient $apiClient;
-    private ContactService $contactService;
-    private ContactController $contactController;
-    private InvoiceService $invoiceService;
-    private InvoiceController $invoiceController;
-    
-    public function __construct(string $apiKey, string $baseUrl)
-    {
-        $this->apiClient = new HttpClient($apiKey, $baseUrl);
-        
-        // Contact dependencies
-        $this->contactService = new ContactService($this->apiClient);
-        $this->contactController = new ContactController($this->contactService);
-        
-        // Invoice dependencies
-        $invoiceRepository = new InvoiceRepository();
-        $this->invoiceService = new InvoiceService($this->apiClient, $invoiceRepository);
-        $this->invoiceController = new InvoiceController($this->invoiceService);
-    }
-    
     /**
-     * Run the application - handle routing
+     * Run the application - serve the SPA shell or handle API requests
      */
     public function run(): void
     {
+        // Check if this is an API request by URI or query param
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        $apiParam = $_GET['api'] ?? null;
+        
+        if (str_contains($uri, '/api/') || $apiParam) {
+            $this->handleApiRequest();
+            return;
+        }
+        
         $action = $_GET['action'] ?? 'home';
         
         try {
             match($action) {
-                'get-contacts' => $this->handleGetContacts(),
-                'get-invoices' => $this->handleGetInvoices(),
-                'transfer-invoice' => $this->handleTransferInvoice(),
-                'home' => $this->displayHome(),
+                'home', '' => $this->displayHome(),
                 default => $this->handle404()
             };
         } catch (Exception $e) {
-            $this-> handleError($e);
+            $this->handleError($e);
         }
     }
     
     /**
-     * Handle get-contacts action
+     * Handle API requests
      */
-    private function handleGetContacts(): void
+    private function handleApiRequest(): void
     {
-        $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
-            'options' => ['default' => 0, 'min_range' => 0]
-        ]);
+        header('Content-Type: application/json');
         
-        $_SESSION['contactsData'] = $this->contactController->getContacts($page);
+        $method = $_SERVER['REQUEST_METHOD'];
+        $uri = $_SERVER['REQUEST_URI'];
+        $apiParam = $_GET['api'] ?? '';
         
-        $this->redirect('?action=home&status=success&tab=contacts');
-    }
-    
-    /**
-     * Handle get-invoices action
-     */
-    private function handleGetInvoices(): void
-    {
-        $_SESSION['invoicesData'] = $this->invoiceController->getInvoices();
+        // Determine the endpoint from URI or api parameter
+        $endpoint = $apiParam ?: $uri;
         
-        $this->redirect('?action=home&status=success&tab=invoices');
-    }
-    
-    /**
-     * Handle transfer-invoice action
-     */
-    private function handleTransferInvoice(): void
-    {
-        $invoiceId = $_POST['invoice_id'] ?? null;
-        
-        if (empty($invoiceId)) {
-            $_SESSION['error'] = 'No invoice selected for transfer';
-            $this->redirect('?action=home&status=error');
-            return;
+        try {
+            if ($method === 'GET' && str_contains($endpoint, 'invoices')) {
+                $client = new HttpClient(API_KEY, API_BASE_URL);
+                $repository = new InvoiceRepository();
+                $service = new InvoiceService($client, $repository);
+                $controller = new InvoiceController($service);
+                
+                $result = $controller->getInvoices();
+                echo json_encode($result);
+                
+            } elseif ($method === 'GET' && str_contains($endpoint, 'contacts')) {
+                $client = new HttpClient(API_KEY, API_BASE_URL);
+                $service = new ContactService($client);
+                $controller = new ContactController($service);
+                
+                $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
+                    'options' => ['default' => 0, 'min_range' => 0]
+                ]);
+                
+                $result = $controller->getContacts($page);
+                echo json_encode($result);
+                
+            } elseif ($method === 'POST' && str_contains($endpoint, 'transfer')) {
+                $data = json_decode(file_get_contents('php://input'), true);
+                $invoiceId = $data['invoice_id'] ?? null;
+                
+                if (!$invoiceId) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Invoice ID required']);
+                    return;
+                }
+                
+                $client = new HttpClient(API_KEY, API_BASE_URL);
+                $repository = new InvoiceRepository();
+                $service = new InvoiceService($client, $repository);
+                $controller = new InvoiceController($service);
+                
+                $result = $controller->transferInvoiceToLexware($invoiceId);
+                echo json_encode($result);
+                
+            } else {
+                http_response_code(404);
+                echo json_encode(['error' => 'API endpoint not found', 'endpoint' => $endpoint, 'method' => $method]);
+            }
+            
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['error' => $e->getMessage()]);
         }
         
-        $result = $this->invoiceController->transferInvoiceToLexware($invoiceId);
-        
-        // Refresh invoices list
-        $_SESSION['invoicesData'] = $this->invoiceController->getInvoices();
-        
-        if ($result['isSuccess']) {
-            $this->redirect('?action=home&status=success&tab=invoices');
-        } else {
-            $_SESSION['error'] = $result['error'] ?? 'Transfer failed';
-            $this->redirect('?action=home&status=error&tab=invoices');
-        }
+        exit;
     }
     
     /**
-     * Display home page
+     * Display home page (SPA shell)
      */
     private function displayHome(): void
     {
-        $contactsData = $_SESSION['contactsData'] ?? [
+        $status = $_GET['status'] ?? null;
+        $error = $_SESSION['error'] ?? null;
+        unset($_SESSION['error']);
+        
+        // Empty data - will be loaded via AJAX
+        $contactsData = [
             'statusCode' => 0,
             'isSuccess' => false,
             'error' => null,
             'contacts' => []
         ];
         
-        $invoicesData = $_SESSION['invoicesData'] ?? [
+        $invoicesData = [
             'success' => false,
             'invoices' => []
         ];
         
-        $status = $_GET['status'] ?? null;
-        
-        // Clear one-time messages
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['error']);
-        
-        // Create view instance
         require_once __DIR__ . '/../views/home/homeView.php';
         $homeView = new HomeView($status, $contactsData, $error, $invoicesData);
         
-        // Display view
         $this->render('home/home', compact('contactsData', 'invoicesData', 'status', 'error', 'homeView'));
     }
     
@@ -142,8 +143,8 @@ final class Application
         </head>
         <body>
             <h1>404 - Page Not Found</h1>
-            <p>The requested action was not found.</p>
-            <a href="?action=home">Go Home</a>
+            <p>The requested page was not found.</p>
+            <a href="/lex-bridge/">Go Home</a>
         </body>
         </html>';
         exit;
@@ -156,16 +157,7 @@ final class Application
     {
         error_log('Error in Application: ' . $e->getMessage());
         $_SESSION['error'] = 'An error occurred. Please try again.';
-        $this->redirect('?action=home&status=error');
-    }
-    
-    /**
-     * Redirect helper
-     */
-    private function redirect(string $url): void
-    {
-        header('Location: ' . $url, true, 303);
-        exit;
+        $this->displayHome();
     }
     
     /**

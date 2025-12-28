@@ -5,7 +5,7 @@
     >
         <h2>Contacts</h2>
         
-        <table>
+        <table class="contact-table">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -26,9 +26,23 @@
         <p><strong>Total:</strong> <?= count($contactsData['contacts']) ?> contacts</p>
     </div>
 
-<?php elseif (isset($contactsData)): ?>
+<?php else: ?>
     <div class="contacts-container">
-        <p>No contacts found. Click "Refresh Contacts" to load data.</p>
+        <h2>Contacts</h2>
+        
+        <table class="contact-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Company Name</th>
+                    <th>Customer Number</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Empty - will be populated via AJAX -->
+            </tbody>
+        </table>
+        <p><strong>Total:</strong> 0 contacts</p>
     </div>
-    
+
 <?php endif; ?>

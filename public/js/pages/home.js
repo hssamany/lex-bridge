@@ -1,99 +1,186 @@
 'use strict';
 
-/**
- * Home Page Controller
- * Handles page-specific logic and configuration
- */
-class HomePage {
+class ContactsPage {
+    static handlerSetup = false; // Track if handler is already set up
     
-    constructor() {
-        this.config = {
-            containers: {
-                tabManager: 'tab-manager-container',
-                toast: 'toast-container'
-            },
-            debug: true
-        };
-        
-        this.lexBridge = null;
+    constructor(lexBridge) {
+        this.lexBridge = lexBridge;
+        this.currentPage = 0;
+        this.init();
+    }
+    
+    init() {
+        console.log('ContactsPage initialized');
+        // Event delegation will be set up globally
+        if (!ContactsPage.handlerSetup) {
+            this.setupRefreshButton();
+            ContactsPage.handlerSetup = true;
+        }
+        // Auto-load contacts on page load if empty
+        this.autoLoadIfEmpty();
     }
     
     /**
-     * Initialize the home page
+     * Auto-load contacts if the list is empty
      */
-    async init() {
+    async autoLoadIfEmpty() {
+        console.log('=== autoLoadIfEmpty called');
+        // Wait a tick for the tab to be fully rendered
+        setTimeout(async () => {
+            const tbody = document.querySelector('.contacts-container tbody');
+            console.log('Contacts tbody found:', tbody);
+            console.log('Contacts tbody children count:', tbody?.children.length);
+            if (tbody && tbody.children.length === 0) {
+                console.log('Auto-loading contacts...');
+                await this.loadContacts(0);
+            } else {
+                console.log('Contacts already loaded or tbody not found');
+            }
+        }, 100);
+    }
+    
+    /**
+     * Setup refresh button using event delegation (only once)
+     */
+    setupRefreshButton() {
+        // Use event delegation on document to catch form submit even if form is added later
+        document.addEventListener('submit', async (e) => {
+            if (e.target.matches('form[name="get-contacts"]')) {
+                console.log('Contacts form submit intercepted - loading via AJAX');
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                await this.loadContacts(0);
+                return false;
+            }
+        }, true); // Use capture phase to intercept before other handlers
+    }
+    
+    /**
+     * Setup refresh button directly on the form element (called after tab is visible)
+     */
+    setupRefreshButtonDirect() {
+        const refreshForm = document.querySelector('form[name="get-contacts"]');
+        console.log('setupRefreshButtonDirect - form found:', refreshForm);
+        
+        if (refreshForm) {
+            // Remove the action attribute to prevent navigation
+            refreshForm.removeAttribute('action');
+            refreshForm.setAttribute('data-original-action', '?action=get-contacts');
+            
+            const button = refreshForm.querySelector('button[type="submit"]');
+            console.log('Button found:', button);
+            
+            if (button && !button.dataset.ajaxHandlerAttached) {
+                console.log('Attaching click handler to contacts button');
+                button.dataset.ajaxHandlerAttached = 'true';
+                
+                // Remove submit type to prevent form submission
+                button.type = 'button';
+                
+                button.addEventListener('click', async (e) => {
+                    console.log('Contacts button clicked - loading via AJAX');
+                    e.preventDefault();
+                    e.stopPropagation();
+                    await this.loadContacts(0);
+                });
+            }
+        }
+    }
+    
+    /**
+     * Load contacts via AJAX
+     */
+    async loadContacts(page = 0) {
+        console.log('=== loadContacts called, page:', page);
+        const button = document.querySelector('form[name="get-contacts"] button');
+        console.log('Button element:', button);
+        
+        if (!button) {
+            console.error('Refresh button not found');
+            return;
+        }
+        
+        const originalText = button.innerHTML;
+        console.log('Original button text:', originalText);
+        
         try {
-            // Initialize LexBridge
-            this.lexBridge = new LexBridgeClass();
-            this.lexBridge.configure({ debug: this.config.debug });
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             
-            // Initialize components first
-            await this.lexBridge.init();
+            console.log('Fetching contacts from API...');
+            const response = await fetch(`/lex-bridge/public/index.php?api=contacts&page=${page}`);
+            console.log('Response received:', response.status);
             
-            // Then check for operation status from PHP (after toast notifier is ready)
-            this.checkOperationStatus();
+            const data = await response.json();
+            console.log('Data received:', data);
             
-            if (this.config.debug) {
-                console.log('Home page initialized successfully');
+            if (data.isSuccess) {
+                console.log('Success! Updating contact list with', data.contacts.length, 'contacts');
+                this.updateContactList(data);
+                this.lexBridge.toastNotifier.show(
+                    `Loaded ${data.contacts.length} contacts`,
+                    'success'
+                );
+            } else {
+                throw new Error(data.error || 'Failed to load contacts');
             }
             
         } catch (error) {
-            console.error('Home page initialization error:', error);
+            console.error('Error loading contacts:', error);
+            this.lexBridge.toastNotifier.show(
+                'Error loading contacts: ' + error.message,
+                'error'
+            );
+        } finally {
+            button.disabled = false;
+            button.innerHTML = originalText;
+            console.log('=== loadContacts finished');
         }
     }
     
     /**
-     * Check for operation status from PHP session
+     * Update contact list in DOM
      */
-    checkOperationStatus() {
-        const container = document.getElementById(this.config.containers.tabManager);
-        const statusData = container?.dataset.operationStatus;
+    updateContactList(data) {
+        const tbody = document.querySelector('.contacts-container tbody');
+        if (!tbody) return;
         
-        if (statusData) {
-            try {
-                const operation = JSON.parse(statusData);
-                
-                // Show notification based on status
-                if (operation.status === 'success') {
-                    this.showNotification(operation.message, 'success');
-                } else if (operation.status === 'error') {
-                    this.showNotification(operation.message, 'error');
-                }
-                
-                // Clean up data attribute
-                delete container.dataset.operationStatus;
-                
-                // Clean up URL
-                this.cleanupUrl();
-                
-            } catch (error) {
-                console.error('Error parsing operation status:', error);
-            }
+        if (data.contacts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No contacts found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = data.contacts.map(contact => this.createContactRow(contact)).join('');
+        
+        // Update total
+        const totalElement = document.querySelector('.contacts-container p strong');
+        if (totalElement && totalElement.parentElement) {
+            totalElement.parentElement.innerHTML = `<strong>Total:</strong> ${data.contacts.length} contacts`;
         }
     }
     
     /**
-     * Show notification to user
+     * Create contact row HTML
      */
-    showNotification(message, type = 'info') {
-        if (this.lexBridge?.toastNotifier) {
-            this.lexBridge.toastNotifier.show(message, type);
-        } else {
-            console.log(`[${type.toUpperCase()}] ${message}`);
-        }
+    createContactRow(contact) {
+        return `
+            <tr>
+                <td>${this.escapeHtml(contact.id || '')}</td>
+                <td>${this.escapeHtml(contact.companyName || '')}</td>
+                <td>${this.escapeHtml(contact.customerNumber || '')}</td>
+            </tr>
+        `;
     }
     
     /**
-     * Remove status parameter from URL
+     * Escape HTML to prevent XSS
      */
-    cleanupUrl() {
-        const url = new URL(window.location.href);
-        if (url.searchParams.has('status')) {
-            url.searchParams.delete('status');
-            window.history.replaceState({}, '', url.toString());
-        }
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 
-// Export to global scope
-window.HomePage = HomePage;
+window.ContactsPage = ContactsPage;

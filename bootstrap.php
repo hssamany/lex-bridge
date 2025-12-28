@@ -32,3 +32,12 @@ require_once __DIR__ . '/config.php';
 if (empty($apiKey) || empty($baseUrl)) {
     throw new Exception('API configuration missing. Please check config.php');
 }
+
+// Define constants for global access
+define('API_KEY', $apiKey);
+define('API_BASE_URL', $baseUrl);
+define('DB_HOST', $dbHost);
+define('DB_PORT', $dbPort);
+define('DB_NAME', $dbName);
+define('DB_USERNAME', $dbUsername);
+define('DB_PASSWORD', $dbPassword);

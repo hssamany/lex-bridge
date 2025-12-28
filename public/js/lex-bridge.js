@@ -11,6 +11,8 @@ class LexBridge {
     constructor() {
         this.tabManager = null;
         this.toastNotifier = null;
+        this.contactsPage = null;
+        this.invoicesPage = null;
         this.config = {
             apiEndpoint: window.location.origin,
             debug: true
@@ -77,14 +79,9 @@ class LexBridge {
                 label: 'Contacts',
                 content: contactsContent,
                 action: {
-                    url: '?action=get-contacts',
-                    method: 'get',
+                    name: 'get-contacts',
                     icon: '↻',
-                    label: 'Sync Contacts',
-                    hiddenFields: {
-                        action: 'get-contacts',
-                        page: '0'
-                    }
+                    label: 'Sync Contacts'
                 }
             },
             {
@@ -92,13 +89,9 @@ class LexBridge {
                 label: 'Invoices',
                 content: invoicesContent,
                 action: {
-                    url: '?action=get-invoices',
-                    method: 'get',
+                    name: 'get-invoices',
                     icon: '↻',
-                    label: 'Refresh Invoices',
-                    hiddenFields: {
-                        action: 'get-invoices'
-                    }
+                    label: 'Refresh Invoices'
                 }
             }
         ];
@@ -117,6 +110,13 @@ class LexBridge {
         this.tabManager.onTabChange((tabName) => {
             this.onTabChange(tabName);
         });
+        
+        // Manually trigger onTabChange for the initially active tab
+        const activeTab = this.tabManager.getActiveTab();
+        if (activeTab) {
+            console.log('Triggering onTabChange for initial tab:', activeTab);
+            this.onTabChange(activeTab);
+        }
     }
     
     /**
@@ -137,17 +137,9 @@ class LexBridge {
      * Attach handlers to forms (sync, post, etc.)
      */
     attachFormHandlers() {
-        // Handle sync contacts form
-        const syncForm = document.querySelector('form[action*="get-contacts"]');
-        syncForm?.addEventListener('submit', (e) => {
-            this.handleSyncStart(e);
-        });
-        
-        // Handle refresh invoices form
-        const refreshInvoicesForm = document.querySelector('form[action*="get-invoices"]');
-        refreshInvoicesForm?.addEventListener('submit', (e) => {
-            this.handleRefreshInvoicesStart(e);
-        });
+        // Note: Contact sync is now handled by ContactsPage class via AJAX
+        // Note: Invoice refresh is now handled by InvoicesPage class via AJAX
+        // No need for form submission handlers here
         
         // Handle post invoices form
         const postForm = document.querySelector('form[action*="post-invoices"]');
@@ -229,16 +221,25 @@ class LexBridge {
             console.log('Tab changed to:', tabName);
         }
         
+        // Initialize page-specific functionality
+        if (tabName === 'contacts' && !this.contactsPage) {
+            console.log('Creating ContactsPage instance');
+            this.contactsPage = new ContactsPage(this);
+        } else if (tabName === 'invoices' && !this.invoicesPage) {
+            console.log('Creating InvoicesPage instance');
+            this.invoicesPage = new InvoicesPage(this);
+        }
+        
         this.updateActionButtons(tabName);
         
-        switch(tabName) {
-            case 'contacts':
-                this.loadContactsIfNeeded();
-                break;
-            case 'invoices':
-                this.loadInvoicesIfNeeded();
-                break;
-        }
+        // Re-setup event handlers after buttons are visible
+        setTimeout(() => {
+            if (tabName === 'contacts' && this.contactsPage) {
+                this.contactsPage.setupRefreshButtonDirect();
+            } else if (tabName === 'invoices' && this.invoicesPage) {
+                this.invoicesPage.setupRefreshButtonDirect();
+            }
+        }, 100);
     }
     
     /**

@@ -5,7 +5,7 @@
     >
         <h2>Invoices</h2>
         
-        <table>
+        <table class="invoice-table">
             <thead>
                 <tr>
                     <th>Action</th>
@@ -39,9 +39,27 @@
         <p><strong>Total:</strong> <?= count($invoicesData['invoices']) ?> invoices</p>
     </div>
 
-<?php elseif (isset($invoicesData)): ?>
+<?php else: ?>
     <div class="invoices-container">
-        <p>No invoices found. Create new invoices to see them here.</p>
+        <h2>Invoices</h2>
+        
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Customer</th>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th>Status</th>
+                    <th>Attempts</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Empty - will be populated via AJAX -->
+            </tbody>
+        </table>
+        <p><strong>Total:</strong> 0 invoices</p>
     </div>
     
 <?php endif; ?>
