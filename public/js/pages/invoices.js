@@ -58,6 +58,7 @@ class InvoicesPage {
      * Setup refresh button directly on the form element (called after tab is visible)
      */
     setupRefreshButtonDirect() {
+
         const refreshForm = document.querySelector('form[name="get-invoices"]');
         console.log('setupRefreshButtonDirect - form found:', refreshForm);
         
@@ -70,16 +71,17 @@ class InvoicesPage {
             console.log('Button found:', button);
             
             if (button && !button.dataset.ajaxHandlerAttached) {
-                console.log('Attaching click handler to invoices button');
+                
                 button.dataset.ajaxHandlerAttached = 'true';
                 
                 // Remove submit type to prevent form submission
                 button.type = 'button';
                 
                 button.addEventListener('click', async (e) => {
-                    console.log('Invoices button clicked - loading via AJAX');
+
                     e.preventDefault();
                     e.stopPropagation();
+
                     await this.loadInvoices();
                 });
             }

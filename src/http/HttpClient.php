@@ -25,9 +25,10 @@ final class HttpClient
      */
     public function post(string $endpoint, array $data): HttpResponse
     {
+        $payload = json_encode($data); 
+        
         $url = $this -> baseUrl . $endpoint;
         $ch = curl_init($url);        
-        $payload = json_encode($data); 
 
         error_log('JSON Payload to Lexware: ' . json_encode($payload, JSON_PRETTY_PRINT));
         
