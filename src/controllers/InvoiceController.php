@@ -28,22 +28,22 @@ final class InvoiceController
     }
     
     /**
-     * Create an invoice and prepare data for view
+     * Transfer a single invoice to Lexware by ID
      * 
-     * @param Invoice $invoice Invoice object to create
-     * @return array Formatted invoice response data
+     * @param string $invoiceId Invoice ID to transfer
+     * @return array Transfer result with statusCode, isSuccess, error, and invoice data
      */
-    public function transferInvoiceToLexware(Invoice $invoice): array
+    public function transferInvoiceToLexware(string $invoiceId): array
     {
-        $response = $this->invoiceService->transferInvoiceToLexware($invoice);
+        $result = $this->invoiceService->transferInvoiceById($invoiceId);
+        $response = $result['response'];
+        $invoice = $result['invoice'];
         
         return [
-            'hasError' => $response->getError() !== null,
-            'errorMessage' => $response->getError(),
             'statusCode' => $response->getStatusCode(),
             'isSuccess' => $response->isSuccess(),
-            'requestData' => json_encode($invoice->toArray(), JSON_PRETTY_PRINT),
-            'responseBody' => htmlspecialchars($response->getBody())
+            'error' => $response->getError(),
+            'invoice' => $invoice
         ];
     }
 }

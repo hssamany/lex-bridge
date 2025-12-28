@@ -37,7 +37,7 @@ final class Invoice
     public string $status = 'draft';
     
     // Lex API response fields
-    public ?string $lexId = null;
+    public ?string $lexInvoiceId = null;
     public ?string $lexResourceUri = null;
     public int $lexVersion = 0;
     public ?string $lexCreatedDate = null;
@@ -55,7 +55,7 @@ final class Invoice
     public ?string $transmittedAt = null;
     
     // Related data (loaded from joins)
-    public ?string $customerNumber = null;
+    public ?string $lexContactId = null;
     public ?string $companyName = null;
     public ?array $lineItems = null; // Array of InvoiceLineItem objects
     
@@ -145,7 +145,7 @@ final class Invoice
         
         $invoice->status = $row['status'] ?? 'draft';
         
-        $invoice->lexId = $row['lex_id'] ?? null;
+        $invoice->lexInvoiceId = $row['lex_id'] ?? null;
         $invoice->lexResourceUri = $row['lex_resource_uri'] ?? null;
         $invoice->lexVersion = $row['lex_version'] ?? 0;
         $invoice->lexCreatedDate = $row['lex_created_date'] ?? null;
@@ -161,7 +161,7 @@ final class Invoice
         $invoice->transmittedAt = $row['transmitted_at'] ?? null;
         
         // Related data from joins
-        $invoice->customerNumber = $row['customer_number'] ?? null;
+        $invoice->lexContactId = $row['lex_contact_id'] ?? null;
         $invoice->companyName = $row['company_name'] ?? null;
         
         return $invoice;
@@ -200,12 +200,46 @@ final class Invoice
     }
     
     /**
+     * Convert to array for JSON responses
+     */
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'contactId' => $this->contactId,
+            'companyName' => $this->companyName,
+            'voucherDate' => $this->voucherDate,
+            'archived' => $this->archived,
+            'title' => $this->title,
+            'introduction' => $this->introduction,
+            'remark' => $this->remark,
+            'currency' => $this->currency,
+            'totalNetAmount' => $this->totalNetAmount,
+            'totalGrossAmount' => $this->totalGrossAmount,
+            'taxType' => $this->taxType,
+            'paymentTermLabel' => $this->paymentTermLabel,
+            'paymentTermDuration' => $this->paymentTermDuration,
+            'paymentDiscountPercentage' => $this->paymentDiscountPercentage,
+            'paymentDiscountRange' => $this->paymentDiscountRange,
+            'shippingDate' => $this->shippingDate,
+            'shippingType' => $this->shippingType,
+            'status' => $this->status,
+            'transmissionAttempts' => $this->transmissionAttempts,
+            'lastErrorMessage' => $this->lastErrorMessage,
+            'lastErrorCode' => $this->lastErrorCode,
+            'lexContactId' => $this->lexContactId,
+            'lexInvoiceId' => $this->lexInvoiceId,
+            'lineItems' => array_map(fn($item) => $item->toArray(), $this->lineItems ?? [])
+        ];
+    }
+    
+    /**
      * Convert to Lexware API JSON payload format
      */
     public function toLexwarePayload(): array
     {
-        if (!$this->customerNumber) {
-            throw new \Exception('Customer number is required for Lexware API');
+        if (!$this->lexContactId) {
+            throw new \Exception('Lex contact ID is required for Lexware API');
         }
         
         // Build line items array
@@ -220,7 +254,7 @@ final class Invoice
             'archived' => $this->archived,
             'voucherDate' => $this->formatDateForLexware($this->voucherDate),
             'address' => [
-                'customerId' => $this->customerNumber
+                'contactId' => $this->lexContactId
             ],
             'lineItems' => $lineItemsPayload,
             'totalPrice' => [
@@ -265,7 +299,7 @@ final class Invoice
      */
     public function updateFromLexwareResponse(array $response): void
     {
-        $this->lexId = $response['id'] ?? null;
+        $this->lexInvoiceId = $response['id'] ?? null;
         $this->lexResourceUri = $response['resourceUri'] ?? null;
         $this->lexVersion = $response['version'] ?? 0;
         $this->lexCreatedDate = $this->convertLexwareDate($response['createdDate'] ?? null);
@@ -293,7 +327,7 @@ final class Invoice
      */
     public function isTransmitted(): bool
     {
-        return $this->status === 'transmitted' && !empty($this->lexId);
+        return $this->status === 'transmitted' && !empty($this->lexInvoiceId);
     }
     
     /**

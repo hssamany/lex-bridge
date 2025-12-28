@@ -21,8 +21,12 @@ class InvoiceRepository
      */
     public function findById(string $id): ?Invoice
     {
-        $sql = "SELECT i.*
+        $sql = "SELECT 
+                    i.*,
+                    c.lex_contact_id,
+                    c.company_name
                 FROM invoices i
+                LEFT JOIN customer c ON i.contact_id = c.id
                 WHERE i.id = :id
                 LIMIT 1";
         

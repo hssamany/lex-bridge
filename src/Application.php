@@ -38,6 +38,7 @@ final class Application
             match($action) {
                 'get-contacts' => $this->handleGetContacts(),
                 'get-invoices' => $this->handleGetInvoices(),
+                'transfer-invoice' => $this->handleTransferInvoice(),
                 'home' => $this->displayHome(),
                 default => $this->handle404()
             };
@@ -68,6 +69,32 @@ final class Application
         $_SESSION['invoicesData'] = $this->invoiceController->getInvoices();
         
         $this->redirect('?action=home&status=success');
+    }
+    
+    /**
+     * Handle transfer-invoice action
+     */
+    private function handleTransferInvoice(): void
+    {
+        $invoiceId = $_POST['invoice_id'] ?? null;
+        
+        if (empty($invoiceId)) {
+            $_SESSION['error'] = 'No invoice selected for transfer';
+            $this->redirect('?action=home&status=error');
+            return;
+        }
+        
+        $result = $this->invoiceController->transferInvoiceToLexware($invoiceId);
+        
+        // Refresh invoices list
+        $_SESSION['invoicesData'] = $this->invoiceController->getInvoices();
+        
+        if ($result['isSuccess']) {
+            $this->redirect('?action=home&status=success');
+        } else {
+            $_SESSION['error'] = $result['error'] ?? 'Transfer failed';
+            $this->redirect('?action=home&status=error');
+        }
     }
     
     /**

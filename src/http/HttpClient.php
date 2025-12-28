@@ -27,8 +27,12 @@ final class HttpClient
     {
         $url = $this -> baseUrl . $endpoint;
         $ch = curl_init($url);        
+        $payload = json_encode($data); 
 
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        error_log('JSON Payload to Lexware: ' . json_encode($payload, JSON_PRETTY_PRINT));
+        
+
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $this->headers);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);

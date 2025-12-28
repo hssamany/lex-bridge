@@ -39,6 +39,7 @@
     <script src="js/components/tab-manager/tab-manager.js"></script>
     <script src="js/lex-bridge.js"></script>
     <script src="js/pages/home.js"></script>
+    <script src="js/pages/invoices.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

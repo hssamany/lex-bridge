@@ -147,6 +147,29 @@ final class InvoiceLineItem
     }
     
     /**
+     * Convert to array for JSON responses
+     */
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'invoiceId' => $this->invoiceId,
+            'lineOrder' => $this->lineOrder,
+            'type' => $this->type,
+            'name' => $this->name,
+            'description' => $this->description,
+            'quantity' => $this->quantity,
+            'unitName' => $this->unitName,
+            'currency' => $this->currency,
+            'netAmount' => $this->netAmount,
+            'taxRatePercentage' => $this->taxRatePercentage,
+            'discountPercentage' => $this->discountPercentage,
+            'lineTotalNet' => $this->lineTotalNet,
+            'lineTotalGross' => $this->lineTotalGross
+        ];
+    }
+    
+    /**
      * Convert to Lexware API format
      */
     public function toLexwarePayload(): array

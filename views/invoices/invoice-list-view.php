@@ -8,6 +8,7 @@
         <table>
             <thead>
                 <tr>
+                    <th>Action</th>
                     <th>Customer</th>
                     <th>Date</th>
                     <th>Items</th>
@@ -19,6 +20,12 @@
             <tbody>
                 <?php foreach ($invoicesData['invoices'] as $invoice): ?>
                     <tr>
+                        <td>
+                            <form method="POST" action="?action=transfer-invoice" class="inline-form" data-invoice-id="<?= htmlspecialchars($invoice['id']) ?>">
+                                <input type="hidden" name="invoice_id" value="<?= htmlspecialchars($invoice['id']) ?>">
+                                <button type="submit" class="btn-icon-only transfer-invoice-btn" title="Transfer to Lexware">▶</button>
+                            </form>
+                        </td>
                         <td><?= htmlspecialchars(mb_substr($invoice['company_name'] ?? 'N/A', 0, 20)) ?><?= mb_strlen($invoice['company_name'] ?? '') > 20 ? '...' : '' ?></td>
                         <td><?= htmlspecialchars($invoice['voucher_date'] ?? '') ?></td>
                         <td><?= htmlspecialchars($invoice['item_count'] ?? '0') ?></td>
