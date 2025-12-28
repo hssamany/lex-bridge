@@ -210,11 +210,9 @@ class InvoicesPage {
             button.disabled = true;
             button.innerHTML = '⏳';
             
-            const response = await fetch('/lex-bridge/public/index.php?api=transfer', {
+            const response = await fetch('/lex-bridge/public/index.php?api=invoices/transfer', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ invoice_id: invoiceId })
             });
             
