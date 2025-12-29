@@ -11,12 +11,15 @@ class ApiKernel
     {
         $this->httpClient = new HttpClient(API_KEY, API_BASE_URL);
         $this->router = new ApiRouter();
-        $this->registerRoutes();
+
+        $this->postInvoiceRouteRegistration();
+        $this->getContactsRouteRegistration();
+        $this->postContactRouteRegistration();
     }
 
-    private function registerRoutes(): void
+    // Contact routes
+    private function getContactsRouteRegistration(): void
     {
-        // Contact routes
         $this->router -> get('/contacts', function() {
             $controller = ControllerFactory::makeContactController($this->httpClient);
             $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
@@ -24,14 +27,21 @@ class ApiKernel
             ]);
             return $controller->getContacts($page);
         });
+    }
 
-        // Invoice routes
-        $this->router -> get('/invoices', function() {
-            $controller = ControllerFactory::makeInvoiceController($this->httpClient);
-            return $controller->getInvoices();
+    // Create new contact
+    private function postContactRouteRegistration(): void
+    {
+        $this->router -> post('/contacts', function() {
+            $controller = ControllerFactory::makeContactController($this->httpClient);
+            $data = json_decode(file_get_contents('php://input'), true);
+            return $controller->createContact($data);
         });
+    }
 
-        // Transfer invoice to Lexware
+    // Transfer invoice to Lexware
+    private function postInvoiceRouteRegistration(): void
+    {     
         $this->router -> post('/invoices/transfer', function() {
 
             $controller = ControllerFactory::makeInvoiceController($this->httpClient);

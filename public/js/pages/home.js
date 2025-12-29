@@ -92,19 +92,18 @@ class ContactsPage {
      * Load contacts via AJAX
      */
     async loadContacts(page = 0) {
-        console.log('=== loadContacts called, page:', page);
         const button = document.querySelector('form[name="get-contacts"] button');
-        console.log('Button element:', button);
         
         if (!button) {
-            console.error('Refresh button not found');
+            console.error('Refresh button html tag not found');
             return;
         }
         
         const originalText = button.innerHTML;
         console.log('Original button text:', originalText);
         
-        try {
+        try 
+        {
             button.disabled = true;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             
@@ -118,10 +117,12 @@ class ContactsPage {
             if (data.isSuccess) {
                 console.log('Success! Updating contact list with', data.contacts.length, 'contacts');
                 this.updateContactList(data);
-                this.lexBridge.toastNotifier.show(
+                this.lexBridge.toastNotifier.show
+                (
                     `Loaded ${data.contacts.length} contacts`,
                     'success'
                 );
+
             } else {
                 throw new Error(data.error || 'Failed to load contacts');
             }
@@ -143,7 +144,9 @@ class ContactsPage {
      * Update contact list in DOM
      */
     updateContactList(data) {
+
         const tbody = document.querySelector('.contacts-container tbody');
+        
         if (!tbody) return;
         
         if (data.contacts.length === 0) {
