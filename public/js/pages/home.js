@@ -16,8 +16,7 @@ class ContactsPage {
             this.setupRefreshButton();
             ContactsPage.handlerSetup = true;
         }
-        // Auto-load contacts on page load if empty
-        this.autoLoadIfEmpty();
+        // Removed autoLoadIfEmpty to prevent toast on first tab load
     }
     
     /**

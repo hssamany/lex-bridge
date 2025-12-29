@@ -32,7 +32,7 @@ class InvoicesPage {
             console.log('Invoice tbody children count:', tbody?.children.length);
             if (tbody && tbody.children.length === 0) {
                 console.log('Auto-loading invoices...');
-                await this.loadInvoices();
+                await this.loadInvoices(0, false);
             }
         }, 100);
     }
@@ -48,7 +48,7 @@ class InvoicesPage {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                await this.loadInvoices();
+                await this.loadInvoices(0, true);
                 return false;
             }
         }, true); // Use capture phase to intercept before other handlers
@@ -58,31 +58,22 @@ class InvoicesPage {
      * Setup refresh button directly on the form element (called after tab is visible)
      */
     setupRefreshButtonDirect() {
-
         const refreshForm = document.querySelector('form[name="get-invoices"]');
         console.log('setupRefreshButtonDirect - form found:', refreshForm);
-        
         if (refreshForm) {
             // Remove the action attribute to prevent navigation
             refreshForm.removeAttribute('action');
             refreshForm.setAttribute('data-original-action', '?action=get-invoices');
-            
             const button = refreshForm.querySelector('button[type="submit"]');
             console.log('Button found:', button);
-            
             if (button && !button.dataset.ajaxHandlerAttached) {
-                
                 button.dataset.ajaxHandlerAttached = 'true';
-                
                 // Remove submit type to prevent form submission
                 button.type = 'button';
-                
                 button.addEventListener('click', async (e) => {
-
                     e.preventDefault();
                     e.stopPropagation();
-
-                    await this.loadInvoices();
+                    await this.loadInvoices(0, true);
                 });
             }
         }
@@ -91,41 +82,38 @@ class InvoicesPage {
     /**
      * Load invoices via AJAX
      */
-    async loadInvoices() {
+    async loadInvoices(page = 0, isUserAction = false) {
         const button = document.querySelector('form[name="get-invoices"] button');
-        
         if (!button) {
             console.error('Refresh button not found');
             return;
         }
-        
         const originalText = button.innerHTML;
-        
         console.log('Loading invoices from API...');
-        
         try {
             button.disabled = true;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
-            
-            const response = await fetch('/lex-bridge/api/invoices');
+            const response = await fetch(`/lex-bridge/api/invoices?page=${page}`);
             const data = await response.json();
-            
             if (data && data.invoices) {
                 this.updateInvoiceList(data.invoices);
-                this.lexBridge.toastNotifier.show(
-                    `Loaded ${data.invoices.length} invoices`,
-                    'success'
-                );
+                if (isUserAction) {
+                    this.lexBridge.toastNotifier.show(
+                        `Loaded ${data.invoices.length} invoices`,
+                        'success'
+                    );
+                }
             } else {
                 throw new Error('Failed to load invoices');
             }
-            
         } catch (error) {
             console.error('Error loading invoices:', error);
-            this.lexBridge.toastNotifier.show(
-                'Error loading invoices: ' + error.message,
-                'error'
-            );
+            if (isUserAction) {
+                this.lexBridge.toastNotifier.show(
+                    'Error loading invoices: ' + error.message,
+                    'error'
+                );
+            }
         } finally {
             button.disabled = false;
             button.innerHTML = originalText;
