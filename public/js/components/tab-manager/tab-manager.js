@@ -9,7 +9,7 @@ class TabManager {
 
         this.config = {
             containerId: options.containerId || null,
-            templateUrl: options.templateUrl || 'js/components/tab-manager/tab-manager.html',
+            templateUrl: options.templateUrl || 'public/js/components/tab-manager/tab-manager.html',
             cssUrl: options.cssUrl || 'js/components/tab-manager/tab-manager.css',
             tabs: options.tabs || [], // Array of tab definitions
             activeClass: options.activeClass || 'active',

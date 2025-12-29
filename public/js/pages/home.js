@@ -109,7 +109,7 @@ class ContactsPage {
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             
             console.log('Fetching contacts from API...');
-            const response = await fetch(`/lex-bridge/public/index.php?api=contacts&page=${page}`);
+            const response = await fetch(`/lex-bridge/api/contacts?page=${page}`);
             console.log('Response received:', response.status);
             
             const data = await response.json();

@@ -9,7 +9,7 @@ class ToastNotifier {
         this.config = {
             containerId: options.containerId || 'toast-container',
             templateId: options.templateId || 'toast-msg-template',
-            templateUrl: options.templateUrl || 'js/components/toast-notifier/toast-notifier.html',
+            templateUrl: options.templateUrl || 'public/js/components/toast-notifier/toast-notifier.html',
             cssUrl: options.cssUrl || 'js/components/toast-notifier/toast-notifier.css',
             defaultDuration: options.defaultDuration || 5000,
             debug: options.debug || false

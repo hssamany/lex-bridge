@@ -13,6 +13,10 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Load required classes
+require_once __DIR__ . '/src/constants/HttpMethod.php';
+require_once __DIR__ . '/src/constants/HttpHeader.php';
+require_once __DIR__ . '/src/constants/ContentType.php';
+require_once __DIR__ . '/src/constants/HttpStatus.php';
 require_once __DIR__ . '/src/http/HttpResponse.php';
 require_once __DIR__ . '/src/http/HttpClient.php';
 require_once __DIR__ . '/src/database/Database.php';
@@ -23,6 +27,7 @@ require_once __DIR__ . '/src/services/ContactService.php';
 require_once __DIR__ . '/src/services/InvoiceService.php';
 require_once __DIR__ . '/src/controllers/ContactController.php';
 require_once __DIR__ . '/src/controllers/InvoiceController.php';
+require_once __DIR__ . '/src/controllers/ControllerFactory.php';
 require_once __DIR__ . '/src/repositories/ContactRepository.php';
 require_once __DIR__ . '/src/repositories/InvoiceRepository.php';
 require_once __DIR__ . '/views/home/homeView.php';

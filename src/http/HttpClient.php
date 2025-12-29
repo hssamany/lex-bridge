@@ -14,9 +14,9 @@ final class HttpClient
         $this->apiKey = $apiKey;
         $this->baseUrl = $baseUrl;
         $this->headers = [
-            'Content-Type: application/json',
-            'Accept: application/json',
-            'Authorization: Bearer ' . $this->apiKey
+            HttpHeader::ACCEPT . ': ' . ContentType::JSON,
+            HttpHeader::CONTENT_TYPE . ': ' . ContentType::JSON,
+            HttpHeader::AUTHORIZATION . ': Bearer ' . $this->apiKey
         ];
     }
     
@@ -28,13 +28,10 @@ final class HttpClient
         $payload = json_encode($data); 
         
         $url = $this -> baseUrl . $endpoint;
-        $ch = curl_init($url);        
+        $ch = curl_init($url);         
 
-        error_log('JSON Payload to Lexware: ' . json_encode($payload, JSON_PRETTY_PRINT));
-        
-
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $this->headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         

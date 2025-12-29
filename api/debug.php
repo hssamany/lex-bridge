@@ -1,5 +1,5 @@
 <?php
-header('Content-Type: application/json');
+header(HttpHeader::CONTENT_TYPE . ': ' . ContentType::JSON);
 echo json_encode([
     'REQUEST_URI' => $_SERVER['REQUEST_URI'] ?? null,
     'PATH_INFO' => $_SERVER['PATH_INFO'] ?? null,

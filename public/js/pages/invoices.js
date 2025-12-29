@@ -107,7 +107,7 @@ class InvoicesPage {
             button.disabled = true;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             
-            const response = await fetch('/lex-bridge/public/index.php?api=invoices');
+            const response = await fetch('/lex-bridge/api/invoices');
             const data = await response.json();
             
             if (data && data.invoices) {
@@ -210,7 +210,7 @@ class InvoicesPage {
             button.disabled = true;
             button.innerHTML = '⏳';
             
-            const response = await fetch('/lex-bridge/public/index.php?api=invoices/transfer', {
+            const response = await fetch('/lex-bridge/api/invoices/transfer', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ invoice_id: invoiceId })

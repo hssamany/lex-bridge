@@ -79,7 +79,7 @@ final class InvoiceService
             
             // Return error response
             return [
-                'response' => new HttpResponse(500, null, $e->getMessage()),
+                'response' => new HttpResponse(HttpStatus::INTERNAL_SERVER_ERROR, null, $e->getMessage()),
                 'invoice' => $invoice->toArray()
             ];
         }
