@@ -49,7 +49,9 @@ final class Application
         
         $homeView = new HomeView($status, $emptyContactsData, $error, $emptyInvoicesData);
         
-        $this->render('home/home', ['homeView' => $homeView]);
+        $this->render('home/home', [
+            'homeView' => $homeView
+        ]);
     }
     
     /**

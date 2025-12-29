@@ -12,6 +12,7 @@ class ApiKernel
         $this->httpClient = new HttpClient(API_KEY, API_BASE_URL);
         $this->router = new ApiRouter();
 
+        $this->getInvoicesRouteRegistration();
         $this->postInvoiceRouteRegistration();
         $this->getContactsRouteRegistration();
         $this->postContactRouteRegistration();
@@ -28,7 +29,7 @@ class ApiKernel
             return $controller->getContacts($page);
         });
     }
-
+    
     // Create new contact
     private function postContactRouteRegistration(): void
     {
@@ -36,6 +37,15 @@ class ApiKernel
             $controller = ControllerFactory::makeContactController($this->httpClient);
             $data = json_decode(file_get_contents('php://input'), true);
             return $controller->createContact($data);
+        });
+    }
+
+    // Invoice routes
+    private function getInvoicesRouteRegistration(): void
+    {
+        $this->router -> get('/invoices', function() {
+            $controller = ControllerFactory::makeInvoiceController($this->httpClient);
+            return $controller->getInvoices();
         });
     }
 
