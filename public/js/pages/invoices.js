@@ -1,20 +1,23 @@
 'use strict';
 
 class InvoicesPage {
+
     static handlerSetup = false; // Track if handler is already set up
     
-    constructor(lexBridge) {
+    constructor(lexBridge) 
+    {
         this.lexBridge = lexBridge;
         this.init();
     }
     
     init() {
-        console.log('InvoicesPage initialized');
+        
         // Event delegation will be set up globally
         if (!InvoicesPage.handlerSetup) {
             this.setupRefreshButton();
             InvoicesPage.handlerSetup = true;
         }
+
         this.setupTransferButtons();
         // Auto-load invoices on page load if empty
         this.autoLoadIfEmpty();
@@ -27,13 +30,14 @@ class InvoicesPage {
         console.log('InvoicesPage: checking if should auto-load');
         // Wait a tick for the tab to be fully rendered
         setTimeout(async () => {
+
             const tbody = document.querySelector('.invoices-container tbody');
-            console.log('Invoice tbody found:', tbody);
-            console.log('Invoice tbody children count:', tbody?.children.length);
+            
             if (tbody && tbody.children.length === 0) {
                 console.log('Auto-loading invoices...');
                 await this.loadInvoices(0, false);
             }
+
         }, 100);
     }
     
@@ -43,6 +47,7 @@ class InvoicesPage {
     setupRefreshButton() {
         // Use event delegation on document to catch form submit even if form is added later
         document.addEventListener('submit', async (e) => {
+
             if (e.target.matches('form[name="get-invoices"]')) {
                 console.log('Invoices form submit intercepted - loading via AJAX');
                 e.preventDefault();
@@ -51,24 +56,27 @@ class InvoicesPage {
                 await this.loadInvoices(0, true);
                 return false;
             }
+
         }, true); // Use capture phase to intercept before other handlers
     }
     
     /**
      * Setup refresh button directly on the form element (called after tab is visible)
      */
-    setupRefreshButtonDirect() {
+    setupRefreshButtonDirect() 
+    {
         const refreshForm = document.querySelector('form[name="get-invoices"]');
-        console.log('setupRefreshButtonDirect - form found:', refreshForm);
+        
         if (refreshForm) {
+
             // Remove the action attribute to prevent navigation
             refreshForm.removeAttribute('action');
             refreshForm.setAttribute('data-original-action', '?action=get-invoices');
             const button = refreshForm.querySelector('button[type="submit"]');
-            console.log('Button found:', button);
+                        
             if (button && !button.dataset.ajaxHandlerAttached) {
+
                 button.dataset.ajaxHandlerAttached = 'true';
-                // Remove submit type to prevent form submission
                 button.type = 'button';
                 button.addEventListener('click', async (e) => {
                     e.preventDefault();
@@ -83,18 +91,22 @@ class InvoicesPage {
      * Load invoices via AJAX
      */
     async loadInvoices(page = 0, isUserAction = false) {
+
         const button = document.querySelector('form[name="get-invoices"] button');
+        
         if (!button) {
             console.error('Refresh button not found');
             return;
         }
         const originalText = button.innerHTML;
-        console.log('Loading invoices from API...');
+        
         try {
+            
             button.disabled = true;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             const response = await fetch(`/lex-bridge/api/invoices?page=${page}`);
             const data = await response.json();
+            
             if (data && data.invoices) {
                 this.updateInvoiceList(data.invoices);
                 if (isUserAction) {
@@ -106,10 +118,14 @@ class InvoicesPage {
             } else {
                 throw new Error('Failed to load invoices');
             }
+
         } catch (error) {
+
             console.error('Error loading invoices:', error);
+
             if (isUserAction) {
-                this.lexBridge.toastNotifier.show(
+                this.lexBridge.toastNotifier.show
+                (
                     'Error loading invoices: ' + error.message,
                     'error'
                 );
@@ -124,7 +140,9 @@ class InvoicesPage {
      * Update invoice list in DOM
      */
     updateInvoiceList(invoices) {
+
         const tbody = document.querySelector('.invoices-container tbody');
+
         if (!tbody) {
             console.error('Invoice tbody not found in updateInvoiceList');
             return;
@@ -138,6 +156,7 @@ class InvoicesPage {
         tbody.innerHTML = invoices.map(invoice => this.createInvoiceRow(invoice)).join('');
         
         const totalElement = document.querySelector('.invoices-container p strong');
+        
         if (totalElement && totalElement.parentElement) {
             totalElement.parentElement.innerHTML = `<strong>Total:</strong> ${invoices.length} invoices`;
         }
@@ -149,6 +168,7 @@ class InvoicesPage {
      * Create invoice row HTML
      */
     createInvoiceRow(invoice) {
+
         const companyName = invoice.company_name || 'N/A';
         const displayName = companyName.length > 20 
             ? companyName.substring(0, 20) + '...' 
@@ -179,7 +199,9 @@ class InvoicesPage {
      * Setup transfer buttons
      */
     setupTransferButtons() {
+
         const transferBtns = document.querySelectorAll('.transfer-btn');
+        
         transferBtns.forEach(btn => {
             btn.addEventListener('click', async () => {
                 const invoiceId = btn.dataset.invoiceId;
@@ -192,6 +214,7 @@ class InvoicesPage {
      * Transfer invoice via AJAX
      */
     async transferInvoice(invoiceId, button) {
+
         const originalText = button.innerHTML;
         
         try {
@@ -211,13 +234,17 @@ class InvoicesPage {
                     'Invoice transferred successfully to Lexware',
                     'success'
                 );
+
                 await this.loadInvoices();
+
             } else {
                 throw new Error(result.error || 'Failed to transfer invoice');
             }
             
         } catch (error) {
+
             console.error('Error transferring invoice:', error);
+
             this.lexBridge.toastNotifier.show(
                 'Error transferring invoice: ' + error.message,
                 'error'
