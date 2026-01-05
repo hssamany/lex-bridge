@@ -240,7 +240,6 @@ class LineItemsPage {
 
             return `
                 <tr>
-                    <td>${this.escapeHtml(invoice)}</td>
                     <td>${this.escapeHtml(position)}</td>
                     <td>${this.escapeHtml(item.name || '')}</td>
                     <td>${this.escapeHtml(quantity)}</td>
@@ -256,7 +255,6 @@ class LineItemsPage {
             <table class="line-items-table">
                 <thead>
                     <tr>
-                        <th>Rechnung</th>
                         <th>Pos.</th>
                         <th>Bezeichnung</th>
                         <th>Menge</th>

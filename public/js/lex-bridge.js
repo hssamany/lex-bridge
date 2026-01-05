@@ -264,7 +264,7 @@ class LexBridge {
         const actionButtons = document.querySelectorAll('.tab-action');
         actionButtons.forEach(action => {
             const forTab = action.getAttribute('data-for');
-            action.style.display = forTab === tabName ? 'block' : 'none';
+            action.style.display = forTab === tabName ? '' : 'none';
         });
     }
     

@@ -322,7 +322,7 @@ class TabManager {
         this.container.querySelector(`#${tabName}`)?.classList.add(this.config.activeClass);        
         const tabAction = this.container.querySelector(`.tab-action[data-for="${tabName}"]`);
         if (tabAction) {
-            tabAction.style.display = 'block';
+            tabAction.style.display = '';
         }
         
         this.activeTab = tabName;

@@ -99,10 +99,13 @@ input[list]::-webkit-calendar-picker-indicator {
 .line-items-filter-form {
     display: flex;
     flex-direction: row;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 1.2rem;
     align-items: flex-end;
+    justify-content: flex-end;
     margin-bottom: 1.5rem;
+    width: 100%;
+    flex: 1 1 auto;
 }
 
 .line-items-filter-form .filter-group-inline {

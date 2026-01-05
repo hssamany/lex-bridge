@@ -22,9 +22,16 @@
 
 .tab-actions {
     display: flex;
-    gap: 0.5rem;
-    flex: 0 0 auto;
+    gap: 0.75rem;
+    flex: 1 1 auto;
+    justify-content: flex-end;
     margin-left: auto;
+    min-width: 0;
+}
+
+.tab-actions > .line-items-filter-form {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 .tab-action {
