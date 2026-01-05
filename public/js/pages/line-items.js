@@ -231,12 +231,12 @@ class LineItemsPage {
         }
 
         const tableRows = items.map(item => {
-            const invoice = item.invoiceNumber || item.invoice_id || '';
             const position = item.line_order != null ? item.line_order : '';
             const quantity = item.quantity != null ? this.formatNumber(item.quantity, 3) : '';
             const netAmount = item.net_amount != null ? this.formatNumber(item.net_amount, 2) : '';
             const grossAmount = item.line_total_gross != null ? this.formatNumber(item.line_total_gross, 2) : '';
             const taxRate = item.tax_rate_percentage != null ? this.formatNumber(item.tax_rate_percentage, 2) : '';
+            const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
 
             return `
                 <tr>
@@ -246,7 +246,8 @@ class LineItemsPage {
                     <td>${this.escapeHtml(netAmount)}</td>
                     <td>${this.escapeHtml(grossAmount)}</td>
                     <td>${this.escapeHtml(taxRate)}</td>
-                    <td>${this.escapeHtml(item.created_at || '')}</td>
+                    <td>${this.escapeHtml(createdDate)}</td>
+                    <td>${this.escapeHtml(createdTime)}</td>
                 </tr>
             `;
         }).join('');
@@ -262,6 +263,7 @@ class LineItemsPage {
                         <th>Brutto</th>
                         <th>Steuer %</th>
                         <th>Erstellt am</th>
+                        <th>Uhrzeit</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -302,6 +304,68 @@ class LineItemsPage {
 
         const event = new Event('change');
         customerInput.dispatchEvent(event);
+    }
+
+    splitDateTime(value) {
+        if (!value) {
+            return { date: '', time: '' };
+        }
+
+        const parsedDate = new Date(value);
+        if (!Number.isNaN(parsedDate.getTime())) {
+            return {
+                date: parsedDate.toLocaleDateString('de-DE'),
+                time: parsedDate.toLocaleTimeString('de-DE', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
+            };
+        }
+
+        const [datePartRaw = '', timePartRaw = ''] = value.split(/[T ]/);
+        const date = this.formatIsoDate(datePartRaw);
+        const time = this.formatTimeString(timePartRaw);
+
+        return { date, time };
+    }
+
+    formatIsoDate(value) {
+        if (!value) {
+            return '';
+        }
+
+        const parts = value.split('-');
+        if (parts.length !== 3) {
+            return value;
+        }
+
+        const [year, month, dayWithRest] = parts;
+        const day = dayWithRest?.substring(0, 2) || dayWithRest;
+
+        if (!year || !month || !day) {
+            return value;
+        }
+
+        return `${day}.${month}.${year}`;
+    }
+
+    formatTimeString(value) {
+        if (!value) {
+            return '';
+        }
+
+        const [timePart] = value.split(/[Z+-]/);
+        const normalized = timePart?.trim() || '';
+        if (!normalized) {
+            return '';
+        }
+
+        const [hour = '', minute = ''] = normalized.split(':');
+        if (!hour) {
+            return normalized.substring(0, 5);
+        }
+
+        return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
     }
 }
 
