@@ -1,3 +1,167 @@
+.customer-search-combobox {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.customer-search-combobox:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+.line-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.line-items-table th,
+.line-items-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+.line-items-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.line-items-empty {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px dashed #d0d5dd;
+    color: #555;
+    text-align: center;
+}
+.customer-search-combobox {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+.customer-search-combobox:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+/* Style datalist dropdown for consistency (browser support varies) */
+input[list]::-webkit-calendar-picker-indicator {
+    display: none !important;
+}
+.line-items-filter-form {
+    gap: 1.2rem;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.line-items-filter-form > .filter-group-col {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+.line-items-filter-form .filter-group-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    max-width: 220px;
+    flex: 0 0 180px;
+    margin-bottom: 0;
+}
+
+.line-items-filter-form .filter-btn-group {
+    min-width: 100px;
+    max-width: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+/* Inline filter group for line-items filter */
+.line-items-filter-form {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 1.2rem;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+}
+
+.line-items-filter-form .filter-group-inline {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-width: 140px;
+    margin-bottom: 0;
+    gap: 0.5rem;
+}
+
+.line-items-filter-form .filter-btn-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-width: 100px;
+}
+/* Line Items Filter Form Beautification */
+
+.line-items-filter-form {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 1.2rem;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+}
+
+.line-items-filter-form .filter-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    margin-bottom: 0;
+}
+
+.line-items-filter-form label {
+    font-size: 0.95rem;
+    color: #333;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+}
+
+.line-items-filter-form .input-date,
+.line-items-filter-form .customer-search-select {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.line-items-filter-form .input-date:focus,
+.line-items-filter-form .customer-search-select:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
 /* Global Styles */
 body {
     font-family: Arial, sans-serif;
@@ -229,7 +393,7 @@ pre {
 }
 /* Inline form and transfer button */
 .inline-form {
-    display: inline;
+    display: flex;
     margin: 0;
     padding: 0;
 }

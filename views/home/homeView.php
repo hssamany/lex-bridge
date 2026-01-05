@@ -79,4 +79,21 @@ class HomeView
         $invoicesData = $this->invoicesData;
         include __DIR__ . '/../invoices/invoice-list-view.php';
     }
+
+    /**
+     * Render line items tab content
+     */
+    public function renderLineItemsTabContent(): void
+    {
+        // If you want to pass data, add a property and assign here
+        include __DIR__ . '/../line-items/line-items-list-view.php';
+    }
+
+    /**
+     * Render line items filter form (for tab action area)
+     */
+    public function renderLineItemsFilter(): void
+    {
+        include __DIR__ . '/../line-items/line-items-filter-form.php';
+    }
 }

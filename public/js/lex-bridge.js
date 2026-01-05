@@ -13,6 +13,7 @@ class LexBridge {
         this.toastNotifier = null;
         this.contactsPage = null;
         this.invoicesPage = null;
+        this.lineItemsPage = null;
         this.config = {
             apiEndpoint: window.location.origin,
             debug: true
@@ -71,7 +72,9 @@ class LexBridge {
         // Get tab content from templates
         const contactsContent = document.getElementById('contacts-tab-content')?.innerHTML || '<p>Loading contacts...</p>';
         const invoicesContent = document.getElementById('invoices-tab-content')?.innerHTML || '<p>Invoice management coming soon...</p>';
-        
+        const lineItemsContent = document.getElementById('line-items-tab-content')?.innerHTML || '<p>Loading line items...</p>';
+        const lineItemsAction = document.getElementById('line-items-filter-template')?.innerHTML || '';
+
         // Define tabs configuration
         const tabsConfig = [
             {
@@ -93,9 +96,15 @@ class LexBridge {
                     icon: '↻',
                     label: 'Refresh Invoices'
                 }
+            },
+            {
+                id: 'line-items',
+                label: 'Line-Items',
+                content: lineItemsContent,
+                action: lineItemsAction
             }
         ];
-        
+
         this.tabManager = new TabManager({
             containerId: 'tab-manager-container',
             tabs: tabsConfig,
@@ -228,6 +237,9 @@ class LexBridge {
         } else if (tabName === 'invoices' && !this.invoicesPage) {
             console.log('Creating InvoicesPage instance');
             this.invoicesPage = new InvoicesPage(this);
+        } else if (tabName === 'line-items' && !this.lineItemsPage && window.LineItemsPage) {
+            console.log('Creating LineItemsPage instance');
+            this.lineItemsPage = new LineItemsPage(this);
         }
         
         this.updateActionButtons(tabName);
@@ -238,6 +250,8 @@ class LexBridge {
                 this.contactsPage.setupRefreshButtonDirect();
             } else if (tabName === 'invoices' && this.invoicesPage) {
                 this.invoicesPage.setupRefreshButtonDirect();
+            } else if (tabName === 'line-items' && this.lineItemsPage) {
+                this.lineItemsPage.setupFilterFormDirect();
             }
         }, 100);
     }
@@ -359,3 +373,5 @@ class LexBridge {
 
 // Export to global scope
 window.LexBridgeClass = LexBridge;
+window.lexBridge = new LexBridge();
+window.lexBridge.init && window.lexBridge.init();

@@ -320,7 +320,10 @@ class TabManager {
         // Activate selected tab
         this.container.querySelector(`[data-tab="${tabName}"]`)?.classList.add(this.config.activeClass);        
         this.container.querySelector(`#${tabName}`)?.classList.add(this.config.activeClass);        
-        this.container.querySelector(`.tab-action[data-for="${tabName}"]`).style.display = 'block';
+        const tabAction = this.container.querySelector(`.tab-action[data-for="${tabName}"]`);
+        if (tabAction) {
+            tabAction.style.display = 'block';
+        }
         
         this.activeTab = tabName;
         

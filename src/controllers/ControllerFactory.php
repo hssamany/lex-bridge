@@ -16,4 +16,16 @@ final class ControllerFactory
         $service = new InvoiceService($client, $repository);
         return new InvoiceController($service);
     }
+    public static function makeCustomerController(HttpClient $client): CustomerController
+    {
+        $repository = new CustomerRepository();
+        $service = new CustomerService($repository);
+        return new CustomerController($service);
+    }
+    public static function makeLineItemController(HttpClient $client): LineItemController
+    {
+        $repository = new LineItemRepository();
+        $service = new LineItemService($repository);
+        return new LineItemController($service);
+    }
 }

@@ -28,6 +28,12 @@
         <template id="invoices-tab-content">
             <?php $homeView->renderInvoicesTabContent(); ?>
         </template>
+        <template id="line-items-tab-content">
+            <?php $homeView->renderLineItemsTabContent(); ?>
+        </template>
+        <template id="line-items-filter-template">
+            <?php $homeView->renderLineItemsFilter(); ?>
+        </template>
     </div>
     
     <!-- Toast Notification Container -->
@@ -41,6 +47,7 @@
     <script src="public/js/lex-bridge.js"></script>
     <script src="public/js/pages/home.js"></script>
     <script src="public/js/pages/invoices.js"></script>
+    <script src="public/js/pages/line-items.js"></script>
     <script src="public/js/app.js"></script>
 </body>
 </html>

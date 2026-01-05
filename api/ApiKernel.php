@@ -16,8 +16,55 @@ class ApiKernel
         $this->postInvoiceRouteRegistration();
         $this->getContactsRouteRegistration();
         $this->postContactRouteRegistration();
+        $this->getCustomersSearchRouteRegistration();
+        $this->getLineItemsRouteRegistration();
+        // Customer search route for AJAX dropdown
+        
     }
 
+    private function getCustomersSearchRouteRegistration(): void
+    {
+        $this->router->get('/customers/search', function() {
+            $controller = ControllerFactory::makeCustomerController($this->httpClient);
+            $query = isset($_GET['q']) ? trim($_GET['q']) : null;
+            return $controller->searchCustomers($query);
+        });
+    }
+
+    private function getLineItemsRouteRegistration(): void
+    {
+        $this->router->get('/line-items', function() {
+            $controller = ControllerFactory::makeLineItemController($this->httpClient);
+
+            $filters = [];
+
+            $createdAtFrom = isset($_GET['created_at_from']) ? trim((string)$_GET['created_at_from']) : '';
+            if ($createdAtFrom !== '') {
+                $fromDate = DateTime::createFromFormat('Y-m-d', $createdAtFrom);
+                if ($fromDate instanceof DateTime) {
+                    $filters['created_at_from'] = $fromDate->format('Y-m-d 00:00:00');
+                }
+            }
+
+            $createdAtTo = isset($_GET['created_at_to']) ? trim((string)$_GET['created_at_to']) : '';
+            if ($createdAtTo !== '') {
+                $toDate = DateTime::createFromFormat('Y-m-d', $createdAtTo);
+                if ($toDate instanceof DateTime) {
+                    $filters['created_at_to'] = $toDate->format('Y-m-d 23:59:59');
+                }
+            }
+
+            $customerId = filter_input(INPUT_GET, 'customer_id', FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1]
+            ]);
+            if ($customerId !== null && $customerId !== false) {
+                $filters['customer_id'] = $customerId;
+            }
+
+            return $controller->getLineItems($filters);
+        });
+    }
+    
     // Contact routes
     private function getContactsRouteRegistration(): void
     {
