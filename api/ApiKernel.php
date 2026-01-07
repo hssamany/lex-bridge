@@ -1,6 +1,10 @@
 <?php
-
 declare(strict_types=1);
+
+namespace Lukullus\LexBridge\API;
+
+use Lukullus\LexBridge\HttpClient;
+use Lukullus\LexBridge\ControllerFactory;
 
 class ApiKernel
 {
@@ -19,7 +23,6 @@ class ApiKernel
         $this->getCustomersSearchRouteRegistration();
         $this->getLineItemsRouteRegistration();
         // Customer search route for AJAX dropdown
-        
     }
 
     private function getCustomersSearchRouteRegistration(): void

@@ -1,8 +1,5 @@
 <?php
 
-require_once __DIR__ . '/../database/Database.php';
-require_once __DIR__ . '/../models/Contact.php';
-
 /**
  * Repository for Contact database operations
  */

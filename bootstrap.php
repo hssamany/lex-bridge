@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 // Error handling
@@ -13,33 +12,12 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Load required classes
-require_once __DIR__ . '/src/constants/HttpMethod.php';
-require_once __DIR__ . '/src/constants/HttpHeader.php';
-require_once __DIR__ . '/src/constants/ContentType.php';
-require_once __DIR__ . '/src/constants/HttpStatus.php';
-require_once __DIR__ . '/src/http/HttpResponse.php';
-require_once __DIR__ . '/src/http/HttpClient.php';
-require_once __DIR__ . '/src/database/Database.php';
-require_once __DIR__ . '/src/models/Contact.php';
-require_once __DIR__ . '/src/models/Invoice.php';
-require_once __DIR__ . '/src/models/InvoiceLineItem.php';
-require_once __DIR__ . '/src/models/Customer.php';
-require_once __DIR__ . '/src/services/ContactService.php';
-require_once __DIR__ . '/src/services/InvoiceService.php';
-require_once __DIR__ . '/src/services/CustomerService.php';
-require_once __DIR__ . '/src/services/LineItemService.php';
-require_once __DIR__ . '/src/controllers/ContactController.php';
-require_once __DIR__ . '/src/controllers/InvoiceController.php';
-require_once __DIR__ . '/src/controllers/CustomerController.php';
-require_once __DIR__ . '/src/controllers/LineItemController.php';
-require_once __DIR__ . '/src/controllers/ControllerFactory.php';
-require_once __DIR__ . '/src/repositories/ContactRepository.php';
-require_once __DIR__ . '/src/repositories/InvoiceRepository.php';
-require_once __DIR__ . '/src/repositories/CustomerRepository.php';
-require_once __DIR__ . '/src/repositories/LineItemRepository.php';
-require_once __DIR__ . '/views/home/homeView.php';
-require_once __DIR__ . '/src/Application.php';
-require_once __DIR__ . '/config.php';
+        // Use Composer autoloader for all classes in src/
+        require_once __DIR__ . '/vendor/autoload.php';
+
+        // Manually require config and any files not covered by autoload
+        require_once __DIR__ . '/config.php';
+        require_once __DIR__ . '/views/home/homeView.php';
 
 // Validate configuration
 if (empty($apiKey) || empty($baseUrl)) {
