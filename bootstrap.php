@@ -12,13 +12,19 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Load required classes
-        // Use Composer autoloader for all classes in src/
-        require_once __DIR__ . '/vendor/autoload.php';
+// Composer autoload (for namespaced classes)
+require_once __DIR__ . '/vendor/autoload.php';
 
-        // Manually require config and any files not covered by autoload
-        require_once __DIR__ . '/config.php';
-        require_once __DIR__ . '/views/home/homeView.php';
+require_once __DIR__ . '/src/repositories/ContactRepository.php';
+require_once __DIR__ . '/src/repositories/InvoiceRepository.php';
+require_once __DIR__ . '/src/repositories/CustomerRepository.php';
+require_once __DIR__ . '/src/repositories/LineItemRepository.php';
+
+require_once __DIR__ . '/src/database/Database.php';
+
+require_once __DIR__ . '/views/home/homeView.php';
+require_once __DIR__ . '/src/Application.php';
+require_once __DIR__ . '/config.php';
 
 // Validate configuration
 if (empty($apiKey) || empty($baseUrl)) {

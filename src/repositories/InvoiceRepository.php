@@ -1,21 +1,21 @@
 <?php
 
-require_once __DIR__ . '/../database/Database.php';
-require_once __DIR__ . '/../models/Invoice.php';
-require_once __DIR__ . '/../models/InvoiceLineItem.php';
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Repositories;
 
 /**
  * Repository for Invoice database operations
  */
 class InvoiceRepository
 {
-    private PDO $db;
-    
+    private \PDO $db;
+
     public function __construct()
     {
         $this->db = Database::getConnection();
     }
-    
+
     /**
      * Find invoice by ID with line items
      */
@@ -29,12 +29,12 @@ class InvoiceRepository
                 LEFT JOIN customer c ON i.contact_id = c.id
                 WHERE i.id = :id
                 LIMIT 1";
-        
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $id]);
-        
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
         if (!$row) {
             return null;
         }

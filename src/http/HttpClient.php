@@ -1,5 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Http;
+
+use Luxullus\LexBridge\Constants\HttpHeader;
+use Luxullus\LexBridge\Constants\ContentType;
+use Luxullus\LexBridge\Http\HttpResponse;
+
+
 /**
  * Class to handle HTTP API requests
  */

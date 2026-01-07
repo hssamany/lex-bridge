@@ -1,5 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Services;
+
+use Luxullus\LexBridge\Api\HttpClient;
+use Luxullus\LexBridge\Api\HttpResponse;
+use Luxullus\LexBridge\Models\Invoice;
+use Luxullus\LexBridge\Repositories\InvoiceRepository;
+use Luxullus\LexBridge\Utils\HttpStatus;
+use Exception;
+
 /**
  * Service class to manage invoice operations
  */

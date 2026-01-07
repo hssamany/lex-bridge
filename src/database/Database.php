@@ -1,9 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Database;
+
+use PDO;
+
 /**
  * Database connection handler
  */
-class Database
+final class Database
 {
     private static ?PDO $connection = null;
     

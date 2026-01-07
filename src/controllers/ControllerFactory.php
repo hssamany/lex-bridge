@@ -2,6 +2,21 @@
 
 declare(strict_types=1);
 
+namespace Luxullus\LexBridge\Controllers;
+
+use Luxullus\LexBridge\Services\ContactService;
+use Luxullus\LexBridge\Controllers\InvoiceController;
+use Luxullus\LexBridge\Services\InvoiceService;
+use Luxullus\LexBridge\Repositories\InvoiceRepository;
+use Luxullus\LexBridge\Controllers\CustomerController;
+use Luxullus\LexBridge\Services\CustomerService;
+use Luxullus\LexBridge\Repositories\CustomerRepository;
+use Luxullus\LexBridge\Controllers\LineItemController;
+use Luxullus\LexBridge\Services\LineItemService;
+use Luxullus\LexBridge\Repositories\LineItemRepository;
+use Luxullus\LexBridge\Utils\HttpClient;
+
+
 final class ControllerFactory
 {
     public static function makeContactController(HttpClient $client): ContactController
