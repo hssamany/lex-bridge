@@ -1,5 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Controllers;
+use Luxullus\LexBridge\Services\InvoiceService;
+
+
 /**
  * Controller class to handle invoice-related requests
  */

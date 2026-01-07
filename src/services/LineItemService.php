@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-class LineItemService
+namespace Luxullus\LexBridge\Services;
+
+use Luxullus\LexBridge\Repositories\LineItemRepository;
+
+final class LineItemService
 {
     private LineItemRepository $repository;
 

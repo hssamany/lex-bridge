@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Models;
+
 /**
  * InvoiceLineItem Model
  * Represents a single line item in an invoice

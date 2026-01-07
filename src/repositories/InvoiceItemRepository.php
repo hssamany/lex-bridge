@@ -1,6 +1,8 @@
 <?php
 
-namespace Src\Repositories;
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Repositories;
 
 use PDO;
 
@@ -31,7 +33,7 @@ class InvoiceItemRepository
             $stmt->bindValue(':customer_id', $customerId, PDO::PARAM_INT);
             $stmt->bindValue(':currency', $currency, PDO::PARAM_STR);
             $stmt->bindValue(':line_items', $jsonLineItems, PDO::PARAM_STR);
-            
+
             $stmt->execute();
 
             $result = $this->db->query('SELECT @invoice_id AS invoice_id, @error_code AS error_code, @error_message AS error_message')->fetch(PDO::FETCH_ASSOC);

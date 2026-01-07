@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-class LineItemController
+namespace Luxullus\LexBridge\Controllers;
+use Luxullus\LexBridge\Services\LineItemService;
+
+
+final class LineItemController
 {
     private LineItemService $service;
 

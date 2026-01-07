@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+namespace Luxullus\LexBridge;
+
+use Luxullus\LexBridge\Views\HomeView;
+use Luxullus\LexBridge\Utils\HttpStatus;
+use Exception;
+
 /**
  * Main Application class - serves initial HTML only
  * All data loading happens via AJAX to /api/
