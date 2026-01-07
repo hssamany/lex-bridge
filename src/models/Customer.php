@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-class Customer
+namespace Luxullus\LexBridge\Models;
+
+final class Customer
 {
     public int $id;
     public string $customer_number = '';

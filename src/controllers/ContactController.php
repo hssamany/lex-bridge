@@ -1,5 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Controllers;
+
+use Luxullus\LexBridge\Services\ContactService;
+
 /**
  * Controller class to handle contact-related requests
  */

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace Luxullus\LexBridge\Constants;
+
 /**
  * HTTP Status Code Constants
  */

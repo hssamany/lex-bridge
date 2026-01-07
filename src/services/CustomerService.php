@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-class CustomerService
+namespace Luxullus\LexBridge\Services;
+
+use Luxullus\LexBridge\Repositories\CustomerRepository;
+
+final class CustomerService
 {
     private CustomerRepository $repository;
 

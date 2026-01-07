@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Models;
+
 /**
  * Invoice Model
  * Represents an invoice that can be stored locally and transmitted to Lexware

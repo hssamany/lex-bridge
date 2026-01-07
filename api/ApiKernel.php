@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Api;
 
-class ApiKernel
+use DateTime;
+use Luxullus\LexBridge\Utils\HttpClient;
+use Luxullus\LexBridge\Factories\ControllerFactory;
+
+final class ApiKernel
 {
     private ApiRouter $router;
     private HttpClient $httpClient;

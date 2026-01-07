@@ -1,7 +1,14 @@
 <?php
 
-require_once __DIR__ . '/../repositories/ContactRepository.php';
+declare(strict_types=1);
 
+namespace Luxullus\LexBridge\Services;
+
+use Luxullus\LexBridge\Api\HttpClient;
+use Luxullus\LexBridge\Api\HttpResponse;
+use Luxullus\LexBridge\Models\Contact;
+use Luxullus\LexBridge\Repositories\ContactRepository;
+use Exception;
 /**
  * Service class to manage contact operations
  */

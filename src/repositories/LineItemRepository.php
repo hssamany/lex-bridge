@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../database/Database.php';
+namespace Luxullus\LexBridge\Repositories;
 
 class LineItemRepository
 {
-    private PDO $db;
+    private \PDO $db;
 
     public function __construct()
     {
