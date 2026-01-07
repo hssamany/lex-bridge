@@ -7,8 +7,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Lukullus\\LexBridge\\": "src/",
-            "Lukullus\\LexBridge\\API\\": "api/"
+            "Luxullus\\LexBridge\\": "src/",
+            "Luxullus\\LexBridge\\Api\\": "api/"
         }
     },
     "authors": [

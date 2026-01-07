@@ -14,8 +14,8 @@ use Luxullus\LexBridge\Repositories\CustomerRepository;
 use Luxullus\LexBridge\Controllers\LineItemController;
 use Luxullus\LexBridge\Services\LineItemService;
 use Luxullus\LexBridge\Repositories\LineItemRepository;
-use Luxullus\LexBridge\Utils\HttpClient;
-
+use Luxullus\LexBridge\Http\HttpClient;
+InvoiceService
 
 final class ControllerFactory
 {

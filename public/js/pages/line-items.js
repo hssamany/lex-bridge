@@ -203,11 +203,12 @@ class LineItemsPage {
                 this.lexBridge.toastNotifier.show('Line items aktualisiert', 'success');
             }
 
-        } catch (error) {
-            console.error('Line items filter error:', error);
-            if (this.lexBridge?.toastNotifier) {
-                this.lexBridge.toastNotifier.show('Fehler beim Laden der Positionen', 'error');
-            }
+        // } 
+        // catch (error) {
+        //     console.error('Line items filter error:', error);
+        //     if (this.lexBridge?.toastNotifier) {
+        //         this.lexBridge.toastNotifier.show('Fehler beim Laden der Positionen', 'error');
+        //     }
         } finally {
             if (button && originalLabel !== null) {
                 button.disabled = false;

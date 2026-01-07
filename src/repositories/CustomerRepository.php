@@ -2,7 +2,13 @@
 
 declare(strict_types=1);
 
+
 namespace Luxullus\LexBridge\Repositories;
+
+use PDO;
+use Luxullus\LexBridge\Models\Customer;
+use Luxullus\LexBridge\Database\Database;
+
 
 class CustomerRepository
 {

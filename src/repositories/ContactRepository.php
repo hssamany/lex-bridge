@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Repositories;
 
+use PDO;
+use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Models\Contact;
+
+
 /**
  * Repository for Contact database operations
  */

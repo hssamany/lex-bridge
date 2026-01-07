@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Services;
 
+use Luxullus\LexBridge\Models\Customer;
 use Luxullus\LexBridge\Repositories\CustomerRepository;
 
 final class CustomerService

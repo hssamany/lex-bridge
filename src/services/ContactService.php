@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Services;
 
-use Luxullus\LexBridge\Api\HttpClient;
-use Luxullus\LexBridge\Api\HttpResponse;
+use Exception;
+use Luxullus\LexBridge\Http\HttpClient;
+use Luxullus\LexBridge\Http\HttpResponse;
 use Luxullus\LexBridge\Models\Contact;
 use Luxullus\LexBridge\Repositories\ContactRepository;
-use Exception;
 /**
  * Service class to manage contact operations
  */

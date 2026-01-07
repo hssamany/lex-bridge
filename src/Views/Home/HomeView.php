@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Luxullus\LexBridge\Views;
+namespace Luxullus\LexBridge\Views\Home;
 
 /**
  * HomeView
@@ -10,7 +10,7 @@ namespace Luxullus\LexBridge\Views;
  * View class for home.php template
  * Encapsulates rendering logic to keep templates clean
  */
-class HomeView
+final class HomeView
 {
     private ?string $status;
     private ?array $contactsData;

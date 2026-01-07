@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Luxullus\LexBridge\Api;
 
 use DateTime;
-use Luxullus\LexBridge\Utils\HttpClient;
-use Luxullus\LexBridge\Factories\ControllerFactory;
+use Luxullus\LexBridge\Http\HttpClient;
+use Luxullus\LexBridge\Controllers\ControllerFactory;
 
 final class ApiKernel
 {

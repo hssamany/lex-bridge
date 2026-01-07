@@ -2,7 +2,15 @@
 
 declare(strict_types=1);
 
+
 namespace Luxullus\LexBridge\Repositories;
+
+use PDO;
+use DateTime;
+use Exception;
+use Luxullus\LexBridge\Models\Invoice;
+use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Models\InvoiceLineItem;
 
 /**
  * Repository for Invoice database operations

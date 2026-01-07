@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge;
 
-use Luxullus\LexBridge\Views\HomeView;
-use Luxullus\LexBridge\Utils\HttpStatus;
 use Exception;
+use Luxullus\LexBridge\Views\Home\HomeView;
 
 /**
  * Main Application class - serves initial HTML only
@@ -60,9 +59,11 @@ final class Application
             $emptyInvoicesData
         );
         
-        $this->render('home/home', [
-            'homeView' => $homeView
-        ]);
+        $this->render
+        (
+            'Home/home', 
+            ['homeView' => $homeView]
+        );
     }
     
     /**
@@ -71,6 +72,7 @@ final class Application
     private function handle404(): void
     {
         http_response_code(HttpStatus::NOT_FOUND);
+        
         $this->renderErrorPage
         (
             '404 - Not Found',
@@ -107,6 +109,6 @@ final class Application
     private function render(string $view, array $data = []): void
     {
         extract($data);
-        include __DIR__ . "/../views/{$view}.php";
+        include __DIR__ . "/Views/{$view}.php";
     }
 }
