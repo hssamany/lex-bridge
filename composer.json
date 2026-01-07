@@ -1,0 +1,21 @@
+{
+    "name": "lukullus/lex-bridge",
+    "description": "\"bridge to lexware for transmitting invoice data\"",
+    "type": "project",
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Lukullus\\LexBridge\\": "src/",
+            "Lukullus\\LexBridge\\API\\": "api/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Harrison",
+            "email": "ssmny2@live.de"
+        }
+    ],
+    "require": {}
+}

@@ -2,24 +2,26 @@
 
 declare(strict_types=1);
 
+namespace Lukullus\LexBridge\API;
+
 class ApiRouter
 {
     private array $routes = [];
-    
+
     public function get(string $path, callable $handler): void
     {
         $this->routes['GET'][$path] = $handler;
     }
-    
+
     public function post(string $path, callable $handler): void
     {
         $this->routes['POST'][$path] = $handler;
     }
-    
+
     public function handle(): void
     {
         $method = $_SERVER['REQUEST_METHOD'];
-        
+
         // Try PATH_INFO first (from rewrite), then parse URI
         if (!empty($_SERVER['PATH_INFO'])) {
             $path = $_SERVER['PATH_INFO'];
@@ -29,12 +31,12 @@ class ApiRouter
             $path = str_replace('/lex-bridge/api', '', $uri);
             $path = str_replace('/index.php', '', $path);
         }
-        
+
         // Ensure path starts with /
         if (empty($path) || $path[0] !== '/') {
             $path = '/' . $path;
         }
-        
+
         // Remove trailing slashes
         $path = rtrim($path, '/');
         if (empty($path)) {
