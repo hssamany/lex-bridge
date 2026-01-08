@@ -1,10 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Controllers;
+use Luxullus\LexBridge\Services\InvoiceService;
+
+
 /**
  * Controller class to handle invoice-related requests
  */
 final class InvoiceController
 {
+    
     private InvoiceService $invoiceService;
     
     public function __construct(InvoiceService $invoiceService)
@@ -13,22 +20,50 @@ final class InvoiceController
     }
     
     /**
-     * Create an invoice and prepare data for view
+     * Get all invoices
      * 
-     * @param Invoice $invoice Invoice object to create
-     * @return array Formatted invoice response data
+     * @return array Formatted invoices list response data
      */
-    public function createInvoice(Invoice $invoice): array
+    public function getInvoices(): array
     {
-        $response = $this->invoiceService->createInvoice($invoice);
+        $invoices = $this->invoiceService->getInvoices();
         
         return [
-            'hasError' => $response->getError() !== null,
-            'errorMessage' => $response->getError(),
+            'success' => true,
+            'invoices' => $invoices
+        ];
+    }
+    
+    /**
+     * Transfer a single invoice to Lexware by ID
+     * 
+     * @param string $invoiceId Invoice ID to transfer
+     * @return array Transfer result with statusCode, isSuccess, error, and invoice data
+     */
+    public function transferInvoiceToLexware(string $invoiceId): array
+    {
+        $result = $this->invoiceService->transferInvoiceById($invoiceId);
+        $response = $result['response'];
+        $invoice = $result['invoice'];
+        
+        return [
             'statusCode' => $response->getStatusCode(),
             'isSuccess' => $response->isSuccess(),
-            'requestData' => json_encode($invoice->toArray(), JSON_PRETTY_PRINT),
-            'responseBody' => htmlspecialchars($response->getBody())
+            'error' => $response->getError(),
+            'invoice' => $invoice
         ];
+    }
+
+    /**
+     * Create a new invoice with line items
+     *
+     * @param int $customerId
+     * @param string|null $currency
+     * @param array $lineItems
+     * @return array Result from InvoiceService
+     */
+    public function createInvoiceWithItems(int $customerId,  array $lineItems): array
+    {
+        return $this->invoiceService->createInvoiceWithItems($customerId, $lineItems);
     }
 }

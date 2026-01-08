@@ -1,0 +1,440 @@
+/* Ensure button SVG icons are visible */
+.btn svg {
+    display: inline-block;
+    vertical-align: middle;
+    color: #fff !important;
+    fill: #fff !important;
+}
+.customer-search-combobox {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.customer-search-combobox:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+.line-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.line-items-table th,
+.line-items-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+.line-items-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.line-items-empty {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px dashed #d0d5dd;
+    color: #555;
+    text-align: center;
+}
+.customer-search-combobox {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+.customer-search-combobox:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+
+/* Style datalist dropdown for consistency (browser support varies) */
+input[list]::-webkit-calendar-picker-indicator {
+    display: none !important;
+}
+.line-items-filter-form {
+    gap: 1.2rem;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+    width: 100%;
+}
+
+.line-items-filter-form > .filter-group-col {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+.line-items-filter-form .filter-group-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    max-width: 220px;
+    flex: 0 0 180px;
+    margin-bottom: 0;
+}
+
+.line-items-filter-form .filter-btn-group {
+    min-width: 100px;
+    max-width: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+/* Inline filter group for line-items filter */
+.line-items-filter-form {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    align-items: flex-end;
+    justify-content: flex-end;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    flex: 1 1 auto;
+}
+
+.line-items-filter-form .filter-group-inline {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    min-width: 140px;
+    margin-bottom: 0;
+    gap: 0.5rem;
+}
+
+.line-items-filter-form .filter-btn-group {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-width: 100px;
+}
+/* Line Items Filter Form Beautification */
+
+.line-items-filter-form {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 1.2rem;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+}
+
+.line-items-filter-form .filter-group {
+    display: flex;
+    flex-direction: column;
+    min-width: 140px;
+    margin-bottom: 0;
+}
+
+.line-items-filter-form label {
+    font-size: 0.95rem;
+    color: #333;
+    margin-bottom: 0.3rem;
+    font-weight: 500;
+}
+
+.line-items-filter-form .input-date,
+.line-items-filter-form .customer-search-select {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+    background: #fff;
+    transition: border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.line-items-filter-form .input-date:focus,
+.line-items-filter-form .customer-search-select:focus {
+    border-color: #4CAF50;
+    outline: none;
+}
+/* Global Styles */
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    margin: 0;
+    background-color: #f8f9fa;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.header {
+    margin-bottom: 1.5rem;
+}
+
+.header h1 {
+    margin: 0 0 1rem 0;
+}
+
+/* Tab styles moved to js/components/tab-manager/tab-manager.css */
+
+/* Buttons */
+.btn {
+    padding: 0.75rem 1.5rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    text-align: center;
+    text-decoration: none;
+}
+
+.btn:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-primary {
+    background-color: #4CAF50;
+}
+
+.btn-primary:hover {
+    background-color: #45a049;
+}
+
+.btn-secondary {
+    background-color: #008CBA;
+}
+
+.btn-secondary:hover {
+    background-color: #007399;
+}
+
+.btn-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+/* Spinning animation for sync icon */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.btn-icon.spinning {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+}
+
+/* Disable button while syncing */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Alerts */
+.alert {
+    margin-bottom: 15px;
+    padding: 12px;
+    border-radius: 4px;
+}
+
+.alert-success {
+    background-color: #e8f5e9;
+    color: #388e3c;
+    border: 1px solid #c8e6c9;
+}
+
+.alert-danger {
+    background-color: #ffebee;
+    color: #d32f2f;
+    border: 1px solid #ffcdd2;
+}
+
+/* Toast styles moved to js/components/toast-notifier.css */
+
+/* Containers */
+.contacts-container {
+    margin-top: 20px;
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.status {
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.status.success {
+    background-color: #e8f5e9;
+    color: #388e3c;
+}
+
+.status.error {
+    background-color: #ffebee;
+    color: #d32f2f;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    background-color: #fff;
+}
+
+table th {
+    background-color: #4CAF50;
+    color: white;
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+}
+
+table td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+table tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Invoice View Styles */
+.container {
+    background-color: white;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.container h3 {
+    color: #333;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 10px;
+}
+
+.error {
+    color: #d32f2f;
+    background-color: #ffebee;
+    padding: 15px;
+    border-radius: 4px;
+    border-left: 4px solid #d32f2f;
+}
+
+.success {
+    color: #388e3c;
+    background-color: #e8f5e9;
+    padding: 15px;
+    border-radius: 4px;
+    border-left: 4px solid #388e3c;
+}
+
+.info-section {
+    margin: 20px 0;
+}
+
+.info-section strong {
+    color: #555;
+    display: block;
+    margin-bottom: 5px;
+}
+
+pre {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.status-success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.status-error {
+    background-color: #f44336;
+    color: white;
+}
+/* Inline form and transfer button */
+.inline-form {
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.btn-icon-only {
+    padding: 0.5rem 0.75rem;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+}
+
+.btn-icon-only:hover:not(:disabled) {
+    background-color: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-icon-only:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-icon-only.spinning {
+    animation: spin 1s linear infinite;
+}

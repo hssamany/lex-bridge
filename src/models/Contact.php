@@ -1,91 +1,59 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Models;
+
 /**
  * Class to represent a Contact
  */
 final class Contact
 {
     public readonly string $lexContactId;
-    public readonly string $organizationId;
-    public readonly int $version;
     public readonly int $lexCustomerNumber;
     public readonly string $companyName;
-    public readonly bool $allowTaxFreeInvoices;
-    public readonly array $billingAddresses;
-    public readonly bool $archived;
     
     public function __construct(array $data)
     {
         $this->lexContactId = $data['id'] ?? '';
-        $this->organizationId = $data['organizationId'] ?? '';
-        $this->version = $data['version'] ?? 0;
         $this->lexCustomerNumber = $data['roles']['customer']['number'] ?? 0;
         $this->companyName = $data['company']['name'] ?? '';
-        $this->allowTaxFreeInvoices = $data['company']['allowTaxFreeInvoices'] ?? false;
-        $this->billingAddresses = $data['addresses']['billing'] ?? [];
-        $this->archived = $data['archived'] ?? false;
+    }
+    
+    /**
+     * Create Contact instance from array data
+     * 
+     * @param array $data Contact data array
+     * @return self
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self($data);
+    }
+    
+    /**
+     * Create array of Contact instances from API response data
+     * 
+     * @param array $data Response data containing 'content' array
+     * @return array Array of Contact instances
+     */
+    public static function fromResponseData(array $data): array
+    {
+        $parsedContacts = [];
+        if (isset($data['content']) && is_array($data['content'])) {
+            foreach ($data['content'] as $contactData) {
+                $parsedContacts[] = self::fromArray($contactData);
+            }
+        }
+        return $parsedContacts;
     }
     
     public function toArray(): array
     {
-        $result = [
+        return [
             'id' => $this->lexContactId,
-            'organizationId' => $this->organizationId,
-            'version' => $this->version,
-            'roles' => [
-                'customer' => [
-                    'number' => $this->lexCustomerNumber
-                ]
-            ],
-            'company' => [
-                'name' => $this->companyName,
-                'allowTaxFreeInvoices' => $this->allowTaxFreeInvoices
-            ],
-            'archived' => $this->archived
+            'companyName' => $this->companyName,
+            'customerNumber' => $this->lexCustomerNumber
         ];
-        
-        if (!empty($this->billingAddresses)) {
-            $result['addresses'] = [
-                'billing' => $this->billingAddresses
-            ];
-        }
-        
-        return $result;
-    }
-    
-    public static function create(
-        string $id,
-        string $organizationId,
-        int $version,
-        int $lexCustomerNumber,
-        string $companyName,
-        bool $allowTaxFreeInvoices = false,
-        array $billingAddresses = [],
-        bool $archived = false
-    ): self {
-        
-        $contactData = [
-            'id' => $id,
-            'organizationId' => $organizationId,
-            'version' => $version,
-            'roles' => [
-                'customer' => [
-                    'number' => $lexCustomerNumber
-                ]
-            ],
-            'company' => [
-                'name' => $companyName,
-                'allowTaxFreeInvoices' => $allowTaxFreeInvoices
-            ],
-            'archived' => $archived
-        ];
-        
-        if (!empty($billingAddresses)) {
-            $contactData['addresses'] = [
-                'billing' => $billingAddresses
-            ];
-        }
-        
-        return new self($contactData);
     }
 }

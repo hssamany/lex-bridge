@@ -1,5 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Http;
+
+use Luxullus\LexBridge\Constants\HttpHeader;
+use Luxullus\LexBridge\Constants\ContentType;
+use Luxullus\LexBridge\Http\HttpResponse;
+
+
 /**
  * Class to handle HTTP API requests
  */
@@ -14,9 +23,9 @@ final class HttpClient
         $this->apiKey = $apiKey;
         $this->baseUrl = $baseUrl;
         $this->headers = [
-            'Content-Type: application/json',
-            'Accept: application/json',
-            'Authorization: Bearer ' . $this->apiKey
+            HttpHeader::ACCEPT . ': ' . ContentType::JSON,
+            HttpHeader::CONTENT_TYPE . ': ' . ContentType::JSON,
+            HttpHeader::AUTHORIZATION . ': Bearer ' . $this->apiKey
         ];
     }
     
@@ -25,11 +34,13 @@ final class HttpClient
      */
     public function post(string $endpoint, array $data): HttpResponse
     {
+        $payload = json_encode($data); 
+        
         $url = $this -> baseUrl . $endpoint;
-        $ch = curl_init($url);        
+        $ch = curl_init($url);         
 
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($ch, CURLOPT_HTTPHEADER, $this->headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         

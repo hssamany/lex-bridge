@@ -65,7 +65,7 @@ $testData = [
 $invoice = new Invoice($testData);
 
 // Create invoice using controller
-$invoiceData = $invoiceController->createInvoice($invoice);
+$invoiceData = $invoiceController->transferInvoiceToLexware($invoice);
 
 // Extract data for view
 extract($invoiceData);

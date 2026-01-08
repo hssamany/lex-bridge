@@ -1,5 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Controllers;
+
+use Luxullus\LexBridge\Services\ContactService;
+
 /**
  * Controller class to handle contact-related requests
  */
@@ -10,21 +16,8 @@ final class ContactController
     public function __construct(ContactService $contactService)
     {
         $this->contactService = $contactService;
-    }
+    }    
     
-    
-    public function processResult($data) 
-    {
-        $parsedContacts = [];
-        
-        if (isset($data['content']) && is_array($data['content'])) {
-            foreach ($data['content'] as $contactData) {
-                $parsedContacts[] = new Contact($contactData);
-            }
-        }
-        return $parsedContacts;
-    }
-
     /**
      * Retrieve and display contacts
      * 
@@ -33,19 +26,13 @@ final class ContactController
      */
     public function getContacts(int $page = 0): array
     {
-        $response = $this->contactService->getContacts($page);        
-        $contacts = $response->getData([$this, 'processResult']) ?? [];
+        $result = $this->contactService -> syncContacts($page);
+        $response = $result['response'];
+        $contacts = $result['contacts'];
         
-        $formattedContacts = [];
-
-        foreach ($contacts as $contact) {
-            $formattedContacts[] = [
-                'id' => $contact->lexContactId,
-                'companyName' => $contact->companyName,
-                'customerNumber' => $contact->lexCustomerNumber
-            ];
-        }
-        
+        // Convert Contact objects to arrays for JSON serialization
+        $formattedContacts = array_map(fn($c) => $c->toArray(), $contacts);
+                
         return [
             'statusCode' => $response->getStatusCode(),
             'isSuccess' => $response->isSuccess(),
