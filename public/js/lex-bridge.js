@@ -118,6 +118,9 @@ class LexBridge {
         // Set callback for tab changes
         this.tabManager.onTabChange((tabName) => {
             this.onTabChange(tabName);
+            // Dispatch a custom event for tab changes (for LineItemsPage)
+            const evt = new CustomEvent('tabChanged', { detail: { tabName } });
+            document.dispatchEvent(evt);
         });
         
         // Manually trigger onTabChange for the initially active tab

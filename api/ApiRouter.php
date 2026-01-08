@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-class ApiRouter
+namespace Luxullus\LexBridge\Api;
+
+
+final class ApiRouter
 {
     private array $routes = [];
     

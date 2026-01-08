@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Models;
+
 /**
  * Invoice Model
  * Represents an invoice that can be stored locally and transmitted to Lexware
@@ -130,15 +134,15 @@ final class Invoice
         $invoice->remark = $row['remark'] ?? null;
         
         $invoice->currency = $row['currency'] ?? 'EUR';
-        $invoice->totalNetAmount = $row['total_net_amount'] ?? null;
-        $invoice->totalGrossAmount = $row['total_gross_amount'] ?? null;
+        $invoice->totalNetAmount = isset($row['total_net_amount']) ? (float)$row['total_net_amount'] : null;
+        $invoice->totalGrossAmount = isset($row['total_gross_amount']) ? (float)$row['total_gross_amount'] : null;
         
         $invoice->taxType = $row['tax_type'] ?? 'net';
         
         $invoice->paymentTermLabel = $row['payment_term_label'] ?? null;
-        $invoice->paymentTermDuration = $row['payment_term_duration'] ?? null;
-        $invoice->paymentDiscountPercentage = $row['payment_discount_percentage'] ?? null;
-        $invoice->paymentDiscountRange = $row['payment_discount_range'] ?? null;
+        $invoice->paymentTermDuration = isset($row['payment_term_duration']) ? (int)$row['payment_term_duration'] : null;
+        $invoice->paymentDiscountPercentage = isset($row['payment_discount_percentage']) ? (float)$row['payment_discount_percentage'] : null;
+        $invoice->paymentDiscountRange = isset($row['payment_discount_range']) ? (int)$row['payment_discount_range'] : null;
         
         $invoice->shippingDate = $row['shipping_date'] ?? null;
         $invoice->shippingType = $row['shipping_type'] ?? 'delivery';

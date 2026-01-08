@@ -1,10 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Services;
+
+use Luxullus\LexBridge\Http\HttpClient;
+use Luxullus\LexBridge\Http\HttpResponse;
+use Luxullus\LexBridge\Models\Invoice;
+use Luxullus\LexBridge\Repositories\InvoiceRepository;
+use Luxullus\LexBridge\Http\HttpStatus;
+use Exception;
+
 /**
  * Service class to manage invoice operations
  */
-final class InvoiceService
-{
+final class InvoiceService {
+
     private HttpClient $client;
     private InvoiceRepository $invoiceRepository;
     
@@ -39,26 +50,37 @@ final class InvoiceService
      * @param string $invoiceId Invoice ID
      * @return array Result with response and invoice data
      */
+    /**
+     * Transfer a single invoice to Lexware by ID.
+     * Fetches invoice from database, updates status, and sends to Lexware.
+     *
+     * @param string $invoiceId Invoice ID
+     * @return array{
+     *   response: HttpResponse,
+     *   invoice: array|null
+     * }
+     */
     public function transferInvoiceById(string $invoiceId): array
     {
         // Fetch invoice from database with line items
         $invoice = $this->invoiceRepository->findById($invoiceId);
-        
+
         if (!$invoice) {
-            // Return a mock error response for invoice not found
+            // Log not found
+            error_log("Invoice not found: $invoiceId");
             return [
                 'response' => new HttpResponse(404, null, 'Invoice not found'),
                 'invoice' => null
             ];
         }
-        
+
         // Update status to 'transmitting'
         $this->invoiceRepository->updateStatus($invoiceId, 'transmitting');
-        
+
         try {
             // Transfer to Lexware
             $response = $this->transferInvoiceToLexware($invoice);
-            
+
             if ($response->isSuccess()) {
                 // Update invoice with Lexware response
                 $lexwareData = json_decode($response->getBody(), true);
@@ -67,21 +89,34 @@ final class InvoiceService
                 // Update with error
                 $errorMessage = $response->getError() ?? 'Unknown error';
                 $this->invoiceRepository->updateWithError($invoiceId, $errorMessage, (string)$response->getStatusCode());
+                error_log("Lexware transfer failed for invoice $invoiceId: $errorMessage");
             }
-            
+
             return [
                 'response' => $response,
                 'invoice' => $invoice->toArray()
             ];
-            
+
         } catch (Exception $e) {
             $this->invoiceRepository->updateWithError($invoiceId, $e->getMessage());
-            
-            // Return error response
+            error_log("Exception during Lexware transfer for invoice $invoiceId: " . $e->getMessage());
+
             return [
                 'response' => new HttpResponse(HttpStatus::INTERNAL_SERVER_ERROR, null, $e->getMessage()),
                 'invoice' => $invoice->toArray()
             ];
         }
+    }
+
+    /**
+     * Create a new invoice with line items
+     *
+     * @param int $customerId
+     * @param array $lineItems (array of ["article_id" => int, "quantity" => float])
+     * @return array ["invoice_id" => int, "error_code" => int, "error_message" => string]
+     */
+    public function createInvoiceWithItems(int $customerId,  array $lineItems): array
+    {
+        return $this->invoiceRepository->createInvoiceWithItems($customerId, $lineItems);
     }
 }

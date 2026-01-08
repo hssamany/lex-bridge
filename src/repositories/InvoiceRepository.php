@@ -1,21 +1,29 @@
 <?php
 
-require_once __DIR__ . '/../database/Database.php';
-require_once __DIR__ . '/../models/Invoice.php';
-require_once __DIR__ . '/../models/InvoiceLineItem.php';
+declare(strict_types=1);
+
+
+namespace Luxullus\LexBridge\Repositories;
+
+use PDO;
+use DateTime;
+use Exception;
+use Luxullus\LexBridge\Models\Invoice;
+use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Models\InvoiceLineItem;
 
 /**
  * Repository for Invoice database operations
  */
 class InvoiceRepository
 {
-    private PDO $db;
-    
+    private \PDO $db;
+
     public function __construct()
     {
         $this->db = Database::getConnection();
     }
-    
+
     /**
      * Find invoice by ID with line items
      */
@@ -29,12 +37,12 @@ class InvoiceRepository
                 LEFT JOIN customer c ON i.contact_id = c.id
                 WHERE i.id = :id
                 LIMIT 1";
-        
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $id]);
-        
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
         if (!$row) {
             return null;
         }
@@ -142,60 +150,39 @@ class InvoiceRepository
         return $lineItems;
     }    
 
-    
     /**
-     * Update an existing invoice
+     * Creates invoice and its line items using the stored procedure.
+     *
+     * @param int $customerId
+     * @param string|null $currency
+     * @param array $lineItems (array of ["article_id" => int, "quantity" => float])
+     * @return array ["invoice_id" => int, "error_code" => int, "error_message" => string]
      */
-    public function update(Invoice $invoice): bool
+    public function createInvoiceWithItems($customerId, array $lineItems)
     {
-        if (!$invoice->id) {
-            return false;
-        }
-        
         try {
 
-            $this->db->beginTransaction();
-            
-            $invoiceData = $invoice->toDatabase();
-            unset($invoiceData['id']); // Don't update ID
-            
-            $sets = [];
-            foreach (array_keys($invoiceData) as $field) {
-                $sets[] = "{$field} = :{$field}";
-            }
-            
-            $sql = "UPDATE invoices 
-                    SET " . implode(', ', $sets) . "
-                    WHERE id = :id";
-            
-            $stmt = $this->db->prepare($sql);
-            
-            foreach ($invoiceData as $key => $value) {
-                $stmt->bindValue(":{$key}", $value);
-            }
-            $stmt->bindValue(':id', $invoice->id);
-            
+            $stmt = $this->db->prepare('CALL create_invoice_from_selection(:customer_id, :line_items, @invoice_id, @error_code, @error_message)');
+            $jsonLineItems = json_encode($lineItems);
+
+            $stmt->bindValue(':customer_id', $customerId, PDO::PARAM_INT);
+            $stmt->bindValue(':line_items', $jsonLineItems, PDO::PARAM_STR);
+
             $stmt->execute();
+
+            $result = $this->db 
+            -> query('SELECT @invoice_id AS invoice_id, @error_code AS error_code, @error_message AS error_message')
+            -> fetch(PDO::FETCH_ASSOC);
             
-            // Update line items if present
-            if ($invoice->lineItems !== null) {
-                // Delete existing line items
-                $this->deleteLineItemsByInvoiceId($invoice->id);
-                
-                // Insert new line items
-                foreach ($invoice->lineItems as $lineItem) {
-                    $lineItem->invoiceId = $invoice->id;
-                    $this->insertLineItem($lineItem);
-                }
-            }
-            
-            $this->db->commit();
-            return true;
-            
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            error_log("Error updating invoice: " . $e->getMessage());
-            return false;
+            return $result;
+
+        } catch (\PDOException $e) {
+            // Log the exception as needed
+            return [
+                'invoice_id' => null,
+                'error_code' => -1,
+                'error_message' => 'Database error: ' . $e->getMessage(),
+            ];
         }
     }
     
@@ -294,71 +281,5 @@ class InvoiceRepository
             error_log("Error updating invoice status: " . $e->getMessage());
             return false;
         }
-    }
-    
-    /**
-     * Delete an invoice and its line items
-     */
-    public function delete(string $id): bool
-    {
-        try {
-            $this->db->beginTransaction();
-            
-            // Delete line items (will cascade if foreign key is set)
-            $this->deleteLineItemsByInvoiceId($id);
-            
-            // Delete invoice
-            $sql = "DELETE FROM invoices WHERE id = :id";
-            $stmt = $this->db->prepare($sql);
-            $stmt->execute([':id' => $id]);
-            
-            $this->db->commit();
-            return true;
-            
-        } catch (Exception $e) {
-            $this->db->rollBack();
-            error_log("Error deleting invoice: " . $e->getMessage());
-            return false;
-        }
-    }
-     
-    
-    /**
-     * Get invoice statistics
-     */
-    public function getStatistics(): array
-    {
-        $sql = "SELECT 
-                    status,
-                    COUNT(*) as count,
-                    SUM(total_gross_amount) as total_amount,
-                    AVG(total_gross_amount) as avg_amount
-                FROM invoices
-                GROUP BY status";
-        
-        $stmt = $this->db->query($sql);
-        
-        $stats = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $stats[$row['status']] = [
-                'count' => (int) $row['count'],
-                'total_amount' => (float) $row['total_amount'],
-                'avg_amount' => (float) $row['avg_amount']
-            ];
-        }
-        
-        return $stats;
-    }
-    
-    /**
-     * Check if invoice exists
-     */
-    public function exists(string $id): bool
-    {
-        $sql = "SELECT COUNT(*) FROM invoices WHERE id = :id";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([':id' => $id]);
-        
-        return $stmt->fetchColumn() > 0;
     }
 }

@@ -2,8 +2,14 @@
 
 declare(strict_types=1);
 
-class ApiKernel
-{
+namespace Luxullus\LexBridge\Api;
+
+use DateTime;
+use Luxullus\LexBridge\Http\HttpClient;
+use Luxullus\LexBridge\Controllers\ControllerFactory;
+
+final class ApiKernel {
+
     private ApiRouter $router;
     private HttpClient $httpClient;
 
@@ -14,10 +20,12 @@ class ApiKernel
 
         $this->getInvoicesRouteRegistration();
         $this->postInvoiceRouteRegistration();
+        $this->postInvoiceCreateRouteRegistration();
         $this->getContactsRouteRegistration();
         $this->postContactRouteRegistration();
         $this->getCustomersSearchRouteRegistration();
         $this->getLineItemsRouteRegistration();
+        $this->postInvoiceCreateRouteRegistration();
         // Customer search route for AJAX dropdown
         
     }
@@ -113,6 +121,24 @@ class ApiKernel
             }
 
             return $controller->transferInvoiceToLexware($invoiceId);
+        });
+    }
+
+    private function postInvoiceCreateRouteRegistration(): void
+    {
+        $this->router->post('/invoices', function() {
+            $controller = ControllerFactory::makeInvoiceController($this->httpClient);
+            $data = json_decode(file_get_contents('php://input'), true);
+            $customerId = $data['customer_id'] ?? null;
+            $currency = $data['currency'] ?? null;
+            $lineItems = $data['line_items'] ?? [];
+            if (!$customerId || empty($lineItems)) {
+                return [
+                    'isSuccess' => false,
+                    'error' => 'customer_id and line_items are required'
+                ];
+            }
+            return $controller->createInvoiceWithItems((int)$customerId, $currency, $lineItems);
         });
     }
 

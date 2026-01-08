@@ -1,10 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Controllers;
+use Luxullus\LexBridge\Services\InvoiceService;
+
+
 /**
  * Controller class to handle invoice-related requests
  */
 final class InvoiceController
 {
+    
     private InvoiceService $invoiceService;
     
     public function __construct(InvoiceService $invoiceService)
@@ -45,5 +52,18 @@ final class InvoiceController
             'error' => $response->getError(),
             'invoice' => $invoice
         ];
+    }
+
+    /**
+     * Create a new invoice with line items
+     *
+     * @param int $customerId
+     * @param string|null $currency
+     * @param array $lineItems
+     * @return array Result from InvoiceService
+     */
+    public function createInvoiceWithItems(int $customerId,  array $lineItems): array
+    {
+        return $this->invoiceService->createInvoiceWithItems($customerId, $lineItems);
     }
 }

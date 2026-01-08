@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Models;
+
 /**
  * Class to represent a Contact
  */

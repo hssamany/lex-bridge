@@ -2,12 +2,17 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../database/Database.php';
-require_once __DIR__ . '/../models/Customer.php';
+
+namespace Luxullus\LexBridge\Repositories;
+
+use PDO;
+use Luxullus\LexBridge\Models\Customer;
+use Luxullus\LexBridge\Database\Database;
+
 
 class CustomerRepository
 {
-    private PDO $db;
+    private \PDO $db;
 
     public function __construct()
     {
@@ -36,7 +41,7 @@ class CustomerRepository
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
         $customers = [];
         foreach ($rows as $row) {

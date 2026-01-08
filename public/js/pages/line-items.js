@@ -129,6 +129,94 @@
 })();
 
 class LineItemsPage {
+                static moveSendButtonNextToForm() {
+                    const sendBtn = document.getElementById('send-invoice-btn');
+                    const form = document.querySelector('form[name="get-line-items"]');
+                    if (sendBtn && form) {
+                        // Move the button after the form
+                        form.parentNode.insertBefore(sendBtn, form.nextSibling);
+                        sendBtn.style.display = 'inline-flex';
+                        sendBtn.style.verticalAlign = 'middle';
+                        sendBtn.style.marginLeft = '10px';
+                    }
+                }
+            setupSendInvoiceButton() {
+                const sendBtn = document.getElementById('send-invoice-btn');
+                if (!sendBtn) return;
+                // Enable/disable button based on selection
+                document.addEventListener('change', () => {
+                    const anyChecked = document.querySelector('.line-item-select-checkbox:checked');
+                    sendBtn.disabled = !anyChecked;
+                });
+                // On click, trigger invoice creation
+                sendBtn.addEventListener('click', () => {
+                    this.handleCreateInvoiceFromSelection();
+                });
+            }
+        addInvoiceButtonIfNeeded() {
+            let container = document.querySelector('.line-items-list');
+            if (!container) return;
+            let existing = container.querySelector('.create-invoice-btn');
+            if (!existing) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'create-invoice-btn';
+                btn.textContent = 'Ausgewählte Positionen als Rechnung erstellen';
+                btn.style.margin = '10px 0';
+                btn.addEventListener('click', () => this.handleCreateInvoiceFromSelection());
+                container.prepend(btn);
+            }
+        }
+
+        getSelectedLineItemIds() {
+            return Array.from(document.querySelectorAll('.line-item-select-checkbox:checked'))
+                .map(cb => cb.getAttribute('data-line-item-id'))
+                .filter(Boolean);
+        }
+
+        async handleCreateInvoiceFromSelection() {
+            // Get selected line item IDs
+            const selectedIds = this.getSelectedLineItemIds();
+            if (!selectedIds.length) {
+                alert('Bitte wählen Sie mindestens eine Position aus.');
+                return;
+            }
+
+            // Get customer ID from filter form
+            const form = document.querySelector('form[name="get-line-items"]');
+            let customerId = '';
+            if (form) {
+                const hidden = form.querySelector('input[type="hidden"][name="customer_id"]');
+                if (hidden) customerId = hidden.value;
+            }
+            if (!customerId) {
+                alert('Bitte wählen Sie einen Kunden aus.');
+                return;
+            }
+
+            // Prepare lineItems array (just IDs, or you can fetch more info if needed)
+            const lineItems = selectedIds.map(id => ({ id }));
+
+            // Optionally, ask for currency or use a default
+            const currency = 'EUR';
+
+            // Send to API
+            try {
+                const response = await fetch('/lex-bridge/api/invoices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customer_id: customerId, currency, line_items: lineItems })
+                });
+                const result = await response.json();
+                if (response.ok && result.invoice_id) {
+                    alert('Rechnung erfolgreich erstellt!');
+                } else {
+                    alert('Fehler beim Erstellen der Rechnung: ' + (result.error || 'Unbekannter Fehler'));
+                }
+            } catch (e) {
+                alert('Fehler beim Senden der Anfrage: ' + e.message);
+            }
+        }
     static handlerSetup = false;
 
     constructor(lexBridge) {
@@ -138,6 +226,19 @@ class LineItemsPage {
             LineItemsPage.handlerSetup = true;
         }
         this.setupFilterFormDirect();
+        // Setup select-all checkbox event
+        document.addEventListener('change', function (event) {
+            const target = event.target;
+            if (target && target.classList.contains('line-items-select-all')) {
+                const checkboxes = document.querySelectorAll('.line-item-select-checkbox');
+                checkboxes.forEach(cb => { cb.checked = target.checked; });
+            }
+        });
+        // Setup send-invoice button logic
+        this.setupSendInvoiceButton();
+
+        // Always show the send-invoice button
+        LineItemsPage.moveSendButtonNextToForm();
     }
 
     setupFilterDelegation() {
@@ -203,7 +304,8 @@ class LineItemsPage {
                 this.lexBridge.toastNotifier.show('Line items aktualisiert', 'success');
             }
 
-        } catch (error) {
+        } 
+        catch (error) {
             console.error('Line items filter error:', error);
             if (this.lexBridge?.toastNotifier) {
                 this.lexBridge.toastNotifier.show('Fehler beim Laden der Positionen', 'error');
@@ -223,12 +325,22 @@ class LineItemsPage {
             return;
         }
 
+        // Always show the send-invoice button first
+        const sendBtn = document.getElementById('send-invoice-btn');
+        if (sendBtn && !container.contains(sendBtn)) {
+            container.prepend(sendBtn);
+            sendBtn.style.display = 'flex';
+        }
+
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
 
         if (items.length === 0) {
-            container.innerHTML = '<p class="line-items-empty">Keine Positionen gefunden.</p>';
+            container.innerHTML += '<p class="line-items-empty">Keine Positionen gefunden.</p>';
             return;
         }
+
+        // Add invoice button if needed
+        this.addInvoiceButtonIfNeeded();
 
         const tableRows = items.map(item => {
             const position = item.line_order != null ? item.line_order : '';
@@ -238,8 +350,12 @@ class LineItemsPage {
             const taxRate = item.tax_rate_percentage != null ? this.formatNumber(item.tax_rate_percentage, 2) : '';
             const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
 
+            // Add a checkbox with a data-line-item-id attribute
+            const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id)}">`;
+
             return `
                 <tr>
+                    <td>${checkbox}</td>
                     <td>${this.escapeHtml(position)}</td>
                     <td>${this.escapeHtml(item.name || '')}</td>
                     <td>${this.escapeHtml(quantity)}</td>
@@ -252,10 +368,11 @@ class LineItemsPage {
             `;
         }).join('');
 
-        container.innerHTML = `
+        container.innerHTML += `
             <table class="line-items-table">
                 <thead>
                     <tr>
+                        <th><input type="checkbox" class="line-items-select-all"></th>
                         <th>Pos.</th>
                         <th>Bezeichnung</th>
                         <th>Menge</th>

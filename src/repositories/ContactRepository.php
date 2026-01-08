@@ -1,23 +1,29 @@
 <?php
 
-require_once __DIR__ . '/../database/Database.php';
-require_once __DIR__ . '/../models/Contact.php';
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Repositories;
+
+use PDO;
+use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Models\Contact;
+
 
 /**
  * Repository for Contact database operations
  */
 class ContactRepository
 {
-    private PDO $db;
-    
+    private \PDO $db;
+
     public function __construct()
     {
         $this -> db = Database::getConnection();
     }
-    
+
     /**
      * Update a contact in the customer table
-     * 
+     *
      * @param Contact $contact Contact object to update
      * @return bool True if update was successful
      */
@@ -28,19 +34,18 @@ class ContactRepository
                     lex_customer_number = :lex_customer_number                    
                 WHERE company_name = :company_name
                 ";
-        
+
         $stmt = $this -> db -> prepare($sql);
-        
+
         $params = [
             ':lex_contact_id' => $contact -> lexContactId,
             ':lex_customer_number' => $contact -> lexCustomerNumber,
             ':company_name' => $contact -> companyName
         ];
-        
+
         return $stmt->execute($params);
     }
-    
-    
+
     /**
      * Find a contact by lex_contact_id
      * 

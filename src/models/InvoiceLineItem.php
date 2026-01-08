@@ -1,5 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Models;
+
 /**
  * InvoiceLineItem Model
  * Represents a single line item in an invoice
@@ -50,14 +54,14 @@ final class InvoiceLineItem
         $item->type = $row['type'];
         $item->name = $row['name'];
         $item->description = $row['description'] ?? null;
-        $item->quantity = $row['quantity'] ?? null;
+        $item->quantity = isset($row['quantity']) ? (float)$row['quantity'] : null;
         $item->unitName = $row['unit_name'] ?? null;
         $item->currency = $row['currency'] ?? 'EUR';
-        $item->netAmount = $row['net_amount'] ?? null;
-        $item->taxRatePercentage = $row['tax_rate_percentage'] ?? null;
-        $item->discountPercentage = $row['discount_percentage'] ?? 0;
-        $item->lineTotalNet = $row['line_total_net'] ?? null;
-        $item->lineTotalGross = $row['line_total_gross'] ?? null;
+        $item->netAmount = isset($row['net_amount']) ? (float)$row['net_amount'] : null;
+        $item->taxRatePercentage = isset($row['tax_rate_percentage']) ? (float)$row['tax_rate_percentage'] : null;
+        $item->discountPercentage = isset($row['discount_percentage']) ? (float)$row['discount_percentage'] : 0.0;
+        $item->lineTotalNet = isset($row['line_total_net']) ? (float)$row['line_total_net'] : null;
+        $item->lineTotalGross = isset($row['line_total_gross']) ? (float)$row['line_total_gross'] : null;
         $item->createdAt = $row['created_at'] ?? null;
         $item->updatedAt = $row['updated_at'] ?? null;
         

@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-class CustomerController
+namespace Luxullus\LexBridge\Controllers;
+
+use Luxullus\LexBridge\Services\CustomerService;
+
+final class CustomerController
 {
     private CustomerService $service;
 

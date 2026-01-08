@@ -1,3 +1,10 @@
+/* Ensure button SVG icons are visible */
+.btn svg {
+    display: inline-block;
+    vertical-align: middle;
+    color: #fff !important;
+    fill: #fff !important;
+}
 .customer-search-combobox {
     padding: 0.45rem 0.7rem;
     border: 1px solid #ccc;
