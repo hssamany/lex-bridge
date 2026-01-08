@@ -112,11 +112,20 @@ final class InvoiceService {
      * Create a new invoice with line items
      *
      * @param int $customerId
+     * @param string|null $currency
      * @param array $lineItems (array of ["article_id" => int, "quantity" => float])
      * @return array ["invoice_id" => int, "error_code" => int, "error_message" => string]
      */
-    public function createInvoiceWithItems(int $customerId,  array $lineItems): array
+    public function createInvoiceWithItems(int $customerId, ?string $currency, array $lineItems): array
     {
-        return $this->invoiceRepository->createInvoiceWithItems($customerId, $lineItems);
+        $normalizedCurrency = null;
+        if ($currency !== null) {
+            $trimmed = trim($currency);
+            if ($trimmed !== '') {
+                $normalizedCurrency = strtoupper(substr($trimmed, 0, 3));
+            }
+        }
+
+        return $this->invoiceRepository->createInvoiceWithItems($customerId, $normalizedCurrency, $lineItems);
     }
 }

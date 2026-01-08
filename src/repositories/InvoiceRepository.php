@@ -8,6 +8,7 @@ namespace Luxullus\LexBridge\Repositories;
 use PDO;
 use DateTime;
 use Exception;
+use JsonException;
 use Luxullus\LexBridge\Models\Invoice;
 use Luxullus\LexBridge\Database\Database;
 use Luxullus\LexBridge\Models\InvoiceLineItem;
@@ -158,14 +159,28 @@ class InvoiceRepository
      * @param array $lineItems (array of ["article_id" => int, "quantity" => float])
      * @return array ["invoice_id" => int, "error_code" => int, "error_message" => string]
      */
-    public function createInvoiceWithItems($customerId, array $lineItems)
+    public function createInvoiceWithItems(int $customerId, ?string $currency, array $lineItems)
     {
         try {
 
-            $stmt = $this->db->prepare('CALL create_invoice_from_selection(:customer_id, :line_items, @invoice_id, @error_code, @error_message)');
-            $jsonLineItems = json_encode($lineItems);
+            $stmt = $this->db->prepare('CALL create_invoice_from_selection(:customer_id, :currency, :line_items, @invoice_id, @error_code, @error_message)');
+
+            try {
+                $jsonLineItems = json_encode($lineItems, JSON_THROW_ON_ERROR);
+            } catch (JsonException $exception) {
+                return [
+                    'invoice_id' => null,
+                    'error_code' => -1,
+                    'error_message' => 'Line item encoding error: ' . $exception->getMessage(),
+                ];
+            }
 
             $stmt->bindValue(':customer_id', $customerId, PDO::PARAM_INT);
+            if ($currency === null) {
+                $stmt->bindValue(':currency', null, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindValue(':currency', $currency, PDO::PARAM_STR);
+            }
             $stmt->bindValue(':line_items', $jsonLineItems, PDO::PARAM_STR);
 
             $stmt->execute();

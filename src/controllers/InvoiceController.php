@@ -62,8 +62,8 @@ final class InvoiceController
      * @param array $lineItems
      * @return array Result from InvoiceService
      */
-    public function createInvoiceWithItems(int $customerId,  array $lineItems): array
+    public function createInvoiceWithItems(int $customerId, ?string $currency, array $lineItems): array
     {
-        return $this->invoiceService->createInvoiceWithItems($customerId, $lineItems);
+        return $this->invoiceService->createInvoiceWithItems($customerId, $currency, $lineItems);
     }
 }
