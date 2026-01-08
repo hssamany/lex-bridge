@@ -24,7 +24,67 @@ final class ArticleRepository
      */
     public function searchArticles(?string $query): array
     {
-        $sql = 'SELECT id, article_number, name FROM articles';
+                $sql = <<<SQL
+                        SELECT
+                                a.id,
+                                a.article_number,
+                                a.name,
+                                (
+                                        SELECT pr.net_amount
+                                        FROM prices pr
+                                        WHERE pr.article_id = a.id
+                                            AND pr.valid_from <= CURRENT_DATE
+                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                                        ORDER BY pr.valid_from DESC, pr.id DESC
+                                        LIMIT 1
+                                ) AS net_amount,
+                                (
+                                        SELECT pr.gross_amount
+                                        FROM prices pr
+                                        WHERE pr.article_id = a.id
+                                            AND pr.valid_from <= CURRENT_DATE
+                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                                        ORDER BY pr.valid_from DESC, pr.id DESC
+                                        LIMIT 1
+                                ) AS gross_amount,
+                                (
+                                        SELECT pr.tax_rate_percentage
+                                        FROM prices pr
+                                        WHERE pr.article_id = a.id
+                                            AND pr.valid_from <= CURRENT_DATE
+                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                                        ORDER BY pr.valid_from DESC, pr.id DESC
+                                        LIMIT 1
+                                ) AS tax_rate_percentage,
+                                (
+                                        SELECT pr.currency
+                                        FROM prices pr
+                                        WHERE pr.article_id = a.id
+                                            AND pr.valid_from <= CURRENT_DATE
+                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                                        ORDER BY pr.valid_from DESC, pr.id DESC
+                                        LIMIT 1
+                                ) AS currency,
+                                (
+                                        SELECT pr.valid_from
+                                        FROM prices pr
+                                        WHERE pr.article_id = a.id
+                                            AND pr.valid_from <= CURRENT_DATE
+                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                                        ORDER BY pr.valid_from DESC, pr.id DESC
+                                        LIMIT 1
+                                ) AS valid_from,
+                                (
+                                        SELECT pr.valid_until
+                                        FROM prices pr
+                                        WHERE pr.article_id = a.id
+                                            AND pr.valid_from <= CURRENT_DATE
+                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                                        ORDER BY pr.valid_from DESC, pr.id DESC
+                                        LIMIT 1
+                                ) AS valid_until
+                        FROM articles a
+                SQL;
 
         $hasQuery = $query !== null && $query !== '';
         if ($hasQuery) {

@@ -112,8 +112,7 @@
         debounceTimers.set(input, newTimer);
     }
 
-    function populateArticleDatalist(datalist, articles) 
-    {
+    function populateArticleDatalist(datalist, articles) {
         datalist.innerHTML = '<option value="">Artikel wählen</option>';
 
         if (!Array.isArray(articles)) {
@@ -128,6 +127,35 @@
             opt.value = labelParts.join(' - ');
             opt.dataset.articleId = String(article.id ?? '');
             opt.setAttribute('data-article-id', String(article.id ?? ''));
+            opt.dataset.articleNumber = String(number ?? '');
+            opt.setAttribute('data-article-number', String(number ?? ''));
+            opt.dataset.articleName = name || '';
+            opt.setAttribute('data-article-name', name || '');
+
+            const netAmount = article.net_amount ?? article.netAmount ?? '';
+            opt.dataset.netAmount = netAmount !== null && netAmount !== undefined ? String(netAmount) : '';
+            opt.setAttribute('data-net-amount', opt.dataset.netAmount);
+
+            const grossAmount = article.gross_amount ?? article.grossAmount ?? '';
+            opt.dataset.grossAmount = grossAmount !== null && grossAmount !== undefined ? String(grossAmount) : '';
+            opt.setAttribute('data-gross-amount', opt.dataset.grossAmount);
+
+            const taxRate = article.tax_rate_percentage ?? article.taxRatePercentage ?? '';
+            opt.dataset.taxRatePercentage = taxRate !== null && taxRate !== undefined ? String(taxRate) : '';
+            opt.setAttribute('data-tax-rate-percentage', opt.dataset.taxRatePercentage);
+
+            const currency = article.currency ?? article.currency_code ?? '';
+            opt.dataset.currency = currency || '';
+            opt.setAttribute('data-currency', opt.dataset.currency);
+
+            const validFrom = article.valid_from ?? article.validFrom ?? '';
+            opt.dataset.validFrom = validFrom || '';
+            opt.setAttribute('data-valid-from', opt.dataset.validFrom);
+
+            const validUntil = article.valid_until ?? article.validUntil ?? '';
+            opt.dataset.validUntil = validUntil || '';
+            opt.setAttribute('data-valid-until', opt.dataset.validUntil);
+
             datalist.appendChild(opt);
         });
     }
@@ -209,6 +237,120 @@
         return fetchPromise;
     }
 
+    function formatArticleDisplayNumber(value, fractionDigits) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        const numeric = Number(value);
+        if (Number.isNaN(numeric)) {
+            return '';
+        }
+
+        const digits = typeof fractionDigits === 'number' ? fractionDigits : 2;
+        return numeric.toLocaleString('de-DE', {
+            minimumFractionDigits: digits,
+            maximumFractionDigits: digits
+        });
+    }
+
+    function updateLineItemCells(row, data) {
+        if (!row) {
+            return;
+        }
+
+        const nameCell = row.querySelector('.line-item-name-cell');
+        if (nameCell) {
+            if (!nameCell.dataset.originalValue) {
+                nameCell.dataset.originalValue = nameCell.textContent || '';
+            }
+            nameCell.textContent = data?.name ? data.name : (nameCell.dataset.originalValue || '');
+        }
+
+        const applyNumericValue = (selector, value, digits) => {
+            const cell = row.querySelector(selector);
+            if (!cell) {
+                return;
+            }
+            if (!cell.dataset.originalValue) {
+                cell.dataset.originalValue = cell.textContent || '';
+            }
+
+            if (value === null || value === undefined || value === '') {
+                cell.textContent = cell.dataset.originalValue || '';
+                return;
+            }
+
+            cell.textContent = formatArticleDisplayNumber(value, digits);
+        };
+
+        applyNumericValue('.line-item-net-cell', data?.netAmount, 2);
+        applyNumericValue('.line-item-gross-cell', data?.grossAmount, 2);
+        applyNumericValue('.line-item-tax-cell', data?.taxRate, 2);
+    }
+
+    function applyArticleSelectionDetails(input, option) {
+        if (!input) {
+            return;
+        }
+
+        const wrapper = input.closest('.article-selector');
+        if (!wrapper) {
+            return;
+        }
+
+        const readDataset = (key) => {
+            if (!option) {
+                return '';
+            }
+            const datasetValue = option.dataset[key];
+            if (datasetValue !== undefined) {
+                return datasetValue;
+            }
+            const attributeValue = option.getAttribute(`data-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`);
+            return attributeValue ?? '';
+        };
+
+        const articleData = {
+            id: option ? (option.dataset.articleId || option.getAttribute('data-article-id') || '') : '',
+            number: readDataset('articleNumber'),
+            name: readDataset('articleName'),
+            netAmount: readDataset('netAmount'),
+            grossAmount: readDataset('grossAmount'),
+            taxRate: readDataset('taxRatePercentage'),
+            currency: readDataset('currency'),
+            validFrom: readDataset('validFrom'),
+            validUntil: readDataset('validUntil')
+        };
+
+        const setWrapperField = (selector, value) => {
+            const field = wrapper.querySelector(selector);
+            if (field) {
+                field.value = value ?? '';
+            }
+        };
+
+        setWrapperField('.article-id-field', articleData.id);
+        setWrapperField('.article-number-field', articleData.number);
+        setWrapperField('.article-name-field', articleData.name);
+        setWrapperField('.article-net-field', articleData.netAmount);
+        setWrapperField('.article-gross-field', articleData.grossAmount);
+        setWrapperField('.article-tax-field', articleData.taxRate);
+        setWrapperField('.article-currency-field', articleData.currency);
+        setWrapperField('.article-valid-from-field', articleData.validFrom);
+        setWrapperField('.article-valid-until-field', articleData.validUntil);
+
+        const row = input.closest('tr');
+        if (row) {
+            updateLineItemCells(row, articleData);
+            row.dataset.selectedArticleId = articleData.id || '';
+            row.dataset.selectedArticleNumber = articleData.number || '';
+            row.dataset.selectedArticleCurrency = articleData.currency || '';
+            row.dataset.selectedArticleValidFrom = articleData.validFrom || '';
+            row.dataset.selectedArticleValidUntil = articleData.validUntil || '';
+        }
+    }
+
     function ensureArticleOptions(input, datalistOverride) {
         const listId = input.getAttribute('list');
         const datalist = datalistOverride || (listId ? document.getElementById(listId) : null);
@@ -232,7 +374,7 @@
         const cachedAll = getCachedArticles('__all__');
         if (cachedAll?.data) {
             populateArticleDatalist(datalist, cachedAll.data);
-            syncArticleSelection(input, datalist);
+            syncArticleSelectionInternal(input, datalist);
             return;
         }
 
@@ -246,38 +388,28 @@
                 }
 
                 populateArticleDatalist(datalist, Array.isArray(articles) ? articles : []);
-                syncArticleSelection(input, datalist);
+                syncArticleSelectionInternal(input, datalist);
             })
             .finally(() => {
                 delete datalist.dataset.loading;
             });
     }
 
-    function syncArticleSelection(input, datalistOverride) {
+    function syncArticleSelectionInternal(input, datalistOverride) {
         if (!input) {
             return;
         }
 
-        const wrapper = input.closest('.article-selector');
-        if (!wrapper) {
-            return;
-        }
-
-        const hiddenField = wrapper.querySelector('.article-id-field');
-        if (!hiddenField) {
-            return;
-        }
-
-        hiddenField.value = '';
-
         const listId = input.getAttribute('list');
         const datalist = datalistOverride || (listId ? document.getElementById(listId) : null);
         if (!datalist) {
+            applyArticleSelectionDetails(input, null);
             return;
         }
 
         const value = input.value.trim();
         if (!value) {
+            applyArticleSelectionDetails(input, null);
             return;
         }
 
@@ -287,12 +419,20 @@
             if (option.value !== value) {
                 continue;
             }
-            const articleId = option.dataset.articleId || option.getAttribute('data-article-id');
-            if (articleId) {
-                hiddenField.value = articleId;
-            }
-            break;
+
+            applyArticleSelectionDetails(input, option);
+            return;
         }
+
+        applyArticleSelectionDetails(input, null);
+    }
+
+    if (!window.lexBridge) {
+        window.lexBridge = {};
+    }
+
+    if (!window.lexBridge.syncArticleSelection) {
+        window.lexBridge.syncArticleSelection = syncArticleSelectionInternal;
     }
 
     function handleArticleSearch(input) {
@@ -314,7 +454,7 @@
             clearTimeout(timer);
         }
 
-        syncArticleSelection(input, datalist);
+        syncArticleSelectionInternal(input, datalist);
 
         const newTimer = setTimeout(() => {
             requestArticles(query)
@@ -324,7 +464,7 @@
                     }
 
                     populateArticleDatalist(datalist, articles);
-                    syncArticleSelection(input, datalist);
+                    syncArticleSelectionInternal(input, datalist);
                 });
         }, 300);
 
@@ -584,12 +724,12 @@ class LineItemsPage {
                 <tr>
                     <td>${checkbox}</td>
                     <td>${this.escapeHtml(position)}</td>
-                    <td>${this.escapeHtml(item.name || '')}</td>
+                    <td class="line-item-name-cell">${this.escapeHtml(item.name || '')}</td>
                     <td>${articleCell}</td>
                     <td>${this.escapeHtml(quantity)}</td>
-                    <td>${this.escapeHtml(netAmount)}</td>
-                    <td>${this.escapeHtml(grossAmount)}</td>
-                    <td>${this.escapeHtml(taxRate)}</td>
+                    <td class="line-item-net-cell">${this.escapeHtml(netAmount)}</td>
+                    <td class="line-item-gross-cell">${this.escapeHtml(grossAmount)}</td>
+                    <td class="line-item-tax-cell">${this.escapeHtml(taxRate)}</td>
                     <td>${this.escapeHtml(createdDate)}</td>
                     <td>${this.escapeHtml(createdTime)}</td>
                 </tr>

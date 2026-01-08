@@ -29,6 +29,12 @@ final class ArticleService
                 'id' => isset($article['id']) ? (int) $article['id'] : null,
                 'article_number' => $article['article_number'] ?? '',
                 'name' => $article['name'] ?? '',
+                'net_amount' => isset($article['net_amount']) ? (float) $article['net_amount'] : null,
+                'gross_amount' => isset($article['gross_amount']) ? (float) $article['gross_amount'] : null,
+                'tax_rate_percentage' => isset($article['tax_rate_percentage']) ? (float) $article['tax_rate_percentage'] : null,
+                'currency' => $article['currency'] ?? null,
+                'valid_from' => $article['valid_from'] ?? null,
+                'valid_until' => $article['valid_until'] ?? null,
             ];
         }, $articles);
     }
