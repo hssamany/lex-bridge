@@ -162,6 +162,7 @@
 
     const ARTICLE_CACHE_TTL = 5 * 60 * 1000;
     const articleCache = new Map();
+    const lineItemPersistTimers = new WeakMap();
 
     function getArticleCacheKey(query) {
         const normalized = (query || '').trim().toLowerCase();
@@ -323,32 +324,313 @@
             validUntil: readDataset('validUntil')
         };
 
-        const setWrapperField = (selector, value) => {
-            const field = wrapper.querySelector(selector);
-            if (field) {
-                field.value = value ?? '';
-            }
-        };
-
-        setWrapperField('.article-id-field', articleData.id);
-        setWrapperField('.article-number-field', articleData.number);
-        setWrapperField('.article-name-field', articleData.name);
-        setWrapperField('.article-net-field', articleData.netAmount);
-        setWrapperField('.article-gross-field', articleData.grossAmount);
-        setWrapperField('.article-tax-field', articleData.taxRate);
-        setWrapperField('.article-currency-field', articleData.currency);
-        setWrapperField('.article-valid-from-field', articleData.validFrom);
-        setWrapperField('.article-valid-until-field', articleData.validUntil);
-
         const row = input.closest('tr');
         if (row) {
             updateLineItemCells(row, articleData);
-            row.dataset.selectedArticleId = articleData.id || '';
-            row.dataset.selectedArticleNumber = articleData.number || '';
-            row.dataset.selectedArticleCurrency = articleData.currency || '';
-            row.dataset.selectedArticleValidFrom = articleData.validFrom || '';
-            row.dataset.selectedArticleValidUntil = articleData.validUntil || '';
+
+            const signature = computeArticleSignature(articleData, input.value);
+            const shouldPersist = Boolean(option) || input.value.trim() === '';
+            if (shouldPersist) {
+                row.dataset.selectedArticleId = articleData.id || '';
+                row.dataset.selectedArticleNumber = articleData.number || '';
+                row.dataset.selectedArticleName = articleData.name || '';
+                row.dataset.selectedArticleNet = articleData.netAmount || '';
+                row.dataset.selectedArticleGross = articleData.grossAmount || '';
+                row.dataset.selectedArticleTax = articleData.taxRate || '';
+                row.dataset.selectedArticleCurrency = articleData.currency || '';
+                row.dataset.selectedArticleValidFrom = articleData.validFrom || '';
+                row.dataset.selectedArticleValidUntil = articleData.validUntil || '';
+                row.dataset.selectedArticleLabel = option ? input.value : '';
+
+                const setWrapperField = (selector, value) => {
+                    const field = wrapper.querySelector(selector);
+                    if (field) {
+                        field.value = value ?? '';
+                    }
+                };
+
+                setWrapperField('.article-id-field', articleData.id);
+                setWrapperField('.article-number-field', articleData.number);
+                setWrapperField('.article-name-field', articleData.name);
+                setWrapperField('.article-net-field', articleData.netAmount);
+                setWrapperField('.article-gross-field', articleData.grossAmount);
+                setWrapperField('.article-tax-field', articleData.taxRate);
+                setWrapperField('.article-currency-field', articleData.currency);
+                setWrapperField('.article-valid-from-field', articleData.validFrom);
+                setWrapperField('.article-valid-until-field', articleData.validUntil);
+                setWrapperField('.article-label-field', option ? input.value : '');
+
+                row.dataset.currentArticleSignature = signature;
+                scheduleLineItemPersist(row, articleData, input.value, signature);
+            }
         }
+    }
+
+    function toNumberOrNull(value) {
+        if (value === null || value === undefined || value === '') {
+            return null;
+        }
+
+        if (typeof value === 'number') {
+            return Number.isNaN(value) ? null : value;
+        }
+
+        const numeric = Number(value);
+        return Number.isNaN(numeric) ? null : numeric;
+    }
+
+    function normalizeSignatureValue(value) {
+        if (value === null || value === undefined || value === '') {
+            return '';
+        }
+
+        if (typeof value === 'number') {
+            if (!Number.isFinite(value)) {
+                return '';
+            }
+            const normalized = Number(value.toFixed(4));
+            return normalized.toString();
+        }
+
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (trimmed === '') {
+                return '';
+            }
+            const numeric = Number(trimmed);
+            if (!Number.isNaN(numeric)) {
+                return normalizeSignatureValue(numeric);
+            }
+            return trimmed;
+        }
+
+        const numeric = Number(value);
+        if (!Number.isNaN(numeric)) {
+            return normalizeSignatureValue(numeric);
+        }
+
+        return String(value);
+    }
+
+    function computeArticleSignature(articleData, label) {
+        const safeData = articleData || {};
+        const currencyValue = typeof safeData.currency === 'string'
+            ? safeData.currency.toUpperCase()
+            : safeData.currency;
+
+        return JSON.stringify({
+            id: normalizeSignatureValue(safeData.id),
+            number: normalizeSignatureValue(safeData.number),
+            name: normalizeSignatureValue(safeData.name),
+            net: normalizeSignatureValue(safeData.netAmount),
+            gross: normalizeSignatureValue(safeData.grossAmount),
+            tax: normalizeSignatureValue(safeData.taxRate),
+            currency: normalizeSignatureValue(currencyValue),
+            validFrom: normalizeSignatureValue(safeData.validFrom),
+            validUntil: normalizeSignatureValue(safeData.validUntil),
+            label: normalizeSignatureValue(label)
+        });
+    }
+
+    function buildLineItemPersistPayload(row, articleData, displayValue) {
+        if (!row) {
+            return null;
+        }
+
+        const wrapper = row.querySelector('.article-selector');
+        const readField = (selector) => {
+            if (!wrapper) {
+                return '';
+            }
+            const field = wrapper.querySelector(selector);
+            return field ? field.value : '';
+        };
+
+        const safeData = articleData || {};
+        const payload = {
+            line_item_id: row.dataset.lineItemId || '',
+            article_id: safeData.id || readField('.article-id-field') || null,
+            article_number: safeData.number || readField('.article-number-field') || null,
+            article_name: safeData.name || readField('.article-name-field') || null,
+            article_label: displayValue || readField('.article-label-field') || null,
+            currency: safeData.currency || readField('.article-currency-field') || null,
+            net_amount: toNumberOrNull(safeData.netAmount ?? readField('.article-net-field')),
+            gross_amount: toNumberOrNull(safeData.grossAmount ?? readField('.article-gross-field')),
+            tax_rate_percentage: toNumberOrNull(safeData.taxRate ?? readField('.article-tax-field')),
+            article_valid_from: safeData.validFrom || readField('.article-valid-from-field') || null,
+            article_valid_until: safeData.validUntil || readField('.article-valid-until-field') || null
+        };
+
+        return payload;
+    }
+
+    function updateRowFromServerResponse(row, lineItem) {
+        if (!row || !lineItem) {
+            return;
+        }
+
+        row.dataset.selectedArticleId = lineItem.article_id ?? '';
+        row.dataset.selectedArticleNumber = lineItem.article_number ?? '';
+        row.dataset.selectedArticleName = lineItem.name ?? '';
+        row.dataset.selectedArticleNet = lineItem.net_amount ?? '';
+        row.dataset.selectedArticleGross = lineItem.gross_amount ?? '';
+        row.dataset.selectedArticleTax = lineItem.tax_rate_percentage ?? '';
+        row.dataset.selectedArticleCurrency = lineItem.currency ?? '';
+        row.dataset.selectedArticleValidFrom = lineItem.article_valid_from ?? '';
+        row.dataset.selectedArticleValidUntil = lineItem.article_valid_until ?? '';
+        row.dataset.selectedArticleLabel = lineItem.article_label ?? '';
+
+        const wrapper = row.querySelector('.article-selector');
+        if (wrapper) {
+            const setField = (selector, value) => {
+                const field = wrapper.querySelector(selector);
+                if (field) {
+                    field.value = value ?? '';
+                }
+            };
+
+            setField('.article-id-field', lineItem.article_id ?? '');
+            setField('.article-number-field', lineItem.article_number ?? '');
+            setField('.article-name-field', lineItem.name ?? '');
+            setField('.article-net-field', lineItem.net_amount ?? '');
+            setField('.article-gross-field', lineItem.gross_amount ?? '');
+            setField('.article-tax-field', lineItem.tax_rate_percentage ?? '');
+            setField('.article-currency-field', lineItem.currency ?? '');
+            setField('.article-valid-from-field', lineItem.article_valid_from ?? '');
+            setField('.article-valid-until-field', lineItem.article_valid_until ?? '');
+            setField('.article-label-field', lineItem.article_label ?? '');
+
+            const input = wrapper.querySelector('.article-search-combobox');
+            if (input && typeof lineItem.article_label === 'string') {
+                input.value = lineItem.article_label;
+            }
+        }
+
+        updateLineItemCells(row, {
+            name: lineItem.name ?? '',
+            netAmount: lineItem.net_amount ?? '',
+            grossAmount: (lineItem.gross_amount ?? lineItem.line_total_gross) ?? '',
+            taxRate: lineItem.tax_rate_percentage ?? ''
+        });
+
+        const signature = computeArticleSignature({
+            id: lineItem.article_id ?? '',
+            number: lineItem.article_number ?? '',
+            name: lineItem.name ?? '',
+            netAmount: lineItem.net_amount ?? '',
+            grossAmount: (lineItem.gross_amount ?? lineItem.line_total_gross) ?? '',
+            taxRate: lineItem.tax_rate_percentage ?? '',
+            currency: lineItem.currency ?? '',
+            validFrom: lineItem.article_valid_from ?? '',
+            validUntil: lineItem.article_valid_until ?? ''
+        }, lineItem.article_label ?? '');
+        row.dataset.persistedArticleSignature = signature;
+    }
+
+    function persistLineItemSelection(row, articleData, displayValue, signature) {
+        if (!row) {
+            return;
+        }
+
+        const payload = buildLineItemPersistPayload(row, articleData, displayValue);
+        if (!payload || !payload.line_item_id) {
+            return;
+        }
+
+        fetch('/lex-bridge/api/line-items/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(async response => {
+                const text = await response.text();
+                let data;
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (error) {
+                    throw new Error('Line item update parse error');
+                }
+
+                if (!response.ok || !data?.isSuccess) {
+                    const message = data?.error || `Line item update failed (${response.status})`;
+                    throw new Error(message);
+                }
+
+                if (data.lineItem) {
+                    updateRowFromServerResponse(row, data.lineItem);
+                    return;
+                }
+
+                if (signature) {
+                    row.dataset.persistedArticleSignature = signature;
+                }
+            })
+            .catch(error => {
+                console.error('Line item update error:', error);
+                if (window.lexBridge?.toastNotifier) {
+                    window.lexBridge.toastNotifier.show('Speichern der Position fehlgeschlagen', 'error');
+                }
+            });
+    }
+
+    function scheduleLineItemPersist(row, articleData, displayValue, signature) {
+        if (!row || !row.dataset) {
+            return;
+        }
+
+        const persistSignature = signature || computeArticleSignature(articleData, displayValue);
+        const persistedSignature = row.dataset.persistedArticleSignature || '';
+        if (persistSignature === persistedSignature) {
+            return;
+        }
+
+        const existingTimer = lineItemPersistTimers.get(row);
+        if (existingTimer) {
+            clearTimeout(existingTimer);
+        }
+
+        const timer = setTimeout(() => {
+            lineItemPersistTimers.delete(row);
+            persistLineItemSelection(row, articleData, displayValue, persistSignature);
+        }, 250);
+
+        lineItemPersistTimers.set(row, timer);
+    }
+
+    function initializeLineItemPersistenceState(table) {
+        if (!table) {
+            return;
+        }
+
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const articleData = {
+                id: row.dataset.articleId || '',
+                number: row.dataset.articleNumber || '',
+                name: row.dataset.articleName || '',
+                netAmount: row.dataset.articleNet || '',
+                grossAmount: row.dataset.articleGross || '',
+                taxRate: row.dataset.articleTax || '',
+                currency: row.dataset.articleCurrency || '',
+                validFrom: row.dataset.articleValidFrom || '',
+                validUntil: row.dataset.articleValidUntil || ''
+            };
+            const input = row.querySelector('.article-search-combobox');
+            const label = input ? input.value : '';
+            row.dataset.persistedArticleSignature = computeArticleSignature(articleData, label);
+            row.dataset.selectedArticleId = articleData.id;
+            row.dataset.selectedArticleNumber = articleData.number;
+            row.dataset.selectedArticleName = articleData.name;
+            row.dataset.selectedArticleNet = articleData.netAmount;
+            row.dataset.selectedArticleGross = articleData.grossAmount;
+            row.dataset.selectedArticleTax = articleData.taxRate;
+            row.dataset.selectedArticleCurrency = articleData.currency;
+            row.dataset.selectedArticleValidFrom = articleData.validFrom;
+            row.dataset.selectedArticleValidUntil = articleData.validUntil;
+            row.dataset.selectedArticleLabel = label;
+        });
     }
 
     function ensureArticleOptions(input, datalistOverride) {
@@ -694,25 +976,53 @@ class LineItemsPage {
 
         const tableRows = items.map((item, index) => {
             const position = item.line_order != null ? item.line_order : '';
-            const quantity = item.quantity != null ? this.formatNumber(item.quantity, 3) : '';
-            const netAmount = item.net_amount != null ? this.formatNumber(item.net_amount, 2) : '';
-            const grossAmount = item.line_total_gross != null ? this.formatNumber(item.line_total_gross, 2) : '';
-            const taxRate = item.tax_rate_percentage != null ? this.formatNumber(item.tax_rate_percentage, 2) : '';
+            const quantityValue = item.quantity != null ? String(item.quantity) : '';
+            const netValue = item.net_amount != null ? String(item.net_amount) : '';
+            const grossValue = (item.gross_amount ?? item.line_total_gross) != null
+                ? String(item.gross_amount ?? item.line_total_gross)
+                : '';
+            const taxValue = item.tax_rate_percentage != null ? String(item.tax_rate_percentage) : '';
+            const currencyValue = item.currency ?? '';
+            const articleIdValue = item.article_id ?? '';
+            const articleNumberValue = item.article_number ?? '';
+            const articleNameValue = item.name ?? '';
+            const articleLabelValue = item.article_label
+                || (articleNumberValue && articleNameValue ? `${articleNumberValue} - ${articleNameValue}` : articleNameValue)
+                || '';
+            const validFromValue = item.article_valid_from ?? '';
+            const validUntilValue = item.article_valid_until ?? '';
             const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
 
-            const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id)}">`;
-            const articleText = item.article_label || item.article_name || item.article_title || '';
-            const articleId = item.article_id ?? item.articleId ?? '';
+            const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id ?? '')}">`;
             const articleListId = `article-options-${index}-${item.id ?? 'row'}`;
-            const safeArticleText = this.escapeHtml(articleText);
-            const safeArticleId = this.escapeHtml(articleId);
-            const presetOption = safeArticleText && safeArticleId
-                ? `<option value="${safeArticleText}" data-article-id="${safeArticleId}"></option>`
+            const safeArticleLabel = this.escapeHtml(articleLabelValue);
+            const safeArticleId = this.escapeHtml(articleIdValue);
+            const safeArticleNumber = this.escapeHtml(articleNumberValue);
+            const safeArticleName = this.escapeHtml(articleNameValue);
+            const safeNetValue = this.escapeHtml(netValue);
+            const safeGrossValue = this.escapeHtml(grossValue);
+            const safeTaxValue = this.escapeHtml(taxValue);
+            const safeCurrencyValue = this.escapeHtml(currencyValue);
+            const safeValidFrom = this.escapeHtml(validFromValue);
+            const safeValidUntil = this.escapeHtml(validUntilValue);
+
+            const presetOption = safeArticleLabel && safeArticleId
+                ? `<option value="${safeArticleLabel}" data-article-id="${safeArticleId}"></option>`
                 : '';
+
             const articleCell = `
                 <div class="article-selector">
-                    <input type="text" class="article-search-combobox" list="${articleListId}" value="${safeArticleText}" placeholder="Artikel wählen">
+                    <input type="text" class="article-search-combobox" list="${articleListId}" value="${safeArticleLabel}" placeholder="Artikel wählen">
                     <input type="hidden" class="article-id-field" value="${safeArticleId}">
+                    <input type="hidden" class="article-number-field" value="${safeArticleNumber}">
+                    <input type="hidden" class="article-name-field" value="${safeArticleName}">
+                    <input type="hidden" class="article-net-field" value="${safeNetValue}">
+                    <input type="hidden" class="article-gross-field" value="${safeGrossValue}">
+                    <input type="hidden" class="article-tax-field" value="${safeTaxValue}">
+                    <input type="hidden" class="article-currency-field" value="${safeCurrencyValue}">
+                    <input type="hidden" class="article-valid-from-field" value="${safeValidFrom}">
+                    <input type="hidden" class="article-valid-until-field" value="${safeValidUntil}">
+                    <input type="hidden" class="article-label-field" value="${safeArticleLabel}">
                     <datalist id="${articleListId}">
                         <option value="">Artikel wählen</option>
                         ${presetOption}
@@ -720,16 +1030,34 @@ class LineItemsPage {
                 </div>
             `;
 
+            const quantityDisplay = quantityValue !== '' ? this.formatNumber(quantityValue, 3) : '';
+            const netAmountDisplay = netValue !== '' ? this.formatNumber(netValue, 2) : '';
+            const grossAmountDisplay = grossValue !== '' ? this.formatNumber(grossValue, 2) : '';
+            const taxRateDisplay = taxValue !== '' ? this.formatNumber(taxValue, 2) : '';
+
             return `
-                <tr>
+                <tr
+                    data-line-item-id="${this.escapeHtml(item.id ?? '')}"
+                    data-quantity="${this.escapeHtml(quantityValue)}"
+                    data-article-id="${safeArticleId}"
+                    data-article-number="${safeArticleNumber}"
+                    data-article-name="${safeArticleName}"
+                    data-article-currency="${safeCurrencyValue}"
+                    data-article-net="${safeNetValue}"
+                    data-article-gross="${safeGrossValue}"
+                    data-article-tax="${safeTaxValue}"
+                    data-article-valid-from="${safeValidFrom}"
+                    data-article-valid-until="${safeValidUntil}"
+                    data-article-label="${safeArticleLabel}"
+                >
                     <td>${checkbox}</td>
                     <td>${this.escapeHtml(position)}</td>
-                    <td class="line-item-name-cell">${this.escapeHtml(item.name || '')}</td>
+                    <td class="line-item-name-cell">${this.escapeHtml(articleNameValue || '')}</td>
                     <td>${articleCell}</td>
-                    <td>${this.escapeHtml(quantity)}</td>
-                    <td class="line-item-net-cell">${this.escapeHtml(netAmount)}</td>
-                    <td class="line-item-gross-cell">${this.escapeHtml(grossAmount)}</td>
-                    <td class="line-item-tax-cell">${this.escapeHtml(taxRate)}</td>
+                    <td>${this.escapeHtml(quantityDisplay)}</td>
+                    <td class="line-item-net-cell">${this.escapeHtml(netAmountDisplay)}</td>
+                    <td class="line-item-gross-cell">${this.escapeHtml(grossAmountDisplay)}</td>
+                    <td class="line-item-tax-cell">${this.escapeHtml(taxRateDisplay)}</td>
                     <td>${this.escapeHtml(createdDate)}</td>
                     <td>${this.escapeHtml(createdTime)}</td>
                 </tr>
@@ -758,6 +1086,7 @@ class LineItemsPage {
             </tbody>
         `;
         container.appendChild(table);
+        initializeLineItemPersistenceState(table);
 
         const updateButtonState = () => {
             const anyChecked = container.querySelector('.line-item-select-checkbox:checked');

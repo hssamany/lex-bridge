@@ -26,6 +26,7 @@ final class ApiKernel {
         $this->getCustomersSearchRouteRegistration();
         $this->getArticlesSearchRouteRegistration();
         $this->getLineItemsRouteRegistration();
+        $this->postLineItemUpdateRouteRegistration();
         $this->postInvoiceCreateRouteRegistration();
         // Customer search route for AJAX dropdown
         
@@ -80,6 +81,19 @@ final class ApiKernel {
             }
 
             return $controller->getLineItems($filters);
+        });
+    }
+
+    private function postLineItemUpdateRouteRegistration(): void
+    {
+        $this->router->post('/line-items/update', function() {
+            $controller = ControllerFactory::makeLineItemController($this->httpClient);
+            $data = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($data)) {
+                $data = [];
+            }
+
+            return $controller->updateLineItem($data);
         });
     }
     
