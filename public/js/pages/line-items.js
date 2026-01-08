@@ -3,6 +3,7 @@
 
 (function () {
     const debounceTimers = new WeakMap();
+    const articleDebounceTimers = new WeakMap();
 
     function syncCustomerSelection(input, datalistOverride) {
         if (!input) {
@@ -110,6 +111,110 @@
         debounceTimers.set(input, newTimer);
     }
 
+    function syncArticleSelection(input, datalistOverride) {
+        if (!input) {
+            return;
+        }
+
+        const wrapper = input.closest('.article-selector');
+        if (!wrapper) {
+            return;
+        }
+
+        const hiddenField = wrapper.querySelector('.article-id-field');
+        if (!hiddenField) {
+            return;
+        }
+
+        hiddenField.value = '';
+
+        const listId = input.getAttribute('list');
+        const datalist = datalistOverride || (listId ? document.getElementById(listId) : null);
+        if (!datalist) {
+            return;
+        }
+
+        const value = input.value.trim();
+        if (!value) {
+            return;
+        }
+
+        const options = datalist.options || datalist.children;
+        for (let index = 0; index < options.length; index += 1) {
+            const option = options[index];
+            if (option.value !== value) {
+                continue;
+            }
+            const articleId = option.dataset.articleId || option.getAttribute('data-article-id');
+            if (articleId) {
+                hiddenField.value = articleId;
+            }
+            break;
+        }
+    }
+
+    function handleArticleSearch(input) {
+        const listId = input.getAttribute('list');
+        const datalist = listId ? document.getElementById(listId) : null;
+        if (!datalist) {
+            console.warn('Article datalist not found for input', input);
+            return;
+        }
+
+        const query = input.value.trim();
+        if (!query) {
+            datalist.innerHTML = '<option value="">Artikel wählen</option>';
+            syncArticleSelection(input, datalist);
+            return;
+        }
+
+        const timer = articleDebounceTimers.get(input);
+        if (timer) {
+            clearTimeout(timer);
+        }
+
+        syncArticleSelection(input, datalist);
+
+        const newTimer = setTimeout(() => {
+            fetch(`/lex-bridge/api/articles/search?q=${encodeURIComponent(query)}`)
+                .then(async res => {
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        console.error('Article search HTTP error:', res.status, errorText);
+                        return null;
+                    }
+                    const text = await res.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (error) {
+                        console.error('Article search response parse error:', error, text);
+                        return null;
+                    }
+                })
+                .then(data => {
+                    datalist.innerHTML = '<option value="">Artikel wählen</option>';
+                    if (Array.isArray(data)) {
+                        data.forEach(article => {
+                            const opt = document.createElement('option');
+                            const number = article.article_number || article.number || '';
+                            const name = article.name || article.title || '';
+                            const labelParts = [number, name].filter(Boolean);
+                            opt.value = labelParts.join(' - ');
+                            opt.dataset.articleId = String(article.id ?? '');
+                            opt.setAttribute('data-article-id', String(article.id ?? ''));
+                            datalist.appendChild(opt);
+                        });
+                    }
+                    syncArticleSelection(input, datalist);
+                })
+                .catch(error => {
+                    console.error('Article search error:', error);
+                });
+        }, 300);
+
+        articleDebounceTimers.set(input, newTimer);
+    }
+
     document.addEventListener('input', function (event) {
         const target = event.target;
         if (!target || !target.classList.contains('customer-search-combobox')) {
@@ -126,6 +231,23 @@
         }
         syncCustomerSelection(target);
     }, true); // capture to ensure we catch events even if re-rendered
+
+    document.addEventListener('input', function (event) {
+        const target = event.target;
+        if (!target || !target.classList.contains('article-search-combobox')) {
+            return;
+        }
+        handleArticleSearch(target);
+        syncArticleSelection(target);
+    }, true);
+
+    document.addEventListener('change', function (event) {
+        const target = event.target;
+        if (!target || !target.classList.contains('article-search-combobox')) {
+            return;
+        }
+        syncArticleSelection(target);
+    }, true);
 })();
 
 class LineItemsPage {
@@ -304,7 +426,7 @@ class LineItemsPage {
             return;
         }
 
-        const tableRows = items.map(item => {
+        const tableRows = items.map((item, index) => {
             const position = item.line_order != null ? item.line_order : '';
             const quantity = item.quantity != null ? this.formatNumber(item.quantity, 3) : '';
             const netAmount = item.net_amount != null ? this.formatNumber(item.net_amount, 2) : '';
@@ -313,12 +435,31 @@ class LineItemsPage {
             const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
 
             const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id)}">`;
+            const articleText = item.article_label || item.article_name || item.article_title || '';
+            const articleId = item.article_id ?? item.articleId ?? '';
+            const articleListId = `article-options-${index}-${item.id ?? 'row'}`;
+            const safeArticleText = this.escapeHtml(articleText);
+            const safeArticleId = this.escapeHtml(articleId);
+            const presetOption = safeArticleText && safeArticleId
+                ? `<option value="${safeArticleText}" data-article-id="${safeArticleId}"></option>`
+                : '';
+            const articleCell = `
+                <div class="article-selector">
+                    <input type="text" class="article-search-combobox" list="${articleListId}" value="${safeArticleText}" placeholder="Artikel wählen">
+                    <input type="hidden" class="article-id-field" value="${safeArticleId}">
+                    <datalist id="${articleListId}">
+                        <option value="">Artikel wählen</option>
+                        ${presetOption}
+                    </datalist>
+                </div>
+            `;
 
             return `
                 <tr>
                     <td>${checkbox}</td>
                     <td>${this.escapeHtml(position)}</td>
                     <td>${this.escapeHtml(item.name || '')}</td>
+                    <td>${articleCell}</td>
                     <td>${this.escapeHtml(quantity)}</td>
                     <td>${this.escapeHtml(netAmount)}</td>
                     <td>${this.escapeHtml(grossAmount)}</td>
@@ -337,6 +478,7 @@ class LineItemsPage {
                     <th><input type="checkbox" class="line-items-select-all"></th>
                     <th>Pos.</th>
                     <th>Bezeichnung</th>
+                    <th>Artikel</th>
                     <th>Menge</th>
                     <th>Netto</th>
                     <th>Brutto</th>
@@ -375,6 +517,11 @@ class LineItemsPage {
 
             if (target.classList.contains('line-item-select-checkbox')) {
                 updateButtonState();
+                return;
+            }
+
+            if (target.classList.contains('article-search-combobox')) {
+                syncArticleSelection(target);
             }
         };
 
