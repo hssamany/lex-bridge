@@ -24,6 +24,7 @@ final class ApiKernel {
         $this->getContactsRouteRegistration();
         $this->postContactRouteRegistration();
         $this->getCustomersSearchRouteRegistration();
+        $this->getArticlesSearchRouteRegistration();
         $this->getLineItemsRouteRegistration();
         $this->postInvoiceCreateRouteRegistration();
         // Customer search route for AJAX dropdown
@@ -36,6 +37,15 @@ final class ApiKernel {
             $controller = ControllerFactory::makeCustomerController($this->httpClient);
             $query = isset($_GET['q']) ? trim($_GET['q']) : null;
             return $controller->searchCustomers($query);
+        });
+    }
+
+    private function getArticlesSearchRouteRegistration(): void
+    {
+        $this->router->get('/articles/search', function() {
+            $controller = ControllerFactory::makeArticleController();
+            $query = isset($_GET['q']) ? trim($_GET['q']) : null;
+            return $controller->searchArticles($query);
         });
     }
 

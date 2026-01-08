@@ -14,6 +14,9 @@ use Luxullus\LexBridge\Repositories\CustomerRepository;
 use Luxullus\LexBridge\Controllers\LineItemController;
 use Luxullus\LexBridge\Services\LineItemService;
 use Luxullus\LexBridge\Repositories\LineItemRepository;
+use Luxullus\LexBridge\Controllers\ArticleController;
+use Luxullus\LexBridge\Services\ArticleService;
+use Luxullus\LexBridge\Repositories\ArticleRepository;
 use Luxullus\LexBridge\Http\HttpClient;
 
 
@@ -42,5 +45,12 @@ final class ControllerFactory
         $repository = new LineItemRepository();
         $service = new LineItemService($repository);
         return new LineItemController($service);
+    }
+
+    public static function makeArticleController(): ArticleController
+    {
+        $repository = new ArticleRepository();
+        $service = new ArticleService($repository);
+        return new ArticleController($service);
     }
 }
