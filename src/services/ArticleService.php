@@ -21,26 +21,18 @@ final class ArticleService
      */
     public function searchArticles(?string $query): array
     {
-        $articles = $this->repository->searchArticles($query);
-        $queryTrimmed = $query !== null ? trim($query) : null;
-
-        $idMatch = null;
-        if ($queryTrimmed !== null && preg_match('/^(\d+)\s*-\s*$/', $queryTrimmed, $matches)) {
-            $idMatch = (int) $matches[1];
-        }
+        $normalizedQuery = $query !== null ? trim($query) : null;
+        $articles = $this->repository->searchArticles($normalizedQuery);
 
         return [
-            'articles' => array_map(static function (array $article) use ($idMatch): array {
-                $id = isset($article['id']) ? (int) $article['id'] : null;
-
+            'articles' => array_map(static function (array $article): array {
                 return [
-                    'id' => $id,
+                    'id' => isset($article['id']) ? (int) $article['id'] : null,
                     'article_number' => $article['article_number'] ?? '',
                     'name' => $article['name'] ?? '',
                     'net_price' => isset($article['net_price']) ? (float) $article['net_price'] : null,
                     'gross_price' => isset($article['gross_price']) ? (float) $article['gross_price'] : null,
                     'tax_rate' => isset($article['tax_rate']) ? (float) $article['tax_rate'] : null,
-                    'isSelected' => $idMatch !== null && $idMatch === $id,
                 ];
             }, $articles),
             'isSuccess' => true,

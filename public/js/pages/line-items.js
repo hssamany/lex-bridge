@@ -521,7 +521,7 @@ class LineItemsPage {
             }
 
             if (target.classList.contains('article-search-combobox')) {
-                syncArticleSelection(target);
+                this.syncArticleSelection(target);
             }
         };
 
@@ -545,6 +545,49 @@ class LineItemsPage {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits
         });
+    }
+
+    syncArticleSelection(input) {
+        if (!input) {
+            return;
+        }
+
+        const wrapper = input.closest('.article-selector');
+        if (!wrapper) {
+            return;
+        }
+
+        const hiddenField = wrapper.querySelector('.article-id-field');
+        if (!hiddenField) {
+            return;
+        }
+
+        hiddenField.value = '';
+
+        const listId = input.getAttribute('list');
+        const datalist = listId ? document.getElementById(listId) : null;
+        if (!datalist) {
+            return;
+        }
+
+        const value = input.value.trim();
+        if (!value) {
+            return;
+        }
+
+        const options = datalist.options || datalist.children;
+        for (let index = 0; index < options.length; index += 1) {
+            const option = options[index];
+            if (option.value !== value) {
+                continue;
+            }
+
+            const articleId = option.dataset.articleId || option.getAttribute('data-article-id');
+            if (articleId) {
+                hiddenField.value = articleId;
+            }
+            break;
+        }
     }
 
     ensureCustomerSelection(form) {
