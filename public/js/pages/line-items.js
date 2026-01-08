@@ -145,20 +145,6 @@ class LineItemsPage {
                     this.handleCreateInvoiceFromSelection();
                 });
             }
-        addInvoiceButtonIfNeeded() {
-            let container = document.querySelector('.line-items-list');
-            if (!container) return;
-            let existing = container.querySelector('.create-invoice-btn');
-            if (!existing) {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'create-invoice-btn';
-                btn.textContent = 'Ausgewählte Positionen als Rechnung erstellen';
-                btn.style.margin = '10px 0';
-                btn.addEventListener('click', () => this.handleCreateInvoiceFromSelection());
-                container.prepend(btn);
-            }
-        }
 
         getSelectedLineItemIds() {
             return Array.from(document.querySelectorAll('.line-item-select-checkbox:checked'))
@@ -316,7 +302,38 @@ class LineItemsPage {
             return;
         }
 
-        // Do not move the send-invoice button; it stays in #line-items-filter-container
+        // Remove any existing send-invoice button to avoid duplicates
+        const oldBtn = container.querySelector('#send-invoice-btn');
+        if (oldBtn) oldBtn.remove();
+
+        // Create and add send-invoice button
+        const sendBtn = document.createElement('button');
+        sendBtn.type = 'button';
+        sendBtn.id = 'send-invoice-btn';
+        sendBtn.className = 'btn btn-primary';
+        sendBtn.style.margin = '10px 0';
+        sendBtn.style.height = '32px';
+        sendBtn.style.width = '';
+        sendBtn.style.fontSize = '1em';
+        sendBtn.innerHTML = 'Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
+        sendBtn.disabled = true;
+        container.prepend(sendBtn);
+
+        // Check selection state immediately after rendering
+        const anyChecked = container.querySelector('.line-item-select-checkbox:checked');
+        sendBtn.disabled = !anyChecked;
+
+        // Enable/disable button based on selection using global event delegation
+        document.addEventListener('change', function (event) {
+            if (event.target && event.target.classList.contains('line-item-select-checkbox')) {
+                const container = document.querySelector('.line-items-list');
+                const sendBtn = container ? container.querySelector('#send-invoice-btn') : null;
+                if (sendBtn) {
+                    const anyChecked = container.querySelector('.line-item-select-checkbox:checked');
+                    sendBtn.disabled = !anyChecked;
+                }
+            }
+        }, true);
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
 
@@ -325,8 +342,6 @@ class LineItemsPage {
             return;
         }
 
-        // Add invoice button if needed
-        this.addInvoiceButtonIfNeeded();
 
         const tableRows = items.map(item => {
             const position = item.line_order != null ? item.line_order : '';
