@@ -129,23 +129,6 @@
 })();
 
 class LineItemsPage {
-                static moveSendButtonNextToForm() {
-                    // Removed moveSendButtonNextToForm. The button must always stay inside #line-items-filter-container in the HTML.
-                }
-            setupSendInvoiceButton() {
-                const sendBtn = document.getElementById('send-invoice-btn');
-                if (!sendBtn) return;
-                // Enable/disable button based on selection
-                document.addEventListener('change', () => {
-                    const anyChecked = document.querySelector('.line-item-select-checkbox:checked');
-                    sendBtn.disabled = !anyChecked;
-                });
-                // On click, trigger invoice creation
-                sendBtn.addEventListener('click', () => {
-                    this.handleCreateInvoiceFromSelection();
-                });
-            }
-
         getSelectedLineItemIds() {
             return Array.from(document.querySelectorAll('.line-item-select-checkbox:checked'))
                 .map(cb => cb.getAttribute('data-line-item-id'))
@@ -204,18 +187,7 @@ class LineItemsPage {
             LineItemsPage.handlerSetup = true;
         }
         this.setupFilterFormDirect();
-        // Setup select-all checkbox event
-        document.addEventListener('change', function (event) {
-            const target = event.target;
-            if (target && target.classList.contains('line-items-select-all')) {
-                const checkboxes = document.querySelectorAll('.line-item-select-checkbox');
-                checkboxes.forEach(cb => { cb.checked = target.checked; });
-            }
-        });
-        // Setup send-invoice button logic
-        this.setupSendInvoiceButton();
-
-        // No need to move the send-invoice button; it stays in #line-items-filter-container
+        // Send-invoice button is rendered dynamically with the line-items list
     }
 
     setupFilterDelegation() {
@@ -302,46 +274,35 @@ class LineItemsPage {
             return;
         }
 
-        // Remove any existing send-invoice button to avoid duplicates
-        const oldBtn = container.querySelector('#send-invoice-btn');
-        if (oldBtn) oldBtn.remove();
+        if (this.lineItemsChangeHandler) {
+            container.removeEventListener('change', this.lineItemsChangeHandler);
+            this.lineItemsChangeHandler = null;
+        }
 
-        // Create and add send-invoice button
+        container.innerHTML = '';
+
         const sendBtn = document.createElement('button');
         sendBtn.type = 'button';
         sendBtn.id = 'send-invoice-btn';
         sendBtn.className = 'btn btn-primary';
         sendBtn.style.margin = '10px 0';
         sendBtn.style.height = '32px';
-        sendBtn.style.width = '';
         sendBtn.style.fontSize = '1em';
         sendBtn.innerHTML = 'Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
         sendBtn.disabled = true;
-        container.prepend(sendBtn);
-
-        // Check selection state immediately after rendering
-        const anyChecked = container.querySelector('.line-item-select-checkbox:checked');
-        sendBtn.disabled = !anyChecked;
-
-        // Enable/disable button based on selection using global event delegation
-        document.addEventListener('change', function (event) {
-            if (event.target && event.target.classList.contains('line-item-select-checkbox')) {
-                const container = document.querySelector('.line-items-list');
-                const sendBtn = container ? container.querySelector('#send-invoice-btn') : null;
-                if (sendBtn) {
-                    const anyChecked = container.querySelector('.line-item-select-checkbox:checked');
-                    sendBtn.disabled = !anyChecked;
-                }
-            }
-        }, true);
+        sendBtn.addEventListener('click', () => {
+            this.handleCreateInvoiceFromSelection();
+        });
+        container.appendChild(sendBtn);
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
-
         if (items.length === 0) {
-            container.innerHTML += '<p class="line-items-empty">Keine Positionen gefunden.</p>';
+            const emptyState = document.createElement('p');
+            emptyState.className = 'line-items-empty';
+            emptyState.textContent = 'Keine Positionen gefunden.';
+            container.appendChild(emptyState);
             return;
         }
-
 
         const tableRows = items.map(item => {
             const position = item.line_order != null ? item.line_order : '';
@@ -351,7 +312,6 @@ class LineItemsPage {
             const taxRate = item.tax_rate_percentage != null ? this.formatNumber(item.tax_rate_percentage, 2) : '';
             const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
 
-            // Add a checkbox with a data-line-item-id attribute
             const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id)}">`;
 
             return `
@@ -369,26 +329,56 @@ class LineItemsPage {
             `;
         }).join('');
 
-        container.innerHTML += `
-            <table class="line-items-table">
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" class="line-items-select-all"></th>
-                        <th>Pos.</th>
-                        <th>Bezeichnung</th>
-                        <th>Menge</th>
-                        <th>Netto</th>
-                        <th>Brutto</th>
-                        <th>Steuer %</th>
-                        <th>Erstellt am</th>
-                        <th>Uhrzeit</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${tableRows}
-                </tbody>
-            </table>
+        const table = document.createElement('table');
+        table.className = 'line-items-table';
+        table.innerHTML = `
+            <thead>
+                <tr>
+                    <th><input type="checkbox" class="line-items-select-all"></th>
+                    <th>Pos.</th>
+                    <th>Bezeichnung</th>
+                    <th>Menge</th>
+                    <th>Netto</th>
+                    <th>Brutto</th>
+                    <th>Steuer %</th>
+                    <th>Erstellt am</th>
+                    <th>Uhrzeit</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tableRows}
+            </tbody>
         `;
+        container.appendChild(table);
+
+        const updateButtonState = () => {
+            const anyChecked = container.querySelector('.line-item-select-checkbox:checked');
+            sendBtn.disabled = !anyChecked;
+        };
+
+        updateButtonState();
+
+        this.lineItemsChangeHandler = (event) => {
+            const target = event.target;
+            if (!target) {
+                return;
+            }
+
+            if (target.classList.contains('line-items-select-all')) {
+                const checkboxes = container.querySelectorAll('.line-item-select-checkbox');
+                checkboxes.forEach(cb => {
+                    cb.checked = target.checked;
+                });
+                updateButtonState();
+                return;
+            }
+
+            if (target.classList.contains('line-item-select-checkbox')) {
+                updateButtonState();
+            }
+        };
+
+        container.addEventListener('change', this.lineItemsChangeHandler);
     }
 
     escapeHtml(value) {
