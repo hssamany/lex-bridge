@@ -24,7 +24,7 @@ final class ArticleRepository
      */
     public function searchArticles(?string $query): array
     {
-        $sql = 'SELECT id, article_number, name, net_price, gross_price, tax_rate FROM articles';
+        $sql = 'SELECT id, article_number, name FROM articles';
 
         $hasQuery = $query !== null && $query !== '';
         if ($hasQuery) {

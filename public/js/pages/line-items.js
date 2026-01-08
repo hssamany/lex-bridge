@@ -1,6 +1,7 @@
 // public/js/pages/line-items.js
 // Handles AJAX customer search for the Line-Items tab using event delegation
 
+
 (function () {
     const debounceTimers = new WeakMap();
     const articleDebounceTimers = new WeakMap();
@@ -111,6 +112,147 @@
         debounceTimers.set(input, newTimer);
     }
 
+    function populateArticleDatalist(datalist, articles) 
+    {
+        datalist.innerHTML = '<option value="">Artikel wählen</option>';
+
+        if (!Array.isArray(articles)) {
+            return;
+        }
+
+        articles.forEach(article => {
+            const opt = document.createElement('option');
+            const number = article.article_number || article.number || '';
+            const name = article.name || article.title || '';
+            const labelParts = [number, name].filter(Boolean);
+            opt.value = labelParts.join(' - ');
+            opt.dataset.articleId = String(article.id ?? '');
+            opt.setAttribute('data-article-id', String(article.id ?? ''));
+            datalist.appendChild(opt);
+        });
+    }
+
+    const ARTICLE_CACHE_TTL = 5 * 60 * 1000;
+    const articleCache = new Map();
+
+    function getArticleCacheKey(query) {
+        const normalized = (query || '').trim().toLowerCase();
+        return normalized === '' ? '__all__' : normalized;
+    }
+
+    function getCachedArticles(cacheKey) {
+        const entry = articleCache.get(cacheKey);
+        if (!entry) {
+            return null;
+        }
+
+        if (entry.expiresAt > Date.now()) {
+            return entry;
+        }
+
+        articleCache.delete(cacheKey);
+        return null;
+    }
+
+    function setCachedArticles(cacheKey, data, promise) {
+        articleCache.set(cacheKey, {
+            data,
+            promise: promise ?? null,
+            expiresAt: Date.now() + ARTICLE_CACHE_TTL
+        });
+    }
+
+    function requestArticles(query) {
+        const normalizedQuery = (query || '').trim();
+        const cacheKey = getArticleCacheKey(normalizedQuery);
+
+        const cachedEntry = getCachedArticles(cacheKey);
+        if (cachedEntry?.data) {
+            return Promise.resolve(cachedEntry.data);
+        }
+
+        if (cachedEntry?.promise) {
+            return cachedEntry.promise;
+        }
+
+        const url = normalizedQuery
+            ? `/lex-bridge/api/articles/search?q=${encodeURIComponent(normalizedQuery)}`
+            : '/lex-bridge/api/articles/search';
+
+        const fetchPromise = fetch(url)
+            .then(async res => {
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    throw new Error(`Article search HTTP error ${res.status}: ${errorText}`);
+                }
+
+                const text = await res.text();
+                try {
+                    return JSON.parse(text);
+                } catch (error) {
+                    throw new Error(`Article search parse error: ${error instanceof Error ? error.message : String(error)}`);
+                }
+            })
+            .then(data => {
+                const result = Array.isArray(data) ? data : [];
+                setCachedArticles(cacheKey, result, null);
+                return result;
+            })
+            .catch(error => {
+                console.error('Article search error:', error);
+                articleCache.delete(cacheKey);
+                return [];
+            });
+
+        setCachedArticles(cacheKey, cachedEntry?.data ?? [], fetchPromise);
+
+        return fetchPromise;
+    }
+
+    function ensureArticleOptions(input, datalistOverride) {
+        const listId = input.getAttribute('list');
+        const datalist = datalistOverride || (listId ? document.getElementById(listId) : null);
+        if (!datalist) {
+            return;
+        }
+
+        if (input.value.trim() !== '') {
+            return;
+        }
+
+        if (datalist.dataset.loading === 'true') {
+            return;
+        }
+
+        const currentOptions = datalist.options || datalist.children;
+        if (currentOptions && currentOptions.length > 1) {
+            return;
+        }
+
+        const cachedAll = getCachedArticles('__all__');
+        if (cachedAll?.data) {
+            populateArticleDatalist(datalist, cachedAll.data);
+            syncArticleSelection(input, datalist);
+            return;
+        }
+
+        populateArticleDatalist(datalist, []);
+        datalist.dataset.loading = 'true';
+
+        requestArticles('')
+            .then(articles => {
+                if (input.value.trim() !== '') {
+                    return;
+                }
+
+                populateArticleDatalist(datalist, Array.isArray(articles) ? articles : []);
+                syncArticleSelection(input, datalist);
+            })
+            .finally(() => {
+                delete datalist.dataset.loading;
+            });
+    }
+
     function syncArticleSelection(input, datalistOverride) {
         if (!input) {
             return;
@@ -163,8 +305,7 @@
 
         const query = input.value.trim();
         if (!query) {
-            datalist.innerHTML = '<option value="">Artikel wählen</option>';
-            syncArticleSelection(input, datalist);
+            ensureArticleOptions(input, datalist);
             return;
         }
 
@@ -176,39 +317,14 @@
         syncArticleSelection(input, datalist);
 
         const newTimer = setTimeout(() => {
-            fetch(`/lex-bridge/api/articles/search?q=${encodeURIComponent(query)}`)
-                .then(async res => {
-                    if (!res.ok) {
-                        const errorText = await res.text();
-                        console.error('Article search HTTP error:', res.status, errorText);
-                        return null;
+            requestArticles(query)
+                .then(articles => {
+                    if (input.value.trim() !== query) {
+                        return;
                     }
-                    const text = await res.text();
-                    try {
-                        return JSON.parse(text);
-                    } catch (error) {
-                        console.error('Article search response parse error:', error, text);
-                        return null;
-                    }
-                })
-                .then(data => {
-                    datalist.innerHTML = '<option value="">Artikel wählen</option>';
-                    if (Array.isArray(data)) {
-                        data.forEach(article => {
-                            const opt = document.createElement('option');
-                            const number = article.article_number || article.number || '';
-                            const name = article.name || article.title || '';
-                            const labelParts = [number, name].filter(Boolean);
-                            opt.value = labelParts.join(' - ');
-                            opt.dataset.articleId = String(article.id ?? '');
-                            opt.setAttribute('data-article-id', String(article.id ?? ''));
-                            datalist.appendChild(opt);
-                        });
-                    }
+
+                    populateArticleDatalist(datalist, articles);
                     syncArticleSelection(input, datalist);
-                })
-                .catch(error => {
-                    console.error('Article search error:', error);
                 });
         }, 300);
 
@@ -232,11 +348,21 @@
         syncCustomerSelection(target);
     }, true); // capture to ensure we catch events even if re-rendered
 
+    document.addEventListener('focus', function (event) {
+        const target = event.target;
+        if (!target || !target.classList.contains('article-search-combobox')) {
+            return;
+        }
+
+        ensureArticleOptions(target);
+    }, true);
+
     document.addEventListener('input', function (event) {
         const target = event.target;
         if (!target || !target.classList.contains('article-search-combobox')) {
             return;
         }
+        ensureArticleOptions(target);
         handleArticleSearch(target);
         syncArticleSelection(target);
     }, true);
