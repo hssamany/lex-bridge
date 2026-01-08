@@ -130,15 +130,7 @@
 
 class LineItemsPage {
                 static moveSendButtonNextToForm() {
-                    const sendBtn = document.getElementById('send-invoice-btn');
-                    const form = document.querySelector('form[name="get-line-items"]');
-                    if (sendBtn && form) {
-                        // Move the button after the form
-                        form.parentNode.insertBefore(sendBtn, form.nextSibling);
-                        sendBtn.style.display = 'inline-flex';
-                        sendBtn.style.verticalAlign = 'middle';
-                        sendBtn.style.marginLeft = '10px';
-                    }
+                    // Removed moveSendButtonNextToForm. The button must always stay inside #line-items-filter-container in the HTML.
                 }
             setupSendInvoiceButton() {
                 const sendBtn = document.getElementById('send-invoice-btn');
@@ -237,8 +229,7 @@ class LineItemsPage {
         // Setup send-invoice button logic
         this.setupSendInvoiceButton();
 
-        // Always show the send-invoice button
-        LineItemsPage.moveSendButtonNextToForm();
+        // No need to move the send-invoice button; it stays in #line-items-filter-container
     }
 
     setupFilterDelegation() {
@@ -325,12 +316,7 @@ class LineItemsPage {
             return;
         }
 
-        // Always show the send-invoice button first
-        const sendBtn = document.getElementById('send-invoice-btn');
-        if (sendBtn && !container.contains(sendBtn)) {
-            container.prepend(sendBtn);
-            sendBtn.style.display = 'flex';
-        }
+        // Do not move the send-invoice button; it stays in #line-items-filter-container
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
 
@@ -486,4 +472,30 @@ class LineItemsPage {
     }
 }
 
+
 window.LineItemsPage = LineItemsPage;
+
+// Utility to show/hide both form and sendBtn together
+window.showLineItemsFilter = function(show) {
+    const container = document.getElementById('line-items-filter-container');
+    if (container) {
+        container.style.display = show ? '' : 'none';
+    }
+};
+
+
+// Show/hide the filter container when switching tabs
+function handleTabSwitch(tabId) {
+    if (tabId === 'line-items') {
+        showLineItemsFilter(true);
+    } else {
+        showLineItemsFilter(false);
+    }
+}
+
+// Example: listen for tab switch events (customize as needed)
+document.addEventListener('tabchange', function(e) {
+    if (e.detail && e.detail.tabId) {
+        handleTabSwitch(e.detail.tabId);
+    }
+});
