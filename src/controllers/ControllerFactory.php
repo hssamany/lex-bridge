@@ -47,10 +47,10 @@ final class ControllerFactory
         return new LineItemController($service);
     }
 
-    public static function makeArticleController(): ArticleController
+    public static function makeArticleController(HttpClient $client): ArticleController
     {
         $repository = new ArticleRepository();
-        $service = new ArticleService($repository);
+        $service = new ArticleService($repository, $client);
         return new ArticleController($service);
     }
 }

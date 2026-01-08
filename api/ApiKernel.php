@@ -25,6 +25,7 @@ final class ApiKernel {
         $this->postContactRouteRegistration();
         $this->getCustomersSearchRouteRegistration();
         $this->getArticlesSearchRouteRegistration();
+        $this->postArticlesSyncRouteRegistration();
         $this->getLineItemsRouteRegistration();
         $this->postLineItemUpdateRouteRegistration();
         $this->postInvoiceCreateRouteRegistration();
@@ -44,9 +45,39 @@ final class ApiKernel {
     private function getArticlesSearchRouteRegistration(): void
     {
         $this->router->get('/articles/search', function() {
-            $controller = ControllerFactory::makeArticleController();
+            $controller = ControllerFactory::makeArticleController($this->httpClient);
             $query = isset($_GET['q']) ? trim($_GET['q']) : null;
             return $controller->searchArticles($query);
+        });
+    }
+
+    private function postArticlesSyncRouteRegistration(): void
+    {
+        $this->router->post('/articles/sync', function() {
+            $controller = ControllerFactory::makeArticleController($this->httpClient);
+
+            $payload = json_decode(file_get_contents('php://input'), true);
+            $page = null;
+
+            if (is_array($payload) && array_key_exists('page', $payload)) {
+                $pageCandidate = filter_var($payload['page'], FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 0]
+                ]);
+                if ($pageCandidate !== false && $pageCandidate !== null) {
+                    $page = $pageCandidate;
+                }
+            }
+
+            if ($page === null && isset($_GET['page'])) {
+                $pageCandidate = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 0]
+                ]);
+                if ($pageCandidate !== false && $pageCandidate !== null) {
+                    $page = $pageCandidate;
+                }
+            }
+
+            return $controller->syncArticles($page);
         });
     }
 

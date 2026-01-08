@@ -19,4 +19,9 @@ final class ArticleController
     {
         return $this->service->searchArticles($query);
     }
+
+    public function syncArticles(?int $page = null): array
+    {
+        return $this->service->syncArticlesFromLexware($page);
+    }
 }
