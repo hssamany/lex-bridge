@@ -1739,8 +1739,8 @@ class LineItemsPage {
                     <th>Menge</th>
                     <th>Netto</th>
                     <th>Brutto</th>
-                    <th>Steuer %</th>
-                    <th>Erstellt am</th>
+                    <th>Steuer(%)</th>
+                    <th>Erst.Datum</th>
                     <th>Uhrzeit</th>
                 </tr>
             </thead>
