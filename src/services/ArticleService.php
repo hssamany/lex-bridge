@@ -59,7 +59,9 @@ final class ArticleService
         $shouldContinue = true;
 
         while ($shouldContinue) {
+
             $response = $this->client->get('/articles?page=' . $nextPage);
+
             if (!$response->isSuccess()) {
                 $summary['isSuccess'] = false;
                 $summary['errors'][] = $response->getMessage() ?? 'Lexware request failed';
@@ -67,6 +69,7 @@ final class ArticleService
             }
 
             $payload = $response->toArray();
+            
             $content = isset($payload['content']) && is_array($payload['content'])
                 ? $payload['content']
                 : [];

@@ -164,6 +164,10 @@
     const articleCache = new Map();
     const lineItemPersistTimers = new WeakMap();
 
+    function clearArticleCache() {
+        articleCache.clear();
+    }
+
     function getArticleCacheKey(query) {
         const normalized = (query || '').trim().toLowerCase();
         return normalized === '' ? '__all__' : normalized;
@@ -716,6 +720,9 @@
     if (!window.lexBridge.syncArticleSelection) {
         window.lexBridge.syncArticleSelection = syncArticleSelectionInternal;
     }
+    if (!window.lexBridge.initializeLineItemPersistenceState) {
+        window.lexBridge.initializeLineItemPersistenceState = initializeLineItemPersistenceState;
+    }
 
     function handleArticleSearch(input) {
         const listId = input.getAttribute('list');
@@ -848,6 +855,63 @@ class LineItemsPage {
                 alert('Fehler beim Senden der Anfrage: ' + e.message);
             }
         }
+
+        async syncArticlesFromLexware(button) {
+            const targetButton = button instanceof HTMLElement ? button : null;
+            const originalLabel = targetButton ? targetButton.innerHTML : null;
+
+            try {
+                if (targetButton) {
+                    targetButton.disabled = true;
+                    targetButton.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronisieren...';
+                }
+
+                const response = await fetch('/lex-bridge/api/articles/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}'
+                });
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = text ? JSON.parse(text) : {};
+                } catch (parseError) {
+                    throw new Error('Antwort der Artikelsynchronisation konnte nicht gelesen werden.');
+                }
+
+                if (!response.ok || !result?.isSuccess) {
+                    const errorMessage = Array.isArray(result?.errors) && result.errors.length
+                        ? result.errors.join(', ')
+                        : result?.error || `Synchronisation fehlgeschlagen (${response.status})`;
+                    throw new Error(errorMessage);
+                }
+
+                clearArticleCache();
+
+                if (this.lexBridge?.toastNotifier) {
+                    const created = result.created ?? 0;
+                    const updated = result.updated ?? 0;
+                    const prices = result.price_updates ?? 0;
+                    this.lexBridge.toastNotifier.show(`Artikel synchronisiert (neu: ${created}, aktualisiert: ${updated}, Preise: ${prices})`, 'success');
+                } else {
+                    alert('Artikel erfolgreich synchronisiert.');
+                }
+            } catch (error) {
+                console.error('Article sync error:', error);
+                const message = error instanceof Error ? error.message : String(error);
+                if (this.lexBridge?.toastNotifier) {
+                    this.lexBridge.toastNotifier.show(message, 'error');
+                } else {
+                    alert(message);
+                }
+            } finally {
+                if (targetButton && originalLabel !== null) {
+                    targetButton.disabled = false;
+                    targetButton.innerHTML = originalLabel;
+                }
+            }
+        }
     static handlerSetup = false;
 
     constructor(lexBridge) {
@@ -892,7 +956,8 @@ class LineItemsPage {
         const formData = new FormData(form);
         const params = new URLSearchParams();
 
-        for (const [key, value] of formData.entries()) {
+        const formEntries = formData.entries();
+        for (const [key, value] of formEntries) {
             if (key === 'customer_search') {
                 continue;
             }
@@ -951,11 +1016,17 @@ class LineItemsPage {
 
         container.innerHTML = '';
 
+        const toolbar = document.createElement('div');
+        toolbar.className = 'line-items-toolbar';
+        toolbar.style.display = 'flex';
+        toolbar.style.gap = '8px';
+        toolbar.style.alignItems = 'center';
+        toolbar.style.margin = '10px 0';
+
         const sendBtn = document.createElement('button');
         sendBtn.type = 'button';
         sendBtn.id = 'send-invoice-btn';
         sendBtn.className = 'btn btn-primary';
-        sendBtn.style.margin = '10px 0';
         sendBtn.style.height = '32px';
         sendBtn.style.fontSize = '1em';
         sendBtn.innerHTML = 'Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
@@ -963,7 +1034,21 @@ class LineItemsPage {
         sendBtn.addEventListener('click', () => {
             this.handleCreateInvoiceFromSelection();
         });
-        container.appendChild(sendBtn);
+        toolbar.appendChild(sendBtn);
+
+        const syncBtn = document.createElement('button');
+        syncBtn.type = 'button';
+        syncBtn.id = 'sync-articles-btn';
+        syncBtn.className = 'btn btn-secondary';
+        syncBtn.style.height = '32px';
+        syncBtn.style.fontSize = '1em';
+        syncBtn.textContent = 'Artikel synchronisieren';
+        syncBtn.addEventListener('click', () => {
+            this.syncArticlesFromLexware(syncBtn);
+        });
+        toolbar.appendChild(syncBtn);
+
+        container.appendChild(toolbar);
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
         if (items.length === 0) {
@@ -1086,7 +1171,9 @@ class LineItemsPage {
             </tbody>
         `;
         container.appendChild(table);
-        initializeLineItemPersistenceState(table);
+        if (window.lexBridge?.initializeLineItemPersistenceState) {
+            window.lexBridge.initializeLineItemPersistenceState(table);
+        }
 
         const updateButtonState = () => {
             const anyChecked = container.querySelector('.line-item-select-checkbox:checked');
