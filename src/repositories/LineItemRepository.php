@@ -131,12 +131,12 @@ class LineItemRepository
                     gross_amount = :gross_amount,
                     tax_rate_percentage = :tax_rate_percentage,
                     line_total_net = CASE
-                        WHEN :net_amount IS NULL OR quantity IS NULL THEN line_total_net
-                        ELSE ROUND(:net_amount * quantity, 2)
+                        WHEN :net_amount_calc_check IS NULL OR quantity IS NULL THEN line_total_net
+                        ELSE ROUND(:net_amount_calc_value * quantity, 2)
                     END,
                     line_total_gross = CASE
-                        WHEN :gross_amount IS NULL OR quantity IS NULL THEN line_total_gross
-                        ELSE ROUND(:gross_amount * quantity, 2)
+                        WHEN :gross_amount_calc_check IS NULL OR quantity IS NULL THEN line_total_gross
+                        ELSE ROUND(:gross_amount_calc_value * quantity, 2)
                     END,
                     article_valid_from = :article_valid_from,
                     article_valid_until = :article_valid_until,
@@ -152,11 +152,15 @@ class LineItemRepository
             ':article_label' => $data['article_label'] ?? null,
             ':article_name' => $data['article_name'] ?? null,
             ':currency' => $data['currency'] ?? null,
-            ':net_amount' => $data['net_amount'],
-            ':gross_amount' => $data['gross_amount'],
+            ':net_amount' => $data['net_amount'] ?? null,
+            ':gross_amount' => $data['gross_amount'] ?? null,
             ':tax_rate_percentage' => $data['tax_rate_percentage'],
             ':article_valid_from' => $data['article_valid_from'] ?? null,
             ':article_valid_until' => $data['article_valid_until'] ?? null,
+            ':net_amount_calc_check' => $data['net_amount'] ?? null,
+            ':net_amount_calc_value' => $data['net_amount'] ?? null,
+            ':gross_amount_calc_check' => $data['gross_amount'] ?? null,
+            ':gross_amount_calc_value' => $data['gross_amount'] ?? null,
         ]);
     }
 }
