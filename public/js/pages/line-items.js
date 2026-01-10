@@ -1692,7 +1692,12 @@ class LineItemsPage {
             const taxRateDisplay = taxValue !== '' ? this.formatNumber(taxValue, 2) : '';
 
             const editButton = `
-                <button type="button" class="btn btn-secondary btn-sm line-item-edit-btn">Bearbeiten</button>
+                <button type="button" class="btn btn-secondary btn-sm line-item-edit-btn" aria-label="Bearbeiten">
+                    <svg class="line-item-edit-icon" viewBox="0 0 16 16" role="img" aria-hidden="true" focusable="false">
+                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-9.439 9.439-3.182.795a.25.25 0 0 1-.303-.303l.795-3.182z"></path>
+                        <path d="M11.207 2.5 3 10.707V13h2.293L13.5 4.793z"></path>
+                    </svg>
+                </button>
             `;
 
             return `

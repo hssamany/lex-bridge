@@ -12,10 +12,16 @@ use Luxullus\LexBridge\Database\Database;
 class LineItemRepository
 {
     private \PDO $db;
+    private string $lineItemTable;
+    private string $invoiceTable;
+    private string $customerTable;
 
     public function __construct()
     {
         $this->db = Database::getConnection();
+        $this->lineItemTable = \lexbridge_table('invoice_line_items');
+        $this->invoiceTable = \lexbridge_table('invoices');
+        $this->customerTable = \lexbridge_table('customer');
     }
 
     /**
@@ -50,9 +56,9 @@ class LineItemRepository
                     li.created_at,
                     li.updated_at,
                     i.voucher_date
-                FROM invoice_line_items li
-                INNER JOIN invoices i ON li.invoice_id = i.id
-                LEFT JOIN customer c ON i.contact_id = c.id";
+            FROM {$this->lineItemTable} li
+            INNER JOIN {$this->invoiceTable} i ON li.invoice_id = i.id
+            LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id";
 
         $where = [];
         $params = [];
@@ -106,7 +112,7 @@ class LineItemRepository
                     li.article_valid_until,
                     li.created_at,
                     li.updated_at
-                FROM invoice_line_items li
+            FROM {$this->lineItemTable} li
                 WHERE li.id = :line_item_id
                 LIMIT 1";
 
@@ -120,7 +126,7 @@ class LineItemRepository
 
     public function updateLineItem(string $lineItemId, array $data): bool
     {
-        $sql = "UPDATE invoice_line_items
+        $sql = "UPDATE {$this->lineItemTable}
                 SET
                     article_id = :article_id,
                     article_number = :article_number,

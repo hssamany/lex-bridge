@@ -19,10 +19,16 @@ use Luxullus\LexBridge\Models\InvoiceLineItem;
 class InvoiceRepository
 {
     private \PDO $db;
+    private string $invoiceTable;
+    private string $customerTable;
+    private string $lineItemTable;
 
     public function __construct()
     {
         $this->db = Database::getConnection();
+        $this->invoiceTable = \lexbridge_table('invoices');
+        $this->customerTable = \lexbridge_table('customer');
+        $this->lineItemTable = \lexbridge_table('invoice_line_items');
     }
 
     /**
@@ -34,8 +40,8 @@ class InvoiceRepository
                     i.*,
                     c.lex_contact_id,
                     c.company_name
-                FROM invoices i
-                LEFT JOIN customer c ON i.contact_id = c.id
+                FROM {$this->invoiceTable} i
+                LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id
                 WHERE i.id = :id
                 LIMIT 1";
 
@@ -73,9 +79,9 @@ class InvoiceRepository
                     i.contact_id,
                     i.transmission_attempts,
                     c.company_name,
-                    (SELECT COUNT(*) FROM invoice_line_items li WHERE li.invoice_id = i.id) as item_count
-                FROM invoices i
-                LEFT JOIN customer c ON i.contact_id = c.id";
+                    (SELECT COUNT(*) FROM {$this->lineItemTable} li WHERE li.invoice_id = i.id) as item_count
+                FROM {$this->invoiceTable} i
+                LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id";
         
         $where = [];
         $params = [];
@@ -136,7 +142,7 @@ class InvoiceRepository
     public function findLineItemsByInvoiceId(string $invoiceId): array
     {
         $sql = "SELECT * 
-                FROM invoice_line_items
+            FROM {$this->lineItemTable}
                 WHERE invoice_id = :invoice_id
                 ORDER BY line_order ASC";
         
@@ -218,7 +224,7 @@ class InvoiceRepository
                 ? (new DateTime($lexwareResponse['updatedDate']))->format('Y-m-d H:i:s') 
                 : null;
             
-            $sql = "UPDATE invoices 
+            $sql = "UPDATE {$this->invoiceTable} 
                     SET status = 'transmitted',
                         lex_id = :lex_id,
                         lex_resource_uri = :lex_resource_uri,
@@ -257,7 +263,7 @@ class InvoiceRepository
     public function updateWithError(string $invoiceId, string $errorMessage, ?string $errorCode = null): bool
     {
         try {
-            $sql = "UPDATE invoices 
+            $sql = "UPDATE {$this->invoiceTable} 
                     SET status = 'transmission_error',
                         last_error_message = :error_message,
                         last_error_code = :error_code,
@@ -285,7 +291,7 @@ class InvoiceRepository
     public function updateStatus(string $invoiceId, string $status): bool
     {
         try {
-            $sql = "UPDATE invoices SET status = :status WHERE id = :id";
+            $sql = "UPDATE {$this->invoiceTable} SET status = :status WHERE id = :id";
             $stmt = $this->db->prepare($sql);
             return $stmt->execute([
                 ':id' => $invoiceId,

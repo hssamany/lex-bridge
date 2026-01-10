@@ -11,10 +11,14 @@ use Luxullus\LexBridge\Database\Database;
 final class ArticleRepository
 {
     private PDO $db;
+    private string $articleTable;
+    private string $priceTable;
 
     public function __construct()
     {
         $this->db = Database::getConnection();
+        $this->articleTable = \lexbridge_table('articles');
+        $this->priceTable = \lexbridge_table('prices');
     }
 
     /**
@@ -25,67 +29,70 @@ final class ArticleRepository
      */
     public function searchArticles(?string $query): array
     {
-                $sql = <<<SQL
-                        SELECT
-                                a.id,
-                                a.article_number,
-                                a.name,
-                                (
-                                        SELECT pr.net_amount
-                                        FROM prices pr
-                                        WHERE pr.article_id = a.id
-                                            AND pr.valid_from <= CURRENT_DATE
-                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                                        ORDER BY pr.valid_from DESC, pr.id DESC
-                                        LIMIT 1
-                                ) AS net_amount,
-                                (
-                                        SELECT pr.gross_amount
-                                        FROM prices pr
-                                        WHERE pr.article_id = a.id
-                                            AND pr.valid_from <= CURRENT_DATE
-                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                                        ORDER BY pr.valid_from DESC, pr.id DESC
-                                        LIMIT 1
-                                ) AS gross_amount,
-                                (
-                                        SELECT pr.tax_rate_percentage
-                                        FROM prices pr
-                                        WHERE pr.article_id = a.id
-                                            AND pr.valid_from <= CURRENT_DATE
-                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                                        ORDER BY pr.valid_from DESC, pr.id DESC
-                                        LIMIT 1
-                                ) AS tax_rate_percentage,
-                                (
-                                        SELECT pr.currency
-                                        FROM prices pr
-                                        WHERE pr.article_id = a.id
-                                            AND pr.valid_from <= CURRENT_DATE
-                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                                        ORDER BY pr.valid_from DESC, pr.id DESC
-                                        LIMIT 1
-                                ) AS currency,
-                                (
-                                        SELECT pr.valid_from
-                                        FROM prices pr
-                                        WHERE pr.article_id = a.id
-                                            AND pr.valid_from <= CURRENT_DATE
-                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                                        ORDER BY pr.valid_from DESC, pr.id DESC
-                                        LIMIT 1
-                                ) AS valid_from,
-                                (
-                                        SELECT pr.valid_until
-                                        FROM prices pr
-                                        WHERE pr.article_id = a.id
-                                            AND pr.valid_from <= CURRENT_DATE
-                                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                                        ORDER BY pr.valid_from DESC, pr.id DESC
-                                        LIMIT 1
-                                ) AS valid_until
-                        FROM articles a
-                SQL;
+        $articleTable = $this->articleTable;
+        $priceTable = $this->priceTable;
+
+        $sql = <<<SQL
+            SELECT
+                a.id,
+                a.article_number,
+                a.name,
+                (
+                    SELECT pr.net_amount
+                    FROM {$priceTable} pr
+                    WHERE pr.article_id = a.id
+                        AND pr.valid_from <= CURRENT_DATE
+                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                    ORDER BY pr.valid_from DESC, pr.id DESC
+                    LIMIT 1
+                ) AS net_amount,
+                (
+                    SELECT pr.gross_amount
+                    FROM {$priceTable} pr
+                    WHERE pr.article_id = a.id
+                        AND pr.valid_from <= CURRENT_DATE
+                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                    ORDER BY pr.valid_from DESC, pr.id DESC
+                    LIMIT 1
+                ) AS gross_amount,
+                (
+                    SELECT pr.tax_rate_percentage
+                    FROM {$priceTable} pr
+                    WHERE pr.article_id = a.id
+                        AND pr.valid_from <= CURRENT_DATE
+                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                    ORDER BY pr.valid_from DESC, pr.id DESC
+                    LIMIT 1
+                ) AS tax_rate_percentage,
+                (
+                    SELECT pr.currency
+                    FROM {$priceTable} pr
+                    WHERE pr.article_id = a.id
+                        AND pr.valid_from <= CURRENT_DATE
+                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                    ORDER BY pr.valid_from DESC, pr.id DESC
+                    LIMIT 1
+                ) AS currency,
+                (
+                    SELECT pr.valid_from
+                    FROM {$priceTable} pr
+                    WHERE pr.article_id = a.id
+                        AND pr.valid_from <= CURRENT_DATE
+                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                    ORDER BY pr.valid_from DESC, pr.id DESC
+                    LIMIT 1
+                ) AS valid_from,
+                (
+                    SELECT pr.valid_until
+                    FROM {$priceTable} pr
+                    WHERE pr.article_id = a.id
+                        AND pr.valid_from <= CURRENT_DATE
+                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                    ORDER BY pr.valid_from DESC, pr.id DESC
+                    LIMIT 1
+                ) AS valid_until
+            FROM {$articleTable} a
+        SQL;
 
         $hasQuery = $query !== null && $query !== '';
         if ($hasQuery) {
@@ -164,7 +171,8 @@ final class ArticleRepository
 
     private function insertArticle(string $lexwareId, array $article): int
     {
-        $stmt = $this->db->prepare('INSERT INTO articles (lexware_article_id, article_number, name, description, unit_name, net_price, gross_price, tax_rate, active) VALUES (:lexware_id, :article_number, :name, :description, :unit_name, :net_price, :gross_price, :tax_rate, 1)');
+        $sql = "INSERT INTO {$this->articleTable} (lexware_article_id, article_number, name, description, unit_name, net_price, gross_price, tax_rate, active) VALUES (:lexware_id, :article_number, :name, :description, :unit_name, :net_price, :gross_price, :tax_rate, 1)"; // table map ensures configurable name
+        $stmt = $this->db->prepare($sql);
 
         $stmt->bindValue(':lexware_id', $lexwareId, PDO::PARAM_STR);
         $stmt->bindValue(':article_number', $article['article_number'], PDO::PARAM_STR);
@@ -182,7 +190,8 @@ final class ArticleRepository
 
     private function updateArticle(int $articleId, array $article): void
     {
-        $stmt = $this->db->prepare('UPDATE articles SET article_number = :article_number, name = :name, description = :description, unit_name = :unit_name, net_price = :net_price, gross_price = :gross_price, tax_rate = :tax_rate, updated_at = NOW() WHERE id = :id');
+        $sql = "UPDATE {$this->articleTable} SET article_number = :article_number, name = :name, description = :description, unit_name = :unit_name, net_price = :net_price, gross_price = :gross_price, tax_rate = :tax_rate, updated_at = NOW() WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
 
         $stmt->bindValue(':id', $articleId, PDO::PARAM_INT);
         $stmt->bindValue(':article_number', $article['article_number'], PDO::PARAM_STR);
@@ -198,7 +207,8 @@ final class ArticleRepository
 
     private function ensurePriceRecord(int $articleId, array $price): bool
     {
-        $stmt = $this->db->prepare('SELECT id, net_amount, gross_amount, tax_rate_percentage, currency, valid_until FROM prices WHERE article_id = :article_id ORDER BY valid_from DESC, id DESC LIMIT 1 FOR UPDATE');
+        $sql = "SELECT id, net_amount, gross_amount, tax_rate_percentage, currency, valid_until FROM {$this->priceTable} WHERE article_id = :article_id ORDER BY valid_from DESC, id DESC LIMIT 1 FOR UPDATE";
+        $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':article_id', $articleId, PDO::PARAM_INT);
         $stmt->execute();
 
@@ -209,12 +219,13 @@ final class ArticleRepository
         }
 
         if ($latest && $latest['valid_until'] === null) {
-            $closeStmt = $this->db->prepare('UPDATE prices SET valid_until = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY) WHERE id = :id');
+            $closeStmt = $this->db->prepare("UPDATE {$this->priceTable} SET valid_until = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY) WHERE id = :id");
             $closeStmt->bindValue(':id', (int) $latest['id'], PDO::PARAM_INT);
             $closeStmt->execute();
         }
 
-        $insert = $this->db->prepare('INSERT INTO prices (article_id, net_amount, gross_amount, tax_rate_percentage, currency, valid_from, valid_until) VALUES (:article_id, :net_amount, :gross_amount, :tax_rate_percentage, :currency, CURRENT_DATE, NULL)');
+        $insertSql = "INSERT INTO {$this->priceTable} (article_id, net_amount, gross_amount, tax_rate_percentage, currency, valid_from, valid_until) VALUES (:article_id, :net_amount, :gross_amount, :tax_rate_percentage, :currency, CURRENT_DATE, NULL)";
+        $insert = $this->db->prepare($insertSql);
         $insert->bindValue(':article_id', $articleId, PDO::PARAM_INT);
         $insert->bindValue(':net_amount', $price['net_amount'], PDO::PARAM_STR);
         $insert->bindValue(':gross_amount', $price['gross_amount'], PDO::PARAM_STR);
@@ -228,7 +239,8 @@ final class ArticleRepository
 
     private function findArticleByLexwareIdForUpdate(string $lexwareId): ?array
     {
-        $stmt = $this->db->prepare('SELECT id, article_number, name, description, unit_name, net_price, gross_price, tax_rate FROM articles WHERE lexware_article_id = :lexware_id LIMIT 1 FOR UPDATE');
+        $sql = "SELECT id, article_number, name, description, unit_name, net_price, gross_price, tax_rate FROM {$this->articleTable} WHERE lexware_article_id = :lexware_id LIMIT 1 FOR UPDATE";
+        $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':lexware_id', $lexwareId, PDO::PARAM_STR);
         $stmt->execute();
 

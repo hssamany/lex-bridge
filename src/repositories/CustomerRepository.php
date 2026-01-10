@@ -13,10 +13,12 @@ use Luxullus\LexBridge\Database\Database;
 class CustomerRepository
 {
     private \PDO $db;
+    private string $customerTable;
 
     public function __construct()
     {
         $this->db = Database::getConnection();
+        $this->customerTable = \lexbridge_table('customer');
     }
 
     /**
@@ -28,7 +30,7 @@ class CustomerRepository
     {
         $query = $query ?? '';
 
-        $sql = "SELECT id, customer_number, company_name FROM customer";
+        $sql = "SELECT id, customer_number, company_name FROM {$this->customerTable}";
         $params = [];
 
         if ($query !== '') {

@@ -15,10 +15,12 @@ use Luxullus\LexBridge\Models\Contact;
 class ContactRepository
 {
     private \PDO $db;
+    private string $customerTable;
 
     public function __construct()
     {
-        $this -> db = Database::getConnection();
+        $this->db = Database::getConnection();
+        $this->customerTable = \lexbridge_table('customer');
     }
 
     /**
@@ -29,18 +31,17 @@ class ContactRepository
      */
     public function updateContact(Contact $contact): bool
     {
-        $sql = "UPDATE customer 
+        $sql = "UPDATE {$this->customerTable} 
                 SET lex_contact_id = :lex_contact_id,
                     lex_customer_number = :lex_customer_number                    
-                WHERE company_name = :company_name
-                ";
+                WHERE company_name = :company_name";
 
-        $stmt = $this -> db -> prepare($sql);
+        $stmt = $this->db->prepare($sql);
 
         $params = [
-            ':lex_contact_id' => $contact -> lexContactId,
-            ':lex_customer_number' => $contact -> lexCustomerNumber,
-            ':company_name' => $contact -> companyName
+            ':lex_contact_id' => $contact->lexContactId,
+            ':lex_customer_number' => $contact->lexCustomerNumber,
+            ':company_name' => $contact->companyName
         ];
 
         return $stmt->execute($params);
@@ -55,16 +56,16 @@ class ContactRepository
     public function findByLexContactId(string $lexContactId): ?Contact
     {
         $sql = "SELECT * 
-                FROM customer 
+                FROM {$this->customerTable} 
                 WHERE lex_contact_id = :lex_contact_id 
                 LIMIT 1";
         
-        $stmt = $this-> db-> prepare($sql);
+        $stmt = $this->db->prepare($sql);
         $stmt->execute([':lex_contact_id' => $lexContactId]);
         
         $row = $stmt->fetch();
         
-        if (!$row){  
+        if (!$row) {
             return null; 
         }
         
