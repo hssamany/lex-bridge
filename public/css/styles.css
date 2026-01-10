@@ -36,6 +36,27 @@
     color: #fff;
 }
 
+.line-items-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 10px 0;
+    width: 100%;
+}
+
+.line-items-toolbar-left,
+.line-items-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.line-items-toolbar-btn {
+    height: 32px;
+    font-size: 1em;
+}
+
 
 .customer-search-combobox {
     padding: 0.45rem 0.7rem;

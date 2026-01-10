@@ -1589,35 +1589,36 @@ class LineItemsPage {
 
         const toolbar = document.createElement('div');
         toolbar.className = 'line-items-toolbar';
-        toolbar.style.display = 'flex';
-        toolbar.style.gap = '8px';
-        toolbar.style.alignItems = 'center';
-        toolbar.style.margin = '10px 0';
 
         const sendBtn = document.createElement('button');
         sendBtn.type = 'button';
         sendBtn.id = 'send-invoice-btn';
         sendBtn.className = 'btn btn-primary';
-        sendBtn.style.height = '32px';
-        sendBtn.style.fontSize = '1em';
+        sendBtn.classList.add('line-items-toolbar-btn');
         sendBtn.innerHTML = 'Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
         sendBtn.disabled = true;
         sendBtn.addEventListener('click', () => {
             this.handleCreateInvoiceFromSelection();
         });
-        toolbar.appendChild(sendBtn);
+        const actionGroupLeft = document.createElement('div');
+        actionGroupLeft.className = 'line-items-toolbar-left';
+        actionGroupLeft.appendChild(sendBtn);
+        toolbar.appendChild(actionGroupLeft);
+
+        const actionGroupRight = document.createElement('div');
+        actionGroupRight.className = 'line-items-toolbar-right';
 
         const syncBtn = document.createElement('button');
         syncBtn.type = 'button';
         syncBtn.id = 'sync-articles-btn';
         syncBtn.className = 'btn btn-secondary';
-        syncBtn.style.height = '32px';
-        syncBtn.style.fontSize = '1em';
+        syncBtn.classList.add('line-items-toolbar-btn');
         syncBtn.textContent = 'Artikel synchronisieren';
         syncBtn.addEventListener('click', () => {
             this.syncArticlesFromLexware(syncBtn);
         });
-        toolbar.appendChild(syncBtn);
+        actionGroupRight.appendChild(syncBtn);
+        toolbar.appendChild(actionGroupRight);
 
         container.appendChild(toolbar);
 
