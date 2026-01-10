@@ -13,17 +13,30 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-}
-
-.line-item-edit-btn svg {
-    width: 16px;
-    height: 16px;
     color: #fff;
 }
 
-.line-item-edit-btn svg path {
-    fill: currentColor;
+.line-item-edit-btn .btn-icon {
+    font-size: 1rem;
+    line-height: 1;
 }
+
+.filter-submit-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-submit-btn .btn-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+    color: #fff;
+}
+
+
 .customer-search-combobox {
     padding: 0.45rem 0.7rem;
     border: 1px solid #ccc;

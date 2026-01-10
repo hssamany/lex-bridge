@@ -17,8 +17,8 @@
     </div>
     <div class="filter-group-col filter-btn-group">
         <label style="visibility:hidden">Filtern</label>
-        <button type="submit" class="btn btn-primary" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; font-size:1.3rem;" title="Filtern">
-            <span class="btn-icon" style="font-size:1.5em;">🔍</span>
+        <button type="submit" class="btn btn-primary filter-submit-btn" title="Filtern" aria-label="Filtern">
+            <span class="btn-icon" aria-hidden="true">🔍</span>
         </button>
     </div>
 </form>
