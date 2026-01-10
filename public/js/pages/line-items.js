@@ -1613,7 +1613,7 @@ class LineItemsPage {
         syncBtn.id = 'sync-articles-btn';
         syncBtn.className = 'btn btn-secondary';
         syncBtn.classList.add('line-items-toolbar-btn');
-        syncBtn.textContent = 'Artikel synchronisieren';
+        syncBtn.innerHTML = '<span class="btn-icon" aria-hidden="true">↻</span> Artikel synchr';
         syncBtn.addEventListener('click', () => {
             this.syncArticlesFromLexware(syncBtn);
         });
