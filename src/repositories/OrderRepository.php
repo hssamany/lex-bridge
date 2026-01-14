@@ -39,6 +39,88 @@ class OrderRepository
     }
 
     /**
+     * Retrieve orders filtered by change date and optional customer.
+     *
+     * @param array{
+     *     geaendertAm_from: mixed,
+     *     geaendertAm_to?: mixed,
+     *     customer_id?: mixed
+     * } $filters
+     * @return array<int, array<string, mixed>>
+     */
+    public function getOrders(array $filters): array
+    {
+        if (!$this->filterValueProvided($filters, 'geaendertAm_from')) {
+            throw new InvalidArgumentException('Filter "geaendertAm_from" is required.');
+        }
+
+        $changedFrom = $this->normalizeBoundaryDate($filters['geaendertAm_from'], 'geaendertAm_from')
+            ->setTime(0, 0, 0);
+
+        if ($this->filterValueProvided($filters, 'geaendertAm_to')) {
+            $changedTo = $this->normalizeBoundaryDate($filters['geaendertAm_to'], 'geaendertAm_to');
+        } else {
+            $changedTo = new DateTimeImmutable('now', $changedFrom->getTimezone());
+        }
+
+        $changedTo = $changedTo->setTime(23, 59, 59);
+
+        if ($changedTo < $changedFrom) {
+            throw new InvalidArgumentException('Filter "geaendertAm_to" must be on or after "geaendertAm_from".');
+        }
+
+        $conditions = [
+            'o.GeaendertAm >= :changed_from',
+            'o.GeaendertAm <= :changed_to',
+        ];
+        $params = [
+            ':changed_from' => $changedFrom->format('Y-m-d H:i:s'),
+            ':changed_to' => $changedTo->format('Y-m-d H:i:s'),
+        ];
+
+        $customerId = $filters['customer_id'] ?? null;
+        if ($customerId !== null && $customerId !== '') {
+            $conditions[] = 'o.Kunde = :customer_id';
+            $params[':customer_id'] = (int) $customerId;
+        }
+
+        $sql = "SELECT
+                    o.Id AS order_id,
+                    o.Kunde AS customer_id,
+                    o.Jahr AS order_year,
+                    o.KW AS order_week,
+                    o.Mo,
+                    o.Di,
+                    o.Mi,
+                    o.Do,
+                    o.Fr,
+                    o.article_id,
+                    o.article_number,
+                    o.verarbeitet,
+                    o.GeaendertAm
+                FROM {$this->ordersTable} o
+                WHERE " . implode(' AND ', $conditions) . '
+                ORDER BY o.GeaendertAm ASC, o.Id ASC';
+
+        $stmt = $this->db->prepare($sql);
+
+        foreach ($params as $name => $value) {
+            if ($name === ':customer_id') {
+                $stmt->bindValue($name, $value, PDO::PARAM_INT);
+                continue;
+            }
+
+            $stmt->bindValue($name, $value, PDO::PARAM_STR);
+        }
+
+        $stmt->execute();
+
+        $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return $orders ?: [];
+    }
+
+    /**
      * Prepare invoice line item payloads derived from Orders rows.
      *
      * @param array{
