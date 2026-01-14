@@ -6,6 +6,8 @@ IF NOT EXISTS `invoice_line_items`
 (36) NOT NULL PRIMARY KEY,
     `invoice_id` CHAR
 (36) NOT NULL,
+    `order_id` INT UNSIGNED NULL,
+    `order_delivery_date` DATE NULL,
     `line_order` INT NOT NULL,
     `type` ENUM
 ('custom', 'text', 'material', 'service') NOT NULL DEFAULT 'custom',
@@ -46,8 +48,17 @@ UPDATE CURRENT_TIMESTAMP,
 (`invoice_id`) REFERENCES `invoices`
 (`id`) ON
 DELETE CASCADE,
+    CONSTRAINT `fk_invoice_line_items_order`
+        FOREIGN KEY
+(`order_id`) REFERENCES `orders`
+(`Id`) ON
+DELETE SET NULL,
     KEY `idx_invoice_id`
 (`invoice_id`),
     KEY `idx_invoice_line_order`
-(`invoice_id`, `line_order`)
+(`invoice_id`, `line_order`),
+    KEY `idx_order_reference`
+(`order_id`, `order_delivery_date`),
+    UNIQUE KEY `uniq_order_day`
+(`order_id`, `order_delivery_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

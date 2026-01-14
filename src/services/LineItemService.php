@@ -27,6 +27,8 @@ final class LineItemService
                     'customer_number' => isset($item['customer_number']) ? (string)$item['customer_number'] : null,
                     'customer_name' => $item['company_name'] ?? null,
                     'invoice_id' => (string)($item['invoice_id'] ?? ''),
+                    'order_id' => isset($item['order_id']) ? (int)$item['order_id'] : null,
+                    'order_delivery_date' => $item['order_delivery_date'] ?? null,
                     'line_order' => isset($item['line_order']) ? (int)$item['line_order'] : null,
                     'name' => $item['name'] ?? '',
                     'quantity' => isset($item['quantity']) ? (float)$item['quantity'] : null,

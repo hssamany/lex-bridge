@@ -57,6 +57,8 @@ class LineItemRepository
                     c.company_name,
                     c.id AS customer_id,
                     li.invoice_id,
+                    li.order_id,
+                    li.order_delivery_date,
                     li.line_order,
                     li.name,
                     li.description,
@@ -252,9 +254,9 @@ class LineItemRepository
 
                 $lineItem = [
                     'order_id' => (int) $row['order_id'],
+                    'order_delivery_date' => $deliveryDate->format('Y-m-d'),
                     'article_id' => $articleId,
                     'article_number' => $articleNumber,
-                    'delivery_date' => $deliveryDate->format('Y-m-d'),
                     'quantity' => $quantityValue,
                 ];
 
@@ -528,6 +530,8 @@ class LineItemRepository
         $sql = "SELECT 
                     li.id,
                     li.invoice_id,
+                    li.order_id,
+                    li.order_delivery_date,
                     li.line_order,
                     li.name,
                     li.description,
