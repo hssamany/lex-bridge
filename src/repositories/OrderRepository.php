@@ -1,0 +1,523 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Luxullus\LexBridge\Repositories;
+
+use PDO;
+use DateTimeImmutable;
+use DateTimeInterface;
+use InvalidArgumentException;
+use Luxullus\LexBridge\Database\Database;
+
+class OrderRepository
+{
+    /**
+     * ISO weekday names mapped to day offsets used when expanding a calendar week.
+     */
+    private const WEEKDAY_OFFSETS = [
+        'Mo' => 0,
+        'Di' => 1,
+        'Mi' => 2,
+        'Do' => 3,
+        'Fr' => 4,
+    ];
+
+    private const MIN_QUANTITY_THRESHOLD = 0.0001;
+
+    private PDO $db;
+    private string $ordersTable;
+    private string $articleTable;
+    private string $priceTable;
+
+    public function __construct()
+    {
+        $this->db = Database::getConnection();
+        $this->ordersTable = \lexbridge_table('orders');
+        $this->articleTable = \lexbridge_table('articles');
+        $this->priceTable = \lexbridge_table('prices');
+    }
+
+    /**
+     * Prepare invoice line item payloads derived from Orders rows.
+     *
+     * @param array{
+     *     liefer_datum_von?: mixed,
+     *     liefer_datum_bis?: mixed,
+     *     customer_id?: mixed,
+     *     Kunde?: mixed
+     * } $filters
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    public function generateInvoiceLineItemsFromOrders(array $filters = []): array
+    {
+        $where = [];
+        $params = [];
+
+        $customerId = $filters['customer_id']
+            ?? $filters['Kunde']
+            ?? null;
+
+        if ($customerId !== null && $customerId !== '') {
+            // restrict to a single customer if provided
+            $where[] = 'o.Kunde = :customer_id';
+            $params[':customer_id'] = (int) $customerId;
+        }
+
+        // Do not pick orders already marked as processed
+        $where[] = '(o.verarbeitet = 0 OR o.verarbeitet IS NULL)';
+        $whereSql = 'WHERE ' . implode(' AND ', $where);
+
+        $deliveryFrom = null;
+        if ($this->filterValueProvided($filters, 'liefer_datum_von')) {
+            $deliveryFrom = $this->normalizeBoundaryDate($filters['liefer_datum_von'], 'liefer_datum_von');
+        }
+
+        $deliveryTo = null;
+        if ($this->filterValueProvided($filters, 'liefer_datum_bis')) {
+            $deliveryTo = $this->normalizeBoundaryDate($filters['liefer_datum_bis'], 'liefer_datum_bis');
+        }
+
+        // fetch raw orders rows for the selected customers/weeks
+        $sql = "SELECT 
+                    o.Id AS order_id,
+                    o.Kunde AS customer_id,
+                    o.Jahr AS order_year,
+                    o.KW AS order_week,
+                    o.Mo,
+                    o.Di,
+                    o.Mi,
+                    o.Do,
+                    o.Fr,
+                    o.article_id,
+                    o.article_number
+                FROM {$this->ordersTable} o
+                {$whereSql}
+                ORDER BY o.Kunde, o.Jahr, o.KW";
+
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $name => $value) {
+            if ($name === ':customer_id') {
+                $stmt->bindValue($name, (int) $value, PDO::PARAM_INT);
+                continue;
+            }
+
+            $stmt->bindValue($name, $value);
+        }
+
+        $stmt->execute();
+
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!$rows) {
+            return [];
+        }
+
+        $articleCatalog = $this->preloadArticleCatalog($rows, $deliveryFrom, $deliveryTo);
+
+        $results = [];
+        $lineCountPerOrder = [];
+
+        foreach ($rows as $row) {
+            $year = (int) ($row['order_year'] ?? 0);
+            $week = (int) ($row['order_week'] ?? 0);
+
+            if ($year <= 0 || $week <= 0) {
+                continue;
+            }
+
+            try {
+                // monday start for the ISO week
+                $weekStart = (new DateTimeImmutable())->setISODate($year, $week, 1);
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            foreach (self::WEEKDAY_OFFSETS as $column => $offset) {
+                $quantity = $row[$column] ?? null;
+
+                if ($quantity === null) {
+                    continue;
+                }
+
+                $quantityValue = $this->normalizeQuantity((float) $quantity);
+                if (abs($quantityValue) < self::MIN_QUANTITY_THRESHOLD) {
+                    continue;
+                }
+
+                // derive the specific delivery date within the week
+                $deliveryDate = $weekStart->modify('+' . $offset . ' day');
+
+                if ($deliveryFrom !== null && $deliveryDate < $deliveryFrom) {
+                    continue;
+                }
+
+                if ($deliveryTo !== null && $deliveryDate > $deliveryTo) {
+                    break; // remaining days in the week would also exceed upper bound
+                }
+
+                $customerKey = (int) $row['customer_id'];
+                $articleId = $row['article_id'] !== null ? (int) $row['article_id'] : null;
+                $articleNumber = $row['article_number'] ?? null;
+
+                $pricing = $this->extractArticleSnapshot($articleCatalog, $articleId, $articleNumber, $deliveryDate);
+                $lineItem = $this->buildLineItemPayload($row, $pricing, $deliveryDate, $quantityValue);
+
+                $lineCountPerOrder[(int) $row['order_id']] = ($lineCountPerOrder[(int) $row['order_id']] ?? 0) + 1;
+                $results[$customerKey][] = $lineItem;
+            }
+        }
+
+        $this->markOrdersAsProcessed($lineCountPerOrder);
+
+        return $results;
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     */
+    private function filterValueProvided(array $filters, string $key): bool
+    {
+        if (!array_key_exists($key, $filters)) {
+            return false;
+        }
+
+        $value = $filters[$key];
+
+        return $value !== null && $value !== '';
+    }
+
+    private function normalizeBoundaryDate(mixed $value, string $filterKey): DateTimeImmutable
+    {
+        if ($value instanceof DateTimeImmutable) {
+            return $value;
+        }
+
+        if ($value instanceof DateTimeInterface) {
+            return DateTimeImmutable::createFromInterface($value);
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+
+            if ($trimmed === '') {
+                throw new InvalidArgumentException(sprintf('Filter "%s" expects a non-empty string.', $filterKey));
+            }
+
+            $date = DateTimeImmutable::createFromFormat('Y-m-d', $trimmed);
+            if ($date instanceof DateTimeImmutable) {
+                return $date;
+            }
+
+            try {
+                return new DateTimeImmutable($trimmed);
+            } catch (\Exception $e) {
+                throw new InvalidArgumentException(sprintf('Filter "%s" contains an invalid date: %s', $filterKey, $trimmed));
+            }
+        }
+
+        throw new InvalidArgumentException(sprintf('Unsupported value provided for filter "%s".', $filterKey));
+    }
+
+    /**
+     * Load article meta data and relevant price histories for all orders in a single query.
+     *
+     * @param array<int, array<string, mixed>> $orders
+     * @return array<string, array{article: array<string, mixed>, prices: array<int, array<string, mixed>>}>
+     */
+    private function preloadArticleCatalog(array $orders, ?DateTimeImmutable $deliveryFrom, ?DateTimeImmutable $deliveryTo): array
+    {
+        $articleIds = [];
+        $articleNumbers = [];
+
+        foreach ($orders as $order) {
+            if (!empty($order['article_id'])) {
+                $articleIds[(int) $order['article_id']] = true;
+            }
+
+            if (!empty($order['article_number'])) {
+                $articleNumbers[(string) $order['article_number']] = true;
+            }
+        }
+
+        if (!$articleIds && !$articleNumbers) {
+            return [];
+        }
+
+        $params = [];
+        $clauses = [];
+
+        if ($articleIds) {
+            $placeholders = [];
+            $index = 0;
+            foreach (array_keys($articleIds) as $id) {
+                $placeholder = ':article_id_' . $index++;
+                $placeholders[] = $placeholder;
+                $params[$placeholder] = $id;
+            }
+            $clauses[] = 'a.id IN (' . implode(', ', $placeholders) . ')';
+        }
+
+        if ($articleNumbers) {
+            $placeholders = [];
+            $index = 0;
+            foreach (array_keys($articleNumbers) as $number) {
+                $placeholder = ':article_number_' . $index++;
+                $placeholders[] = $placeholder;
+                $params[$placeholder] = $number;
+            }
+            $clauses[] = 'a.article_number IN (' . implode(', ', $placeholders) . ')';
+        }
+
+        $priceJoinParts = [];
+        if ($deliveryFrom !== null) {
+            $priceJoinParts[] = '(pr.valid_until IS NULL OR pr.valid_until >= :price_from)';
+            $params[':price_from'] = $deliveryFrom->format('Y-m-d');
+        }
+
+        if ($deliveryTo !== null) {
+            $priceJoinParts[] = 'pr.valid_from <= :price_to';
+            $params[':price_to'] = $deliveryTo->format('Y-m-d');
+        }
+
+        $priceJoinSql = $priceJoinParts ? ' AND ' . implode(' AND ', $priceJoinParts) : '';
+
+        $sql = "SELECT
+                    a.id,
+                    a.article_number,
+                    a.name,
+                    a.description,
+                    a.unit_name,
+                    pr.net_amount,
+                    pr.gross_amount,
+                    pr.tax_rate_percentage,
+                    pr.currency,
+                    pr.valid_from,
+                    pr.valid_until
+                FROM {$this->articleTable} a
+                LEFT JOIN {$this->priceTable} pr
+                    ON pr.article_id = a.id{$priceJoinSql}";
+
+        if ($clauses) {
+            $sql .= ' WHERE ' . implode(' OR ', $clauses);
+        }
+
+        $sql .= ' ORDER BY a.id, pr.valid_from DESC, pr.id DESC';
+
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value);
+        }
+
+        $stmt->execute();
+
+        $byId = [];
+        $numberToId = [];
+
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $articleId = (int) $row['id'];
+
+            if (!isset($byId[$articleId])) {
+                $byId[$articleId] = [
+                    'article' => [
+                        'id' => $articleId,
+                        'article_number' => $row['article_number'],
+                        'name' => $row['name'],
+                        'description' => $row['description'],
+                        'unit_name' => $row['unit_name'],
+                    ],
+                    'prices' => [],
+                ];
+            }
+
+            if (!empty($row['article_number'])) {
+                $numberToId[$row['article_number']] = $articleId;
+            }
+
+            if ($row['net_amount'] !== null
+                || $row['gross_amount'] !== null
+                || $row['tax_rate_percentage'] !== null
+                || $row['currency'] !== null
+                || $row['valid_from'] !== null
+                || $row['valid_until'] !== null
+            ) {
+                $byId[$articleId]['prices'][] = [
+                    'net_amount' => $row['net_amount'],
+                    'gross_amount' => $row['gross_amount'],
+                    'tax_rate_percentage' => $row['tax_rate_percentage'],
+                    'currency' => $row['currency'],
+                    'valid_from' => $row['valid_from'],
+                    'valid_until' => $row['valid_until'],
+                ];
+            }
+        }
+
+        $catalog = [];
+
+        foreach ($byId as $id => $entry) {
+            $catalog['id:' . $id] = $entry;
+        }
+
+        foreach ($numberToId as $number => $id) {
+            if (isset($catalog['id:' . $id])) {
+                $catalog['num:' . $number] = $catalog['id:' . $id];
+            }
+        }
+
+        return $catalog;
+    }
+
+    /**
+     * Pick the article meta entry and matching price for the requested delivery date.
+     */
+    private function extractArticleSnapshot(array $catalog, ?int $articleId, ?string $articleNumber, DateTimeImmutable $deliveryDate): ?array
+    {
+        $key = null;
+
+        if ($articleId !== null && isset($catalog['id:' . $articleId])) {
+            $key = 'id:' . $articleId;
+        } elseif ($articleNumber !== null && isset($catalog['num:' . $articleNumber])) {
+            $key = 'num:' . $articleNumber;
+        }
+
+        if ($key === null) {
+            return null;
+        }
+
+        $entry = $catalog[$key];
+        $price = $this->selectPriceForDate($entry['prices'], $deliveryDate->format('Y-m-d'));
+
+        return [
+            'article' => $entry['article'],
+            'price' => $price,
+        ];
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $prices
+     */
+    private function selectPriceForDate(array $prices, string $targetDate): ?array
+    {
+        foreach ($prices as $price) {
+            if ($price['valid_from'] !== null && $price['valid_from'] > $targetDate) {
+                continue;
+            }
+
+            if ($price['valid_until'] !== null && $price['valid_until'] < $targetDate) {
+                continue;
+            }
+
+            return $price;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $orderRow
+     * @param array<string, mixed>|null $pricing
+     * @return array<string, mixed>
+     */
+    private function buildLineItemPayload(array $orderRow, ?array $pricing, DateTimeImmutable $deliveryDate, float $quantity): array
+    {
+        $payload = [
+            'order_id' => (int) $orderRow['order_id'],
+            'order_delivery_date' => $deliveryDate->format('Y-m-d'),
+            'customer_id' => (int) $orderRow['customer_id'],
+            'article_id' => isset($orderRow['article_id']) && $orderRow['article_id'] !== null
+                ? (int) $orderRow['article_id']
+                : null,
+            'article_number' => $orderRow['article_number'] ?? null,
+            'quantity' => $quantity,
+        ];
+
+        return array_merge($payload, $this->buildArticlePricingDetails($pricing, $quantity));
+    }
+
+    /**
+     * @param array<string, mixed>|null $pricing
+     * @return array<string, mixed>
+     */
+    private function buildArticlePricingDetails(?array $pricing, float $quantity): array
+    {
+        if ($pricing === null) {
+            return [];
+        }
+
+        $details = [
+            'article_name' => $pricing['article']['name'] ?? null,
+            'article_description' => $pricing['article']['description'] ?? null,
+            'unit_name' => $pricing['article']['unit_name'] ?? null,
+        ];
+
+        $priceData = $pricing['price'] ?? null;
+        if ($priceData === null) {
+            return $details;
+        }
+
+        $details['currency'] = $priceData['currency'] ?? null;
+        $details['net_amount'] = $priceData['net_amount'] ?? null;
+        $details['gross_amount'] = $priceData['gross_amount'] ?? null;
+        $details['tax_rate_percentage'] = $priceData['tax_rate_percentage'] ?? null;
+        $details['article_valid_from'] = $priceData['valid_from'] ?? null;
+        $details['article_valid_until'] = $priceData['valid_until'] ?? null;
+        $details['line_total_net'] = $this->calculateLineTotal($quantity, $priceData['net_amount'] ?? null);
+        $details['line_total_gross'] = $this->calculateLineTotal($quantity, $priceData['gross_amount'] ?? null);
+
+        return $details;
+    }
+
+    private function calculateLineTotal(float $quantity, float|string|null $unitAmount): ?float
+    {
+        if ($unitAmount === null) {
+            return null;
+        }
+
+        return round($quantity * (float) $unitAmount, 2);
+    }
+
+    private function normalizeQuantity(float $quantity): float
+    {
+        return round($quantity, 4);
+    }
+
+    /**
+     * Persist processed state for orders that produced at least one line item.
+     *
+     * @param array<int, int> $lineCountPerOrder
+     */
+    private function markOrdersAsProcessed(array $lineCountPerOrder): void
+    {
+        if (!$lineCountPerOrder) {
+            return;
+        }
+
+        $orderIds = [];
+        foreach ($lineCountPerOrder as $orderId => $count) {
+            if ($count > 0) {
+                $orderIds[] = $orderId;
+            }
+        }
+
+        if (!$orderIds) {
+            return;
+        }
+
+        $placeholders = [];
+        $params = [];
+        foreach ($orderIds as $index => $orderId) {
+            $placeholder = ':processed_' . $index;
+            $placeholders[] = $placeholder;
+            $params[$placeholder] = $orderId;
+        }
+
+        $sql = "UPDATE {$this->ordersTable} SET verarbeitet = 1 WHERE Id IN (" . implode(', ', $placeholders) . ")";
+
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $placeholder => $value) {
+            $stmt->bindValue($placeholder, $value, PDO::PARAM_INT);
+        }
+
+        $stmt->execute();
+    }
+}
