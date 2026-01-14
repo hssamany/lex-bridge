@@ -96,7 +96,6 @@ class OrderRepository
                     o.Fr,
                     o.article_id,
                     o.article_number,
-                    o.verarbeitet,
                     o.GeaendertAm
                 FROM {$this->ordersTable} o
                 WHERE " . implode(' AND ', $conditions) . '
@@ -127,7 +126,8 @@ class OrderRepository
      *     liefer_datum_von?: mixed,
      *     liefer_datum_bis?: mixed,
      *     customer_id?: mixed,
-     *     Kunde?: mixed
+     *     Kunde?: mixed,
+     *     order_id?: mixed
      * } $filters
      * @return array<int, array<int, array<string, mixed>>>
      */
@@ -144,6 +144,11 @@ class OrderRepository
             // restrict to a single customer if provided
             $where[] = 'o.Kunde = :customer_id';
             $params[':customer_id'] = (int) $customerId;
+        }
+
+        if (isset($filters['order_id']) && $filters['order_id'] !== null && $filters['order_id'] !== '') {
+            $where[] = 'o.Id = :order_id';
+            $params[':order_id'] = (int) $filters['order_id'];
         }
 
         // Do not pick orders already marked as processed
@@ -179,7 +184,7 @@ class OrderRepository
 
         $stmt = $this->db->prepare($sql);
         foreach ($params as $name => $value) {
-            if ($name === ':customer_id') {
+            if ($name === ':customer_id' || $name === ':order_id') {
                 $stmt->bindValue($name, (int) $value, PDO::PARAM_INT);
                 continue;
             }

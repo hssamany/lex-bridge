@@ -132,6 +132,37 @@
     color: #555;
     text-align: center;
 }
+
+.orders-list {
+    min-height: 120px;
+}
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.orders-table th,
+.orders-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.orders-table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.orders-empty,
+.orders-error,
+.orders-loading {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px dashed #d0d5dd;
+    color: #555;
+    text-align: center;
+}
 .customer-search-combobox {
     padding: 0.45rem 0.7rem;
     border: 1px solid #ccc;
@@ -173,12 +204,19 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .line-items-filter-form .filter-btn-group {
-    min-width: 100px;
-    max-width: 140px;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     align-items: flex-end;
+    min-width: auto;
+    width: auto;
+    flex: 0 0 auto;
+}
+
+.line-items-filter-form .filter-btn-group.filter-group-col {
+    min-width: auto;
+    max-width: none;
+    flex: 0 0 auto;
 }
 /* Inline filter group for line-items filter */
 .line-items-filter-form {
@@ -202,12 +240,7 @@ input[list]::-webkit-calendar-picker-indicator {
     gap: 0.5rem;
 }
 
-.line-items-filter-form .filter-btn-group {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    min-width: 100px;
-}
+/* Inline filter group for line-items filter */
 /* Line Items Filter Form Beautification */
 
 .line-items-filter-form {

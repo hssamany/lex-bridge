@@ -34,6 +34,12 @@
         <template id="line-items-filter-template">
             <?php $homeView->renderLineItemsFilter(); ?>
         </template>
+        <template id="orders-tab-content">
+            <?php $homeView->renderOrdersTabContent(); ?>
+        </template>
+        <template id="orders-filter-template">
+            <?php $homeView->renderOrdersFilter(); ?>
+        </template>
     </div>
     
     <!-- Toast Notification Container -->
@@ -48,6 +54,7 @@
     <script src="public/js/pages/home.js"></script>
     <script src="public/js/pages/invoices.js"></script>
     <script src="public/js/pages/line-items.js"></script>
+    <script src="public/js/pages/orders.js"></script>
     <script src="public/js/app.js"></script>
 </body>
 </html>

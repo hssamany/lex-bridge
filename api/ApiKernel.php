@@ -29,6 +29,8 @@ final class ApiKernel {
         $this->getLineItemsRouteRegistration();
         $this->postLineItemUpdateRouteRegistration();
         $this->postInvoiceCreateRouteRegistration();
+        $this->getOrdersRouteRegistration();
+        $this->postOrdersGenerateRouteRegistration();
         // Customer search route for AJAX dropdown
         
     }
@@ -125,6 +127,64 @@ final class ApiKernel {
             }
 
             return $controller->updateLineItem($data);
+        });
+    }
+
+    private function getOrdersRouteRegistration(): void
+    {
+        $this->router->get('/orders', function () {
+            $controller = ControllerFactory::makeOrderController();
+
+            $filters = [];
+
+            $changedFromRaw = isset($_GET['geaendertAm_from']) ? trim((string) $_GET['geaendertAm_from']) : '';
+            if ($changedFromRaw === '') {
+                return [
+                    'isSuccess' => false,
+                    'error' => 'geaendertAm_from is required',
+                ];
+            }
+            $filters['geaendertAm_from'] = $changedFromRaw;
+
+            $changedToRaw = isset($_GET['geaendertAm_to']) ? trim((string) $_GET['geaendertAm_to']) : '';
+            if ($changedToRaw !== '') {
+                $filters['geaendertAm_to'] = $changedToRaw;
+            }
+
+            $customerId = filter_input(INPUT_GET, 'customer_id', FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1],
+            ]);
+            if ($customerId !== false && $customerId !== null) {
+                $filters['customer_id'] = $customerId;
+            }
+
+            return $controller->getOrders($filters);
+        });
+    }
+
+    private function postOrdersGenerateRouteRegistration(): void
+    {
+        $this->router->post('/orders/generate-line-items', function () {
+            $controller = ControllerFactory::makeOrderController();
+
+            $payload = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+
+            $orderId = $payload['order_id'] ?? $_POST['order_id'] ?? null;
+            $orderId = filter_var($orderId, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1],
+            ]);
+
+            if ($orderId === false || $orderId === null) {
+                return [
+                    'isSuccess' => false,
+                    'error' => 'order_id is required and must be a positive integer',
+                ];
+            }
+
+            return $controller->generateLineItemsForOrder((int) $orderId);
         });
     }
     

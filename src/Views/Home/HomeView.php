@@ -100,4 +100,14 @@ final class HomeView
     {
         include __DIR__ . '/../line-items/line-items-filter-form.php';
     }
+
+    public function renderOrdersTabContent(): void
+    {
+        include __DIR__ . '/../orders/orders-list-view.php';
+    }
+
+    public function renderOrdersFilter(): void
+    {
+        include __DIR__ . '/../orders/orders-filter-form.php';
+    }
 }

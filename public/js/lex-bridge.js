@@ -14,6 +14,7 @@ class LexBridge {
         this.contactsPage = null;
         this.invoicesPage = null;
         this.lineItemsPage = null;
+        this.ordersPage = null;
         this.config = {
             apiEndpoint: window.location.origin,
             debug: true
@@ -74,6 +75,8 @@ class LexBridge {
         const invoicesContent = document.getElementById('invoices-tab-content')?.innerHTML || '<p>Invoice management coming soon...</p>';
         const lineItemsContent = document.getElementById('line-items-tab-content')?.innerHTML || '<p>Loading line items...</p>';
         const lineItemsAction = document.getElementById('line-items-filter-template')?.innerHTML || '';
+        const ordersContent = document.getElementById('orders-tab-content')?.innerHTML || '<p>Loading orders...</p>';
+        const ordersAction = document.getElementById('orders-filter-template')?.innerHTML || '';
 
         // Define tabs configuration
         const tabsConfig = [
@@ -96,6 +99,12 @@ class LexBridge {
                     icon: '↻',
                     label: 'Refresh Invoices'
                 }
+            },
+            {
+                id: 'orders',
+                label: 'Orders',
+                content: ordersContent,
+                action: ordersAction
             },
             {
                 id: 'line-items',
@@ -240,6 +249,9 @@ class LexBridge {
         } else if (tabName === 'invoices' && !this.invoicesPage) {
             console.log('Creating InvoicesPage instance');
             this.invoicesPage = new InvoicesPage(this);
+        } else if (tabName === 'orders' && !this.ordersPage && window.OrdersPage) {
+            console.log('Creating OrdersPage instance');
+            this.ordersPage = new OrdersPage(this);
         } else if (tabName === 'line-items' && !this.lineItemsPage && window.LineItemsPage) {
             console.log('Creating LineItemsPage instance');
             this.lineItemsPage = new LineItemsPage(this);
@@ -253,6 +265,8 @@ class LexBridge {
                 this.contactsPage.setupRefreshButtonDirect();
             } else if (tabName === 'invoices' && this.invoicesPage) {
                 this.invoicesPage.setupRefreshButtonDirect();
+            } else if (tabName === 'orders' && this.ordersPage) {
+                this.ordersPage.setupFilterFormDirect();
             } else if (tabName === 'line-items' && this.lineItemsPage) {
                 this.lineItemsPage.setupFilterFormDirect();
             }
