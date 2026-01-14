@@ -206,6 +206,263 @@ class InvoiceRepository
             ];
         }
     }
+
+    /**
+     * Create draft invoices for every customer with line items lacking an invoice reference.
+     *
+     * @param string|null $voucherDate Defaults to today when omitted.
+     * @return array{
+     *     createdInvoices: array<int, array{invoice_id: string, customer_id: int, customer_number: ?string, line_item_count: int}>,
+     *     skippedLineItems: array<int, string>,
+     *     error?: string
+     * }
+     */
+    public function createInvoicesForPendingLineItems(?string $voucherDate = null): array
+    {
+        $result = [
+            'createdInvoices' => [],
+            'skippedLineItems' => [],
+        ];
+
+        $voucherDate = $voucherDate ?: date('Y-m-d');
+
+        $pendingSql = "SELECT
+                li.id,
+                li.customer_number,
+                li.line_order,
+                li.quantity,
+                li.net_amount,
+                li.gross_amount,
+                li.line_total_net,
+                li.line_total_gross,
+                li.currency,
+                c.id AS customer_id
+            FROM {$this->lineItemTable} li
+            LEFT JOIN {$this->customerTable} c ON c.customer_number = li.customer_number
+            WHERE (li.invoice_id IS NULL OR li.invoice_id = '')
+            ORDER BY li.customer_number ASC, li.created_at ASC, li.id ASC";
+
+        try {
+            $stmt = $this->db->prepare($pendingSql);
+            $stmt->execute();
+            $pendingItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if (!$pendingItems) {
+                return $result;
+            }
+
+            $grouped = [];
+
+            foreach ($pendingItems as $row) {
+                $customerId = isset($row['customer_id']) ? (int)$row['customer_id'] : null;
+
+                if (!$customerId) {
+                    if (!empty($row['id'])) {
+                        $result['skippedLineItems'][] = (string)$row['id'];
+                    }
+                    continue;
+                }
+
+                $customerKey = $row['customer_number'] ?? (string)$customerId;
+
+                if (!isset($grouped[$customerKey])) {
+                    $grouped[$customerKey] = [
+                        'customer_number' => $row['customer_number'] ?? null,
+                        'customer_id' => $customerId,
+                        'items' => [],
+                    ];
+                }
+
+                $grouped[$customerKey]['items'][] = $row;
+            }
+
+            if (!$grouped) {
+                return $result;
+            }
+
+            $this->db->beginTransaction();
+
+            $insertInvoiceSql = "INSERT INTO {$this->invoiceTable} (
+                    id,
+                    contact_id,
+                    voucher_date,
+                    currency,
+                    total_net_amount,
+                    total_gross_amount,
+                    tax_type,
+                    status,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :id,
+                    :contact_id,
+                    :voucher_date,
+                    :currency,
+                    :total_net_amount,
+                    :total_gross_amount,
+                    'net',
+                    'draft',
+                    NOW(),
+                    NOW()
+                )";
+
+            $insertInvoiceStmt = $this->db->prepare($insertInvoiceSql);
+
+            $updateLineItemSql = "UPDATE {$this->lineItemTable}
+                SET
+                    invoice_id = :invoice_id,
+                    line_order = :line_order,
+                    line_total_net = :line_total_net,
+                    line_total_gross = :line_total_gross,
+                    updated_at = NOW()
+                WHERE id = :id
+                  AND (invoice_id IS NULL OR invoice_id = '')";
+
+            $updateLineItemStmt = $this->db->prepare($updateLineItemSql);
+
+            foreach ($grouped as $group) {
+                $invoiceId = Invoice::generateUuid();
+                $currency = null;
+                $totalNet = 0.0;
+                $totalGross = 0.0;
+                $linkedLineItems = [];
+
+                foreach ($group['items'] as $index => $item) {
+                    $itemCurrency = $item['currency'] ?? null;
+                    if ($currency === null && $itemCurrency !== null && $itemCurrency !== '') {
+                        $currency = (string)$itemCurrency;
+                    }
+
+                    $quantity = $item['quantity'] ?? null;
+                    $netAmount = $item['net_amount'] ?? null;
+                    $grossAmount = $item['gross_amount'] ?? null;
+
+                    $lineTotalNet = $item['line_total_net'] ?? null;
+                    if ($lineTotalNet === null && $quantity !== null && $netAmount !== null) {
+                        $lineTotalNet = round((float)$quantity * (float)$netAmount, 2);
+                    }
+
+                    $lineTotalGross = $item['line_total_gross'] ?? null;
+                    if ($lineTotalGross === null && $quantity !== null && $grossAmount !== null) {
+                        $lineTotalGross = round((float)$quantity * (float)$grossAmount, 2);
+                    }
+
+                    $existingLineOrder = isset($item['line_order']) ? (int)$item['line_order'] : 0;
+                    $lineOrder = $existingLineOrder > 0
+                        ? $existingLineOrder
+                        : $index + 1;
+
+                    $updateLineItemStmt->execute([
+                        ':invoice_id' => $invoiceId,
+                        ':line_order' => $lineOrder,
+                        ':line_total_net' => $lineTotalNet,
+                        ':line_total_gross' => $lineTotalGross,
+                        ':id' => $item['id'],
+                    ]);
+
+                    if ($updateLineItemStmt->rowCount() === 0) {
+                        $result['skippedLineItems'][] = (string)$item['id'];
+                        continue;
+                    }
+
+                    if ($lineTotalNet !== null) {
+                        $totalNet += (float)$lineTotalNet;
+                    }
+
+                    if ($lineTotalGross !== null) {
+                        $totalGross += (float)$lineTotalGross;
+                    }
+
+                    $linkedLineItems[] = (string)$item['id'];
+                }
+
+                if (!$linkedLineItems) {
+                    continue;
+                }
+
+                $currency = $currency ?? 'EUR';
+
+                $insertInvoiceStmt->execute([
+                    ':id' => $invoiceId,
+                    ':contact_id' => $group['customer_id'],
+                    ':voucher_date' => $voucherDate,
+                    ':currency' => $currency,
+                    ':total_net_amount' => round($totalNet, 2),
+                    ':total_gross_amount' => round($totalGross, 2),
+                ]);
+
+                $result['createdInvoices'][] = [
+                    'invoice_id' => $invoiceId,
+                    'customer_id' => $group['customer_id'],
+                    'customer_number' => $group['customer_number'],
+                    'line_item_count' => count($linkedLineItems),
+                ];
+            }
+
+            $this->db->commit();
+
+            return $result;
+        } catch (Exception $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+
+            $result['error'] = $exception->getMessage();
+            return $result;
+        }
+    }
+
+    /**
+     * Call stored procedure to create invoices for unassigned line items.
+     *
+     * @param string|null $voucherDate
+     * @return array{
+     *     createdInvoices: array<int, array<string, mixed>>,
+     *     skippedLineItems: array<int, string>,
+     *     error?: string
+     * }
+     */
+    public function createInvoicesForPendingLineItemsViaStoredProc(?string $voucherDate = null): array
+    {
+        try {
+            $stmt = $this->db->prepare('CALL sp_create_invoices_for_pending_line_items(:voucher_date)');
+
+            if ($voucherDate === null || trim((string)$voucherDate) === '') {
+                $stmt->bindValue(':voucher_date', null, PDO::PARAM_NULL);
+            } else {
+                $stmt->bindValue(':voucher_date', $voucherDate, PDO::PARAM_STR);
+            }
+
+            $stmt->execute();
+
+            $createdInvoices = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+            $skippedLineItems = [];
+            if ($stmt->nextRowset()) {
+                $skippedRows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+                foreach ($skippedRows as $row) {
+                    if (isset($row['line_item_id'])) {
+                        $skippedLineItems[] = (string) $row['line_item_id'];
+                    }
+                }
+            }
+
+            while ($stmt->nextRowset()) {
+                // consume any additional result sets emitted by the stored procedure
+            }
+
+            return [
+                'createdInvoices' => $createdInvoices,
+                'skippedLineItems' => $skippedLineItems,
+            ];
+        } catch (\PDOException $exception) {
+            return [
+                'createdInvoices' => [],
+                'skippedLineItems' => [],
+                'error' => 'Database error: ' . $exception->getMessage(),
+            ];
+        }
+    }
     
     /**
      * Update invoice after successful Lexware transmission
