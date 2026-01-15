@@ -28,4 +28,13 @@ final class OrderController
     {
         return $this->service->generateLineItemsFromOrder($orderId);
     }
+
+    /**
+     * @param array<int, mixed> $orderIds
+     * @return array<string, mixed>
+     */
+    public function generateLineItemsForOrders(array $orderIds): array
+    {
+        return $this->service->generateLineItemsFromOrders($orderIds);
+    }
 }

@@ -127,7 +127,8 @@ class OrderRepository
      *     liefer_datum_bis?: mixed,
      *     customer_id?: mixed,
      *     Kunde?: mixed,
-     *     order_id?: mixed
+     *     order_id?: mixed,
+     *     order_ids?: array<mixed>
      * } $filters
      * @return array<int, array<int, array<string, mixed>>>
      */
@@ -135,6 +136,7 @@ class OrderRepository
     {
         $where = [];
         $params = [];
+        $paramTypes = [];
 
         $customerId = $filters['customer_id']
             ?? $filters['Kunde']
@@ -144,11 +146,44 @@ class OrderRepository
             // restrict to a single customer if provided
             $where[] = 'o.Kunde = :customer_id';
             $params[':customer_id'] = (int) $customerId;
+            $paramTypes[':customer_id'] = PDO::PARAM_INT;
         }
 
+        $orderIdsFilter = [];
+
         if (isset($filters['order_id']) && $filters['order_id'] !== null && $filters['order_id'] !== '') {
-            $where[] = 'o.Id = :order_id';
-            $params[':order_id'] = (int) $filters['order_id'];
+            $orderIdsFilter[] = (int) $filters['order_id'];
+        }
+
+        if (isset($filters['order_ids']) && is_array($filters['order_ids'])) {
+            foreach ($filters['order_ids'] as $candidate) {
+                if ($candidate === null || $candidate === '') {
+                    continue;
+                }
+
+                $validated = filter_var($candidate, FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 1],
+                ]);
+
+                if ($validated !== false && $validated !== null) {
+                    $orderIdsFilter[] = (int) $validated;
+                }
+            }
+        }
+
+        $orderIdsFilter = array_values(array_unique(array_filter($orderIdsFilter, static fn(int $id): bool => $id > 0)));
+
+        if ($orderIdsFilter) {
+            $placeholders = [];
+
+            foreach ($orderIdsFilter as $index => $orderId) {
+                $placeholder = ':order_id_' . $index;
+                $placeholders[] = $placeholder;
+                $params[$placeholder] = $orderId;
+                $paramTypes[$placeholder] = PDO::PARAM_INT;
+            }
+
+            $where[] = 'o.Id IN (' . implode(', ', $placeholders) . ')';
         }
 
         // Do not pick orders already marked as processed
@@ -184,8 +219,8 @@ class OrderRepository
 
         $stmt = $this->db->prepare($sql);
         foreach ($params as $name => $value) {
-            if ($name === ':customer_id' || $name === ':order_id') {
-                $stmt->bindValue($name, (int) $value, PDO::PARAM_INT);
+            if (isset($paramTypes[$name])) {
+                $stmt->bindValue($name, $value, $paramTypes[$name]);
                 continue;
             }
 

@@ -52,9 +52,42 @@ final class OrderService
             ];
         }
 
+        return $this->generateLineItemsFromOrders([$orderId]);
+    }
+
+    /**
+     * @param array<int, mixed> $orderIds
+     */
+    public function generateLineItemsFromOrders(array $orderIds): array
+    {
+        $normalized = [];
+
+        foreach ($orderIds as $candidate) {
+            if ($candidate === null || $candidate === '') {
+                continue;
+            }
+
+            $validated = filter_var($candidate, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1],
+            ]);
+
+            if ($validated !== false && $validated !== null) {
+                $normalized[] = (int) $validated;
+            }
+        }
+
+        $normalized = array_values(array_unique($normalized));
+
+        if (!$normalized) {
+            return [
+                'isSuccess' => false,
+                'error' => 'At least one valid order_id is required.',
+            ];
+        }
+
         try {
             $results = $this->repository->generateInvoiceLineItemsFromOrders([
-                'order_id' => $orderId,
+                'order_ids' => $normalized,
             ]);
         } catch (Throwable $exception) {
             return [
@@ -64,9 +97,15 @@ final class OrderService
         }
 
         $lineItems = [];
-        foreach ($results as $customerItems) {
+        $customers = [];
+
+        foreach ($results as $customerId => $customerItems) {
             if (!is_array($customerItems)) {
                 continue;
+            }
+
+            if ($customerId !== null && $customerId !== '') {
+                $customers[] = (int) $customerId;
             }
 
             foreach ($customerItems as $item) {
@@ -79,6 +118,8 @@ final class OrderService
         return [
             'isSuccess' => true,
             'generatedCount' => count($lineItems),
+            'ordersProcessed' => $normalized,
+            'customers' => array_values(array_unique($customers)),
             'lineItems' => $lineItems,
         ];
     }

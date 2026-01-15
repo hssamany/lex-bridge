@@ -172,19 +172,26 @@ final class ApiKernel {
                 $payload = [];
             }
 
-            $orderId = $payload['order_id'] ?? $_POST['order_id'] ?? null;
-            $orderId = filter_var($orderId, FILTER_VALIDATE_INT, [
-                'options' => ['min_range' => 1],
-            ]);
+            $orderIds = [];
 
-            if ($orderId === false || $orderId === null) {
+            if (isset($payload['order_ids']) && is_array($payload['order_ids'])) {
+                $orderIds = $payload['order_ids'];
+            } elseif (array_key_exists('order_id', $payload)) {
+                $orderIds[] = $payload['order_id'];
+            } elseif (isset($_POST['order_ids']) && is_array($_POST['order_ids'])) {
+                $orderIds = $_POST['order_ids'];
+            } elseif (isset($_POST['order_id'])) {
+                $orderIds[] = $_POST['order_id'];
+            }
+
+            if (!$orderIds) {
                 return [
                     'isSuccess' => false,
-                    'error' => 'order_id is required and must be a positive integer',
+                    'error' => 'At least one order_id must be provided.',
                 ];
             }
 
-            return $controller->generateLineItemsForOrder((int) $orderId);
+            return $controller->generateLineItemsForOrders($orderIds);
         });
     }
     
