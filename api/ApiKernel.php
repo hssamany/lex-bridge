@@ -151,11 +151,15 @@ final class ApiKernel {
                 $filters['geaendertAm_to'] = $changedToRaw;
             }
 
-            $customerId = filter_input(INPUT_GET, 'customer_id', FILTER_VALIDATE_INT, [
-                'options' => ['min_range' => 1],
-            ]);
-            if ($customerId !== false && $customerId !== null) {
-                $filters['customer_id'] = $customerId;
+            $customerIdRaw = $_GET['customer_id'] ?? null;
+            if ($customerIdRaw !== null && $customerIdRaw !== '') {
+                $customerId = filter_var($customerIdRaw, FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 1],
+                ]);
+
+                if ($customerId !== false && $customerId !== null) {
+                    $filters['customer_id'] = $customerId;
+                }
             }
 
             return $controller->getOrders($filters);

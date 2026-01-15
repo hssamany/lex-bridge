@@ -133,8 +133,21 @@
     text-align: center;
 }
 
+
+.orders-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 200px;
+    max-height: clamp(200px, calc(100vh - 240px), 720px);
+    overflow: hidden;
+}
+
 .orders-list {
+    flex: 1 1 auto;
     min-height: 120px;
+    overflow: auto;
+    scrollbar-gutter: stable;
 }
 
 .orders-table {

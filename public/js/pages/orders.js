@@ -4,6 +4,7 @@
     const SELECTORS = {
         filterForm: 'form[name="get-orders"]',
         customerSearch: 'form[name="get-orders"] .customer-search-combobox',
+        customerSearchInput: '.customer-search-combobox',
         ordersContainer: '.orders-list',
         submitButton: 'button[type="submit"]'
     };
@@ -454,12 +455,25 @@
                     if (Array.isArray(data)) {
                         data.forEach((customer) => {
                             const option = document.createElement('option');
-                            const number = customer.customer_number || '';
+                            const number = customer.customer_number ?? customer.customerNumber ?? '';
+                            const numberText = number !== null && number !== undefined ? String(number) : '';
                             const name = customer.company_name || '';
                             const label = [number, name].filter(Boolean).join(' - ');
+                            const backendKey = numberText !== '' ? numberText : (customer.id !== undefined && customer.id !== null ? String(customer.id) : '');
                             option.value = label;
-                            option.dataset.customerId = String(customer.id ?? '');
-                            option.setAttribute('data-customer-id', String(customer.id ?? ''));
+                            if (backendKey !== '') {
+                                option.dataset.customerKey = backendKey;
+                                option.setAttribute('data-customer-key', backendKey);
+                            }
+                            if (numberText !== '') {
+                                option.dataset.customerNumber = numberText;
+                                option.setAttribute('data-customer-number', numberText);
+                            }
+                            if (customer.id !== undefined && customer.id !== null) {
+                                const idText = String(customer.id);
+                                option.dataset.customerId = idText;
+                                option.setAttribute('data-customer-id', idText);
+                            }
                             datalist.appendChild(option);
                         });
                     }
@@ -495,23 +509,53 @@
                 return;
             }
 
-            const options = list.options || list.children;
-            for (let index = 0; index < options.length; index += 1) {
-                const option = options[index];
-                if (option.value !== value) {
+            const options = list instanceof HTMLDataListElement && list.options ? Array.from(list.options) : Array.from(list.children);
+            const lowerValue = value.toLowerCase();
+            let matchedKey = this.extractCustomerNumber(value);
+
+            for (const optionElement of options) {
+                if (!(optionElement instanceof HTMLOptionElement)) {
                     continue;
                 }
 
-                const customerId = option.dataset.customerId || option.getAttribute('data-customer-id');
-                if (customerId) {
-                    hidden.value = customerId;
+                const optionValue = (optionElement.value || optionElement.textContent || '').trim();
+                if (optionValue === '') {
+                    continue;
                 }
-                break;
+
+                const optionLower = optionValue.toLowerCase();
+                const optionNumber = optionElement.dataset.customerNumber || optionElement.getAttribute('data-customer-number') || '';
+                const optionKey = optionElement.dataset.customerKey || optionElement.getAttribute('data-customer-key') || optionNumber || optionElement.dataset.customerId || optionElement.getAttribute('data-customer-id') || '';
+                const labelNumber = this.extractCustomerNumber(optionValue);
+
+                if (optionKey === '') {
+                    continue;
+                }
+
+                const labelMatches = optionValue === value || optionLower === lowerValue;
+                const numberMatches = optionNumber !== '' && (optionNumber === value || optionNumber === matchedKey);
+                const prefixMatches = labelNumber !== '' && (labelNumber === matchedKey || labelNumber === value || lowerValue.startsWith(labelNumber.toLowerCase()));
+
+                if (labelMatches || numberMatches || prefixMatches) {
+                    matchedKey = optionKey;
+                    break;
+                }
+            }
+
+            if (!matchedKey) {
+                const numericFallback = this.extractCustomerNumber(value);
+                if (numericFallback) {
+                    matchedKey = numericFallback;
+                }
+            }
+
+            if (matchedKey) {
+                hidden.value = matchedKey;
             }
         }
 
         ensureCustomerSelection(form) {
-            const input = form.querySelector('.customer-search-combobox');
+            const input = form.querySelector(SELECTORS.customerSearchInput);
             if (!input) {
                 return;
             }
@@ -568,6 +612,15 @@
             }
 
             return String(value);
+        }
+
+        extractCustomerNumber(value) {
+            if (typeof value !== 'string') {
+                return '';
+            }
+
+            const prefix = value.split('-')[0]?.trim() ?? '';
+            return /^\d+$/.test(prefix) ? prefix : '';
         }
 
     }

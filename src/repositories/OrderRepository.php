@@ -29,6 +29,7 @@ class OrderRepository
     private string $ordersTable;
     private string $articleTable;
     private string $priceTable;
+    private ?bool $supportsProcessedFlag = null;
 
     public function __construct()
     {
@@ -187,7 +188,10 @@ class OrderRepository
         }
 
         // Do not pick orders already marked as processed
-        $where[] = '(o.verarbeitet = 0 OR o.verarbeitet IS NULL)';
+        if ($this->supportsProcessedFlag()) {
+            $where[] = '(o.verarbeitet = 0 OR o.verarbeitet IS NULL)';
+        }
+
         $whereSql = 'WHERE ' . implode(' AND ', $where);
 
         $deliveryFrom = null;
@@ -610,7 +614,7 @@ class OrderRepository
      */
     private function markOrdersAsProcessed(array $lineCountPerOrder): void
     {
-        if (!$lineCountPerOrder) {
+        if (!$lineCountPerOrder || !$this->supportsProcessedFlag()) {
             return;
         }
 
@@ -641,5 +645,27 @@ class OrderRepository
         }
 
         $stmt->execute();
+    }
+
+    private function supportsProcessedFlag(): bool
+    {
+        if ($this->supportsProcessedFlag !== null) {
+            return $this->supportsProcessedFlag;
+        }
+
+        try {
+            $sql = "SHOW COLUMNS FROM {$this->ordersTable} LIKE 'verarbeitet'";
+            $stmt = $this->db->query($sql);
+            if ($stmt === false) {
+                $this->supportsProcessedFlag = false;
+                return $this->supportsProcessedFlag;
+            }
+
+            $this->supportsProcessedFlag = $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+            return $this->supportsProcessedFlag;
+        } catch (\Throwable $exception) {
+            $this->supportsProcessedFlag = false;
+            return $this->supportsProcessedFlag;
+        }
     }
 }
