@@ -1,11 +1,32 @@
 'use strict';
 
 (function () {
+    const SELECTORS = {
+        filterForm: 'form[name="get-orders"]',
+        customerSearch: 'form[name="get-orders"] .customer-search-combobox',
+        ordersContainer: '.orders-list',
+        submitButton: 'button[type="submit"]'
+    };
+
+    const CLASS_NAMES = {
+        orderSelectCheckbox: 'order-select-checkbox',
+        ordersSelectAll: 'orders-select-all',
+        ordersToolbar: 'orders-toolbar line-items-toolbar',
+        toolbarLeft: 'line-items-toolbar-left',
+        toolbarButton: 'btn btn-primary line-items-toolbar-btn',
+        loading: 'orders-loading',
+        error: 'orders-error',
+        empty: 'orders-empty',
+        ordersTable: 'orders-table'
+    };
+
     class OrdersPage {
-        constructor(lexBridge) {
+        constructor(lexBridge) 
+        {
             this.lexBridge = lexBridge;
             this.customerSearchTimers = new WeakMap();
             this.lastQueryString = '';
+            this.ordersContainer = null;
 
             this.onInputDelegate = this.handleInputEvent.bind(this);
             this.onChangeDelegate = this.handleChangeEvent.bind(this);
@@ -22,8 +43,9 @@
             document.addEventListener('submit', this.onSubmitDelegate, true);
         }
 
-        setupFilterFormDirect() {
-            const form = document.querySelector('form[name="get-orders"]');
+        setupFilterFormDirect() 
+        {
+            const form = document.querySelector(SELECTORS.filterForm);
             if (!form || form.dataset.ajaxHandlerAttached === 'true') {
                 return;
             }
@@ -42,33 +64,35 @@
                 return;
             }
 
-            if (!target.matches('form[name="get-orders"] .customer-search-combobox')) {
+            if (!target.matches(SELECTORS.customerSearch)) {
                 return;
             }
 
             this.handleCustomerSearch(target);
         }
 
-        handleChangeEvent(event) {
+        handleChangeEvent(event) 
+        {
             const target = event.target;
             if (!(target instanceof HTMLInputElement)) {
                 return;
             }
 
-            if (!target.matches('form[name="get-orders"] .customer-search-combobox')) {
+            if (!target.matches(SELECTORS.customerSearch)) {
                 return;
             }
 
             this.syncCustomerSelection(target);
         }
 
-        handleSubmitEvent(event) {
+        handleSubmitEvent(event) 
+        {
             const form = event.target;
             if (!(form instanceof HTMLFormElement)) {
                 return;
             }
 
-            if (!form.matches('form[name="get-orders"]')) {
+            if (!form.matches(SELECTORS.filterForm)) {
                 return;
             }
 
@@ -81,19 +105,78 @@
             this.processFilterForm(form);
         }
 
-        getSelectedOrderIds() {
-            return Array.from(document.querySelectorAll('.order-select-checkbox:checked'))
-                .map((checkbox) => parseInt(checkbox.getAttribute('data-order-id') || checkbox.value || '', 10))
+        getSelectedOrderIds() 
+        {
+            const selector = `.${CLASS_NAMES.orderSelectCheckbox}:checked`;
+            return Array.from(document.querySelectorAll(selector))
+                .map((element) => {
+                    if (!(element instanceof HTMLInputElement)) {
+                        return Number.NaN;
+                    }
+
+                    const raw = element.dataset.orderId || element.value || '';
+                    return parseInt(raw, 10);
+                })
                 .filter((id) => Number.isInteger(id) && id > 0);
         }
 
-        updateGenerateButtonState() {
+        updateGenerateButtonState() 
+        {
             if (!this.ordersGenerateButton) {
                 return;
             }
 
             const selectedCount = this.getSelectedOrderIds().length;
             this.ordersGenerateButton.disabled = selectedCount === 0;
+        }
+
+        getOrdersContainer() {
+            if (this.ordersContainer && document.body.contains(this.ordersContainer)) {
+                return this.ordersContainer;
+            }
+
+            this.ordersContainer = document.querySelector(SELECTORS.ordersContainer);
+            return this.ordersContainer;
+        }
+
+        async withButtonLoading(button, loadingMarkup, callback) 
+        {
+            if (!(button instanceof HTMLButtonElement)) {
+                return await callback();
+            }
+
+            const originalMarkup = button.innerHTML;
+            button.disabled = true;
+            if (loadingMarkup) {
+                button.innerHTML = loadingMarkup;
+            }
+
+            try {
+                return await callback();
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalMarkup;
+            }
+        }
+
+        async requestJson(url, options = {}, contextLabel = 'Anfrage fehlgeschlagen') {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`${contextLabel} (${response.status}): ${errorText}`);
+            }
+
+            const raw = await response.text();
+            const payload = raw.trim();
+            if (payload === '') {
+                return {};
+            }
+
+            try {
+                return JSON.parse(payload);
+            } catch (error) {
+                throw new Error(`${contextLabel}: Ungültige JSON-Antwort.`);
+            }
         }
 
         async bulkGenerateSelectedOrders(button) {
@@ -103,39 +186,28 @@
                 return;
             }
 
-            const originalLabel = button.innerHTML;
-            button.disabled = true;
-            button.innerHTML = '<span class="btn-icon spinning">↻</span> Erstelle...';
+            await this.withButtonLoading(button, '<span class="btn-icon spinning">↻</span> Erstelle...', async () => {
+                try {
+                    const data = await this.requestJson('/lex-bridge/api/orders/generate-line-items', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ order_ids: orderIds })
+                    }, 'Generieren fehlgeschlagen');
 
-            try {
-                const response = await fetch('/lex-bridge/api/orders/generate-line-items', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ order_ids: orderIds })
-                });
+                    if (!data?.isSuccess) {
+                        throw new Error(data?.error || 'Erstellung der Positionen fehlgeschlagen.');
+                    }
 
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Generieren fehlgeschlagen (${response.status}): ${errorText}`);
+                    const generated = data.generatedCount ?? data.generated ?? 0;
+                    this.notify(`Es wurden ${generated} Positionen erstellt.`, 'success');
+                    await this.reloadOrders();
+                } catch (error) {
+                    console.error('Bulk generate line items error:', error);
+                    this.notify('Fehler beim Erstellen der Positionen.', 'error');
                 }
-
-                const data = await response.json();
-                if (!data?.isSuccess) {
-                    throw new Error(data?.error || 'Erstellung der Positionen fehlgeschlagen.');
-                }
-
-                const generated = data.generatedCount ?? data.generated ?? 0;
-                this.notify(`Es wurden ${generated} Positionen erstellt.`, 'success');
-                await this.reloadOrders();
-            } catch (error) {
-                console.error('Bulk generate line items error:', error);
-                this.notify('Fehler beim Erstellen der Positionen.', 'error');
-            } finally {
-                button.disabled = false;
-                button.innerHTML = originalLabel;
-            }
+            });
         }
 
         async processFilterForm(form) {
@@ -162,17 +234,18 @@
             }
 
             this.lastQueryString = params.toString();
-            await this.fetchOrders(params, form.querySelector('button[type="submit"]'));
+            const submitButton = form.querySelector(SELECTORS.submitButton);
+            await this.fetchOrders(params, submitButton instanceof HTMLButtonElement ? submitButton : null);
         }
 
         async fetchOrders(params, submitButton) {
-            const container = document.querySelector('.orders-list');
+            const container = this.getOrdersContainer();
             if (!container) {
                 return;
             }
 
             container.setAttribute('aria-busy', 'true');
-            container.innerHTML = '<p class="orders-loading">Lade Bestellungen...</p>';
+            container.innerHTML = `<p class="${CLASS_NAMES.loading}">Lade Bestellungen...</p>`;
 
             let originalButtonLabel = null;
             if (submitButton) {
@@ -182,22 +255,16 @@
             }
 
             try {
-                const response = await fetch(`/lex-bridge/api/orders?${params.toString()}`);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Orders request failed (${response.status}): ${errorText}`);
-                }
-
-                const data = await response.json();
+                const data = await this.requestJson(`/lex-bridge/api/orders?${params.toString()}`, {}, 'Orders request failed');
                 if (!data?.isSuccess) {
                     throw new Error(data?.error || 'Unbekannter Fehler beim Laden der Bestellungen.');
                 }
 
-                this.renderOrdersList(container, Array.isArray(data.orders) ? data.orders : []);
+                this.renderOrdersList(Array.isArray(data.orders) ? data.orders : []);
                 this.notify('Bestellungen aktualisiert.', 'success');
             } catch (error) {
                 console.error('Orders filter error:', error);
-                container.innerHTML = '<p class="orders-error">Fehler beim Laden der Bestellungen.</p>';
+                container.innerHTML = `<p class="${CLASS_NAMES.error}">Fehler beim Laden der Bestellungen.</p>`;
                 this.notify('Fehler beim Laden der Bestellungen.', 'error');
             } finally {
                 container.setAttribute('aria-busy', 'false');
@@ -208,7 +275,12 @@
             }
         }
 
-        renderOrdersList(container, orders) {
+        renderOrdersList(orders) {
+            const container = this.getOrdersContainer();
+            if (!container) {
+                return;
+            }
+
             if (this.ordersChangeHandler) {
                 container.removeEventListener('change', this.ordersChangeHandler);
                 this.ordersChangeHandler = null;
@@ -218,14 +290,14 @@
             container.innerHTML = '';
 
             const toolbar = document.createElement('div');
-            toolbar.className = 'orders-toolbar line-items-toolbar';
+            toolbar.className = CLASS_NAMES.ordersToolbar;
 
             const leftGroup = document.createElement('div');
-            leftGroup.className = 'line-items-toolbar-left';
+            leftGroup.className = CLASS_NAMES.toolbarLeft;
 
             const generateBtn = document.createElement('button');
             generateBtn.type = 'button';
-            generateBtn.className = 'btn btn-primary line-items-toolbar-btn';
+            generateBtn.className = CLASS_NAMES.toolbarButton;
             generateBtn.innerHTML = 'Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
             generateBtn.disabled = true;
             generateBtn.addEventListener('click', () => {
@@ -241,18 +313,18 @@
 
             if (!orders.length) {
                 const emptyState = document.createElement('p');
-                emptyState.className = 'orders-empty';
+                emptyState.className = CLASS_NAMES.empty;
                 emptyState.textContent = 'Keine Bestellungen gefunden.';
                 container.appendChild(emptyState);
                 return;
             }
 
             const table = document.createElement('table');
-            table.className = 'orders-table';
+            table.className = CLASS_NAMES.ordersTable;
             table.innerHTML = `
                 <thead>
                     <tr>
-                        <th><input type="checkbox" class="orders-select-all"></th>
+                        <th><input type="checkbox" class="${CLASS_NAMES.ordersSelectAll}"></th>
                         <th>Kunde</th>
                         <th>Jahr</th>
                         <th>KW</th>
@@ -269,16 +341,16 @@
             `;
 
             const tbody = table.querySelector('tbody');
-            const selectAllCheckbox = table.querySelector('.orders-select-all');
+            const selectAllCheckbox = table.querySelector(`.${CLASS_NAMES.ordersSelectAll}`);
 
             orders.forEach((order) => {
                 const row = document.createElement('tr');
-                row.dataset.orderId = this.escapeHtml(String(order.order_id ?? ''));
+                row.dataset.orderId = String(order.order_id ?? '');
 
                 const selectCell = document.createElement('td');
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.className = 'order-select-checkbox';
+                checkbox.className = CLASS_NAMES.orderSelectCheckbox;
                 const orderIdValue = this.safeText(order.order_id);
                 checkbox.value = orderIdValue;
                 checkbox.setAttribute('data-order-id', orderIdValue);
@@ -314,8 +386,8 @@
                     return;
                 }
 
-                if (target.classList.contains('orders-select-all')) {
-                    const checkboxes = table.querySelectorAll('.order-select-checkbox');
+                if (target.classList.contains(CLASS_NAMES.ordersSelectAll)) {
+                    const checkboxes = table.querySelectorAll(`.${CLASS_NAMES.orderSelectCheckbox}`);
                     checkboxes.forEach((checkboxElement) => {
                         checkboxElement.checked = target.checked;
                     });
@@ -323,13 +395,13 @@
                     return;
                 }
 
-                if (target.classList.contains('order-select-checkbox')) {
+                if (target.classList.contains(CLASS_NAMES.orderSelectCheckbox)) {
                     if (selectAllCheckbox instanceof HTMLInputElement) {
                         if (!target.checked) {
                             selectAllCheckbox.checked = false;
                         } else {
-                            const allCheckboxes = table.querySelectorAll('.order-select-checkbox');
-                            const checkedCheckboxes = table.querySelectorAll('.order-select-checkbox:checked');
+                            const allCheckboxes = table.querySelectorAll(`.${CLASS_NAMES.orderSelectCheckbox}`);
+                            const checkedCheckboxes = table.querySelectorAll(`.${CLASS_NAMES.orderSelectCheckbox}:checked`);
                             selectAllCheckbox.checked = allCheckboxes.length > 0 && checkedCheckboxes.length === allCheckboxes.length;
                         }
                     }
@@ -372,13 +444,11 @@
 
             const newTimer = setTimeout(async () => {
                 try {
-                    const response = await fetch(`/lex-bridge/api/customers/search?q=${encodeURIComponent(query)}`);
-                    if (!response.ok) {
-                        throw new Error(`Customer search failed (${response.status}).`);
-                    }
-
-                    const text = await response.text();
-                    const data = JSON.parse(text);
+                    const data = await this.requestJson(
+                        `/lex-bridge/api/customers/search?q=${encodeURIComponent(query)}`,
+                        {},
+                        'Customer search failed'
+                    );
 
                     datalist.innerHTML = '<option value="">Alle Kunden</option>';
                     if (Array.isArray(data)) {
@@ -404,7 +474,7 @@
         }
 
         syncCustomerSelection(input, datalist) {
-            const form = input.closest('form[name="get-orders"]');
+            const form = input.closest(SELECTORS.filterForm);
             if (!form) {
                 return;
             }
@@ -500,11 +570,6 @@
             return String(value);
         }
 
-        escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
     }
 
     window.OrdersPage = OrdersPage;
