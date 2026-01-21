@@ -73,7 +73,7 @@
         syncCustomerSelection(input, datalist);
 
         const newTimer = setTimeout(() => {
-            fetch(`/lex-bridge/api/customers/search?q=${encodeURIComponent(query)}`)
+            fetch(LexBridge.resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`))
                 .then(async res => {
                     if (!res.ok) {
                         const errorText = await res.text();
@@ -208,9 +208,10 @@
             return cachedEntry.promise;
         }
 
+        const baseUrl = LexBridge.resolveApiUrl('articles/search');
         const url = normalizedQuery
-            ? `/lex-bridge/api/articles/search?q=${encodeURIComponent(normalizedQuery)}`
-            : '/lex-bridge/api/articles/search';
+            ? `${baseUrl}?q=${encodeURIComponent(normalizedQuery)}`
+            : baseUrl;
 
         const fetchPromise = fetch(url)
             .then(async res => {
@@ -604,7 +605,7 @@
             return;
         }
 
-        fetch('/lex-bridge/api/line-items/update', {
+        fetch(LexBridge.resolveApiUrl('line-items/update'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1404,7 +1405,7 @@ class LineItemsPage {
 
             // Send to API
             try {
-                const response = await fetch('/lex-bridge/api/invoices', {
+                const response = await fetch(LexBridge.resolveApiUrl('invoices'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ customer_id: customerId, currency, line_items: lineItems })
@@ -1430,7 +1431,7 @@ class LineItemsPage {
                     targetButton.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronisieren...';
                 }
 
-                const response = await fetch('/lex-bridge/api/articles/sync', {
+                const response = await fetch(LexBridge.resolveApiUrl('articles/sync'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: '{}'
@@ -1541,7 +1542,7 @@ class LineItemsPage {
                 button.innerHTML = '<span class="btn-icon spinning">↻</span> Filtern...';
             }
 
-            const response = await fetch(`/lex-bridge/api/line-items?${params.toString()}`);
+            const response = await fetch(`${LexBridge.resolveApiUrl('line-items')}?${params.toString()}`);
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Line items request failed (${response.status}): ${errorText}`);

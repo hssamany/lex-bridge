@@ -51,7 +51,7 @@
     <div class="error-container">
         <h1><?= htmlspecialchars($heading ?? 'Error') ?></h1>
         <p><?= htmlspecialchars($message ?? 'An error occurred.') ?></p>
-        <a href="/lex-bridge/">Go Home</a>
+        <a href="<?= htmlspecialchars(lexbridge_base_path(), ENT_QUOTES, 'UTF-8'); ?>">Go Home</a>
     </div>
 </body>
 </html>

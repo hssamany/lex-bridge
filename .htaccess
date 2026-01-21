@@ -1,8 +1,6 @@
 RewriteEngine On
-RewriteBase /lex-bridge/
 
 # API routes - route to api/index.php
-RewriteCond %{REQUEST_URI} ^/lex-bridge/api/
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
 # Static files - serve from public directory
@@ -14,4 +12,4 @@ RewriteRule ^(.*)$ public/$1 [L]
 # All other requests go to index.php in root
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [L,QSA]
+RewriteRule ^ index.php [L,QSA]

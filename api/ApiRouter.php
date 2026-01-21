@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Api;
 
+use Exception;
 
 final class ApiRouter
 {
@@ -27,10 +28,25 @@ final class ApiRouter
         if (!empty($_SERVER['PATH_INFO'])) {
             $path = $_SERVER['PATH_INFO'];
         } else {
-            $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-            // Remove base path and api prefix
-            $path = str_replace('/lex-bridge/api', '', $uri);
-            $path = str_replace('/index.php', '', $path);
+            $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+            $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+            $scriptDir = str_replace('\\', '/', dirname($scriptName));
+
+            if ($scriptDir !== '/' && $scriptDir !== '\\' && $scriptDir !== '.' && $scriptDir !== '') {
+                if (strncmp($uri, $scriptDir, strlen($scriptDir)) === 0) {
+                    $uri = substr($uri, strlen($scriptDir)) ?: '/';
+                }
+            }
+
+            if (strncmp($uri, '/index.php', 10) === 0) {
+                $uri = substr($uri, 10) ?: '/';
+            }
+
+            if (strncmp($uri, '/api', 4) === 0) {
+                $uri = substr($uri, 4) ?: '/';
+            }
+
+            $path = $uri;
         }
         
         // Ensure path starts with /

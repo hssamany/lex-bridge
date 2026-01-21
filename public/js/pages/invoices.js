@@ -104,7 +104,7 @@ class InvoicesPage {
             
             button.disabled = true;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
-            const response = await fetch(`/lex-bridge/api/invoices?page=${page}`);
+            const response = await fetch(LexBridge.resolveApiUrl(`invoices?page=${page}`));
             const data = await response.json();
             
             if (data && data.invoices) {
@@ -221,7 +221,7 @@ class InvoicesPage {
             button.disabled = true;
             button.innerHTML = '⏳';
             
-            const response = await fetch('/lex-bridge/api/invoices/transfer', {
+            const response = await fetch(LexBridge.resolveApiUrl('invoices/transfer'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ invoice_id: invoiceId })

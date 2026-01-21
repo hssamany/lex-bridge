@@ -30,3 +30,31 @@ define('DB_PORT', $dbPort);
 define('DB_NAME', $dbName);
 define('DB_USERNAME', $dbUsername);
 define('DB_PASSWORD', $dbPassword);
+
+if (!function_exists('lexbridge_base_path')) {
+    function lexbridge_base_path(): string
+    {
+        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+
+        if ($scriptName === '') {
+            return '/';
+        }
+
+        $directory = str_replace('\\', '/', dirname($scriptName));
+
+        if ($directory === '/' || $directory === '\\' || $directory === '.' || $directory === '') {
+            return '/';
+        }
+
+        return rtrim($directory, '/') . '/';
+    }
+}
+
+if (!function_exists('lexbridge_base_uri')) {
+    function lexbridge_base_uri(): string
+    {
+        $basePath = lexbridge_base_path();
+
+        return $basePath === '/' ? '/' : rtrim($basePath, '/');
+    }
+}

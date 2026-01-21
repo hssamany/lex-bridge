@@ -1,11 +1,16 @@
+<?php
+$baseHref = lexbridge_base_path();
+$basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="/lex-bridge/">
+    <base href="<?= htmlspecialchars($baseHref, ENT_QUOTES, 'UTF-8'); ?>">
     <title><?php echo $homeView->getPageTitle(); ?></title>
     <link rel="stylesheet" href="public/css/styles.css">
+    <link rel="icon" href="public/favicon.ico" type="image/x-icon">
 </head>
 <body>
     <div class="container">
@@ -48,6 +53,12 @@
     <!-- Toast template is now loaded by toast-notifier.js -->
     
     <!-- JavaScript Components -->
+    <script>
+        window.lexBridgeConfig = Object.freeze(<?= json_encode([
+            'baseHref' => $baseHref,
+            'basePath' => $basePath,
+        ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+    </script>
     <script src="public/js/components/toast-notifier/toast-notifier.js"></script>
     <script src="public/js/components/tab-manager/tab-manager.js"></script>
     <script src="public/js/lex-bridge.js"></script>

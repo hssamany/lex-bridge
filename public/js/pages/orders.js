@@ -189,7 +189,7 @@
 
             await this.withButtonLoading(button, '<span class="btn-icon spinning">↻</span> Erstelle...', async () => {
                 try {
-                    const data = await this.requestJson('/lex-bridge/api/orders/generate-line-items', {
+                    const data = await this.requestJson(LexBridge.resolveApiUrl('orders/generate-line-items'), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
@@ -256,7 +256,7 @@
             }
 
             try {
-                const data = await this.requestJson(`/lex-bridge/api/orders?${params.toString()}`, {}, 'Orders request failed');
+                const data = await this.requestJson(`${LexBridge.resolveApiUrl('orders')}?${params.toString()}`, {}, 'Orders request failed');
                 if (!data?.isSuccess) {
                     throw new Error(data?.error || 'Unbekannter Fehler beim Laden der Bestellungen.');
                 }
@@ -446,7 +446,7 @@
             const newTimer = setTimeout(async () => {
                 try {
                     const data = await this.requestJson(
-                        `/lex-bridge/api/customers/search?q=${encodeURIComponent(query)}`,
+                        LexBridge.resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`),
                         {},
                         'Customer search failed'
                     );

@@ -7,8 +7,55 @@
 class LexBridge {
     
     static version = '1.0.0';
+    static baseConfig = null;
+
+    static getBaseConfig() {
+        if (!LexBridge.baseConfig) {
+            const globalConfig = (typeof window !== 'undefined' && window.lexBridgeConfig && typeof window.lexBridgeConfig === 'object')
+                ? window.lexBridgeConfig
+                : {};
+            const baseElementHref = document.querySelector('base')?.getAttribute('href') || '/';
+            const baseHref = typeof globalConfig.baseHref === 'string' && globalConfig.baseHref !== ''
+                ? globalConfig.baseHref
+                : baseElementHref;
+            let normalizedBaseHref = baseHref.endsWith('/') ? baseHref : `${baseHref}/`;
+
+            let basePath = typeof globalConfig.basePath === 'string' && globalConfig.basePath !== ''
+                ? globalConfig.basePath
+                : new URL(normalizedBaseHref, window.location.origin).pathname;
+
+            if (!basePath.startsWith('/')) {
+                basePath = `/${basePath}`;
+            }
+
+            if (basePath !== '/' && basePath.endsWith('/')) {
+                basePath = basePath.slice(0, -1);
+            }
+
+            LexBridge.baseConfig = {
+                baseHref: normalizedBaseHref,
+                basePath: basePath || '/'
+            };
+        }
+
+        return LexBridge.baseConfig;
+    }
+
+    static resolveInAppUrl(path = '') {
+        const { baseHref } = LexBridge.getBaseConfig();
+        const cleanedPath = (path || '').replace(/^\//, '');
+        return cleanedPath === '' ? baseHref : `${baseHref}${cleanedPath}`;
+    }
+
+    static resolveApiUrl(path = '') {
+        const cleanedPath = (path || '').replace(/^\//, '');
+        return LexBridge.resolveInAppUrl(`api/${cleanedPath}`);
+    }
     
     constructor() {
+        const baseConfig = LexBridge.getBaseConfig();
+        const origin = window.location.origin.replace(/\/$/, '');
+        const basePathForEndpoint = baseConfig.basePath === '/' ? '' : baseConfig.basePath;
         this.tabManager = null;
         this.toastNotifier = null;
         this.contactsPage = null;
@@ -16,9 +63,15 @@ class LexBridge {
         this.lineItemsPage = null;
         this.ordersPage = null;
         this.config = {
-            apiEndpoint: window.location.origin,
+            apiEndpoint: `${origin}${basePathForEndpoint}`,
+            baseHref: baseConfig.baseHref,
+            basePath: baseConfig.basePath,
             debug: true
         };
+
+        if (typeof window !== 'undefined' && window.lexBridgeConfig && typeof window.lexBridgeConfig === 'object') {
+            this.configure(window.lexBridgeConfig);
+        }
     }
     
     /**
