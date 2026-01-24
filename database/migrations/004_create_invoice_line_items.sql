@@ -1,0 +1,33 @@
+-- Invoice line items table storing generated order details per invoice.
+CREATE TABLE
+    IF NOT EXISTS `invoice_line_items` (
+        `id` CHAR(36) NOT NULL PRIMARY KEY,
+        `invoice_id` CHAR(36) NOT NULL,
+        `customer_number` VARCHAR(64) NULL,
+        `order_id` INT UNSIGNED NULL,
+        `order_delivery_date` DATE NULL,
+        `line_order` INT NOT NULL,
+        `type` ENUM ('custom', 'text', 'material', 'service') NOT NULL DEFAULT 'custom',
+        `name` VARCHAR(255) NOT NULL,
+        `description` TEXT NULL,
+        `quantity` DECIMAL(10, 3) NOT NULL DEFAULT 1,
+        `unit_name` VARCHAR(50) NULL,
+        `article_id` VARCHAR(64) NULL,
+        `article_number` VARCHAR(64) NULL,
+        `article_label` VARCHAR(255) NULL,
+        `currency` VARCHAR(3) NOT NULL DEFAULT 'EUR',
+        `net_amount` DECIMAL(10, 2) NULL,
+        `gross_amount` DECIMAL(10, 2) NULL,
+        `tax_rate_percentage` DECIMAL(5, 2) NULL,
+        `discount_percentage` DECIMAL(5, 2) NOT NULL DEFAULT 0,
+        `line_total_net` DECIMAL(10, 2) NULL,
+        `line_total_gross` DECIMAL(10, 2) NULL,
+        `article_valid_from` DATETIME NULL,
+        `article_valid_until` DATETIME NULL,
+        `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT `fk_invoice_line_items_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `invoices` (`id`) ON DELETE CASCADE,
+        KEY `idx_invoice_id` (`invoice_id`),
+        KEY `idx_invoice_line_order` (`invoice_id`, `line_order`),
+        KEY `idx_customer_number` (`customer_number`)
+    ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
