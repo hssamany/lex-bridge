@@ -1,1 +1,0 @@
--- Deprecated: schema moved to database/migrations/003_create_invoices.sql.

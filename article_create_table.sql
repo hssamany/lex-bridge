@@ -1,1 +1,0 @@
--- Deprecated: schema moved to database/migrations/001_create_articles.sql.

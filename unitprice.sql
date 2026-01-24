@@ -1,1 +1,0 @@
--- Deprecated: schema moved to database/migrations/002_create_prices.sql.
