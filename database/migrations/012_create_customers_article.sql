@@ -1,8 +1,7 @@
--- Links each customer to a single default article without altering the existing customer schema.
 CREATE TABLE
     IF NOT EXISTS `customers_article` (
-        `customer_id` INT UNSIGNED NOT NULL,
-        `article_id` INT UNSIGNED NOT NULL,
+        `customer_id` INT NOT NULL,
+        `article_id` BIGINT UNSIGNED NOT NULL,
         `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (`customer_id`),

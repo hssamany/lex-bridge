@@ -54,18 +54,37 @@ class ContactRepository
      */
     public function getCustomerContacts(): array
     {
-        $sql = "SELECT company_name, customer_number, lex_customer_number
-                FROM {$this->customerTable}
-                ORDER BY company_name ASC";
+        $customersArticleTable = \lexbridge_table('customers_article');
+        $articlesTable = \lexbridge_table('articles');
+
+        $sql = "SELECT c.company_name,
+                       c.customer_number,
+                       c.lex_customer_number,
+                       ca.article_id,
+                       a.article_number,
+                       a.name AS article_name
+                FROM {$this->customerTable} AS c
+                LEFT JOIN {$customersArticleTable} AS ca ON ca.customer_id = c.id
+                LEFT JOIN {$articlesTable} AS a ON a.id = ca.article_id
+                ORDER BY c.company_name ASC";
 
         $stmt = $this->db->query($sql);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return array_map(static function (array $row): array {
+            $articleLabel = null;
+            if (!empty($row['article_number']) || !empty($row['article_name'])) {
+                $number = $row['article_number'] ?? '';
+                $name = $row['article_name'] ?? '';
+                $articleLabel = trim($number . ' - ' . $name, ' -');
+            }
+
             return [
                 'companyName' => $row['company_name'] ?? '',
                 'customerNumber' => $row['customer_number'] ?? '',
-                'lexCustomerNumber' => $row['lex_customer_number'] ?? ''
+                'lexCustomerNumber' => $row['lex_customer_number'] ?? '',
+                'articleId' => isset($row['article_id']) ? (int) $row['article_id'] : null,
+                'articleLabel' => $articleLabel
             ];
         }, $rows ?: []);
     }

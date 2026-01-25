@@ -48,7 +48,7 @@ class InvoicesPage {
         // Use event delegation on document to catch form submit even if form is added later
         document.addEventListener('submit', async (e) => {
 
-            if (e.target.matches('form[name="get-invoices"]')) {
+            if (e.target.matches('form[name="get-rechn"]')) {
                 console.log('Invoices form submit intercepted - loading via AJAX');
                 e.preventDefault();
                 e.stopPropagation();
@@ -65,13 +65,13 @@ class InvoicesPage {
      */
     setupRefreshButtonDirect() 
     {
-        const refreshForm = document.querySelector('form[name="get-invoices"]');
+        const refreshForm = document.querySelector('form[name="get-rechn"]');
         
         if (refreshForm) {
 
             // Remove the action attribute to prevent navigation
             refreshForm.removeAttribute('action');
-            refreshForm.setAttribute('data-original-action', '?action=get-invoices');
+            refreshForm.setAttribute('data-original-action', '?action=get-rechn');
             const button = refreshForm.querySelector('button[type="submit"]');
                         
             if (button && !button.dataset.ajaxHandlerAttached) {
@@ -92,7 +92,7 @@ class InvoicesPage {
      */
     async loadInvoices(page = 0, isUserAction = false) {
 
-        const button = document.querySelector('form[name="get-invoices"] button');
+        const button = document.querySelector('form[name="get-rechn"] button');
         
         if (!button) {
             console.error('Refresh button not found');

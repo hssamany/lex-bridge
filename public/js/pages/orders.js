@@ -2,8 +2,8 @@
 
 (function () {
     const SELECTORS = {
-        filterForm: 'form[name="get-orders"]',
-        customerSearch: 'form[name="get-orders"] .customer-search-combobox',
+        filterForm: 'form[name="get-bestellg"]',
+        customerSearch: 'form[name="get-bestellg"] .customer-search-combobox',
         customerSearchInput: '.customer-search-combobox',
         ordersContainer: '.orders-list',
         submitButton: 'button[type="submit"]'

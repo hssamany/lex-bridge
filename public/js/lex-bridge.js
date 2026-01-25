@@ -134,34 +134,34 @@ class LexBridge {
         // Define tabs configuration
         const tabsConfig = [
             {
-                id: 'contacts',
-                label: 'Contacts',
+                id: 'kontakte',
+                label: 'Kontakte',
                 content: contactsContent,
                 action: {
-                    name: 'get-contacts',
+                    name: 'get-kontakte',
                     icon: '↻',
-                    label: 'Sync Contacts'
+                    label: 'Kontakte synchronisieren'
                 }
             },
             {
-                id: 'invoices',
-                label: 'Invoices',
+                id: 'rechn',
+                label: 'Rechn',
                 content: invoicesContent,
                 action: {
-                    name: 'get-invoices',
+                    name: 'get-rechn',
                     icon: '↻',
-                    label: 'Refresh Invoices'
+                    label: 'Rechnungen aktualisieren'
                 }
             },
             {
-                id: 'orders',
-                label: 'Orders',
+                id: 'bestellg',
+                label: 'Bestellg.',
                 content: ordersContent,
                 action: ordersAction
             },
             {
-                id: 'line-items',
-                label: 'Line-Items',
+                id: 'posn',
+                label: 'Posn',
                 content: lineItemsContent,
                 action: lineItemsAction
             }
@@ -170,7 +170,7 @@ class LexBridge {
         this.tabManager = new TabManager({
             containerId: 'tab-manager-container',
             tabs: tabsConfig,
-            defaultTab: 'contacts',
+            defaultTab: 'kontakte',
             debug: this.config.debug
         });
         
@@ -296,16 +296,16 @@ class LexBridge {
         }
         
         // Initialize page-specific functionality
-        if (tabName === 'contacts' && !this.contactsPage) {
+        if (tabName === 'kontakte' && !this.contactsPage) {
             console.log('Creating ContactsPage instance');
             this.contactsPage = new ContactsPage(this);
-        } else if (tabName === 'invoices' && !this.invoicesPage) {
+        } else if (tabName === 'rechn' && !this.invoicesPage) {
             console.log('Creating InvoicesPage instance');
             this.invoicesPage = new InvoicesPage(this);
-        } else if (tabName === 'orders' && !this.ordersPage && window.OrdersPage) {
+        } else if (tabName === 'bestellg' && !this.ordersPage && window.OrdersPage) {
             console.log('Creating OrdersPage instance');
             this.ordersPage = new OrdersPage(this);
-        } else if (tabName === 'line-items' && !this.lineItemsPage && window.LineItemsPage) {
+        } else if (tabName === 'posn' && !this.lineItemsPage && window.LineItemsPage) {
             console.log('Creating LineItemsPage instance');
             this.lineItemsPage = new LineItemsPage(this);
         }
@@ -314,13 +314,13 @@ class LexBridge {
         
         // Re-setup event handlers after buttons are visible
         setTimeout(() => {
-            if (tabName === 'contacts' && this.contactsPage) {
+            if (tabName === 'kontakte' && this.contactsPage) {
                 this.contactsPage.setupRefreshButtonDirect();
-            } else if (tabName === 'invoices' && this.invoicesPage) {
+            } else if (tabName === 'rechn' && this.invoicesPage) {
                 this.invoicesPage.setupRefreshButtonDirect();
-            } else if (tabName === 'orders' && this.ordersPage) {
+            } else if (tabName === 'bestellg' && this.ordersPage) {
                 this.ordersPage.setupFilterFormDirect();
-            } else if (tabName === 'line-items' && this.lineItemsPage) {
+            } else if (tabName === 'posn' && this.lineItemsPage) {
                 this.lineItemsPage.setupFilterFormDirect();
             }
         }, 100);
@@ -362,7 +362,7 @@ class LexBridge {
             }
             
             // Find and submit the refresh invoices form
-            const refreshForm = document.querySelector('form[action*="get-invoices"]');
+            const refreshForm = document.querySelector('form[name="get-rechn"]');
             if (refreshForm) {
                 refreshForm.submit();
             }

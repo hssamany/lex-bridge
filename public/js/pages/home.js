@@ -44,7 +44,7 @@ class ContactsPage {
     setupRefreshButton() {
         // Use event delegation on document to catch form submit even if form is added later
         document.addEventListener('submit', async (e) => {
-            if (e.target.matches('form[name="get-contacts"]')) {
+            if (e.target.matches('form[name="get-kontakte"]')) {
                 console.log('Contacts form submit intercepted - syncing before reload');
                 e.preventDefault();
                 e.stopPropagation();
@@ -59,13 +59,13 @@ class ContactsPage {
      * Setup refresh button directly on the form element (called after tab is visible)
      */
     setupRefreshButtonDirect() {
-        const refreshForm = document.querySelector('form[name="get-contacts"]');
+        const refreshForm = document.querySelector('form[name="get-kontakte"]');
         console.log('setupRefreshButtonDirect - form found:', refreshForm);
         
         if (refreshForm) {
             // Remove the action attribute to prevent navigation
             refreshForm.removeAttribute('action');
-            refreshForm.setAttribute('data-original-action', '?action=get-contacts');
+            refreshForm.setAttribute('data-original-action', '?action=get-kontakte');
             
             const button = refreshForm.querySelector('button[type="submit"]');
             console.log('Button found:', button);
@@ -138,7 +138,7 @@ class ContactsPage {
     }
 
     async syncAndReload(page = 0) {
-        const button = document.querySelector('form[name="get-contacts"] button');
+        const button = document.querySelector('form[name="get-kontakte"] button');
         const originalText = button ? button.innerHTML : '';
 
         try {
@@ -188,7 +188,7 @@ class ContactsPage {
         if (!tbody) return;
         
         if (data.contacts.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3" style="text-align: center;">No contacts found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Keine Kontakte vorhanden</td></tr>';
             return;
         }
         
@@ -210,6 +210,9 @@ class ContactsPage {
                 <td>${this.escapeHtml(contact.companyName || '')}</td>
                 <td>${this.escapeHtml(contact.customerNumber || '')}</td>
                 <td>${this.escapeHtml(contact.lexCustomerNumber || '')}</td>
+                <td data-article-id="${contact.articleId != null ? this.escapeHtml(String(contact.articleId)) : ''}">
+                    ${this.escapeHtml(contact.articleLabel || '')}
+                </td>
             </tr>
         `;
     }

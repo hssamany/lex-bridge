@@ -3,14 +3,13 @@
         class="contacts-container" 
         data-contacts='<?php echo htmlspecialchars(json_encode($contactsData), ENT_QUOTES, 'UTF-8'); ?>'
     >
-        <h2>Contacts</h2>
-
         <table class="contact-table">
             <thead>
                 <tr>
-                    <th>Company Name</th>
-                    <th>Customer Number</th>
-                    <th>Lex Customer Number</th>
+                    <th>Kunden Name</th>
+                    <th>Kunden Nr.</th>
+                    <th>Lex Kunden Nr.</th>
+                    <th>Artikel</th>
                 </tr>
             </thead>
             <tbody>
@@ -19,6 +18,7 @@
                         <td><?= htmlspecialchars($contact['companyName'] ?? '') ?></td>
                         <td><?= htmlspecialchars($contact['customerNumber'] ?? '') ?></td>
                         <td><?= htmlspecialchars($contact['lexCustomerNumber'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($contact['articleLabel'] ?? '') ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -28,14 +28,13 @@
 
 <?php else: ?>
     <div class="contacts-container">
-        <h2>Contacts</h2>
-        
         <table class="contact-table">
             <thead>
                 <tr>
-                    <th>Company Name</th>
-                    <th>Customer Number</th>
-                    <th>Lex Customer Number</th>
+                    <th>Kunden Name</th>
+                    <th>Kunden Nr.</th>
+                    <th>Lex Kunden Nr.</th>
+                    <th>Artikel</th>
                 </tr>
             </thead>
             <tbody>

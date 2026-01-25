@@ -17,6 +17,8 @@ require_once dirname(__DIR__, 2) . '/config.php';
 final class ContactServiceTest extends TestCase
 {
     private PDO $pdo;
+    private int $customerId;
+    private int $articleId;
 
     protected function setUp(): void
     {
@@ -28,10 +30,13 @@ final class ContactServiceTest extends TestCase
 
         $this->createSchema();
         $this->seedCustomer();
+        $this->seedArticleMapping();
         $this->setDatabaseConnection($this->pdo);
 
         global $tableNames;
         $tableNames['customer'] = 'customer';
+        $tableNames['customers_article'] = 'customers_article';
+        $tableNames['articles'] = 'articles';
     }
 
     protected function tearDown(): void
@@ -75,6 +80,8 @@ final class ContactServiceTest extends TestCase
         self::assertSame('Acme GmbH', $contact['companyName']);
         self::assertSame('CUST-001', $contact['customerNumber']);
         self::assertSame('9001', (string) $contact['lexCustomerNumber']);
+        self::assertSame($this->articleId, $contact['articleId']);
+        self::assertSame('ART-001 - Standard Service', $contact['articleLabel']);
 
         $row = $this->pdo
             ->query('SELECT lex_contact_id, lex_customer_number FROM customer WHERE company_name = "Acme GmbH"')
@@ -100,6 +107,8 @@ final class ContactServiceTest extends TestCase
         self::assertSame('Acme GmbH', $contact['companyName']);
         self::assertSame('CUST-001', $contact['customerNumber']);
         self::assertSame('', $contact['lexCustomerNumber']);
+        self::assertSame($this->articleId, $contact['articleId']);
+        self::assertSame('ART-001 - Standard Service', $contact['articleLabel']);
 
         $row = $this->pdo
             ->query('SELECT lex_contact_id FROM customer WHERE company_name = "Acme GmbH"')
@@ -110,10 +119,24 @@ final class ContactServiceTest extends TestCase
     private function createSchema(): void
     {
         $this->pdo->exec('CREATE TABLE customer (
-            company_name TEXT PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company_name TEXT,
             customer_number TEXT,
             lex_customer_number TEXT,
             lex_contact_id TEXT
+        )');
+
+        $this->pdo->exec('CREATE TABLE articles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_number TEXT,
+            name TEXT
+        )');
+
+        $this->pdo->exec('CREATE TABLE customers_article (
+            customer_id INTEGER NOT NULL UNIQUE,
+            article_id INTEGER NOT NULL UNIQUE,
+            FOREIGN KEY(customer_id) REFERENCES customer(id) ON DELETE CASCADE,
+            FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
         )');
     }
 
@@ -123,6 +146,23 @@ final class ContactServiceTest extends TestCase
         $stmt->execute([
             ':company' => 'Acme GmbH',
             ':number' => 'CUST-001',
+        ]);
+        $this->customerId = (int) $this->pdo->lastInsertId();
+    }
+
+    private function seedArticleMapping(): void
+    {
+        $stmt = $this->pdo->prepare('INSERT INTO articles (article_number, name) VALUES (:number, :name)');
+        $stmt->execute([
+            ':number' => 'ART-001',
+            ':name' => 'Standard Service'
+        ]);
+        $this->articleId = (int) $this->pdo->lastInsertId();
+
+        $stmt = $this->pdo->prepare('INSERT INTO customers_article (customer_id, article_id) VALUES (:customer, :article)');
+        $stmt->execute([
+            ':customer' => $this->customerId,
+            ':article' => $this->articleId
         ]);
     }
 
