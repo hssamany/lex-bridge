@@ -4,21 +4,21 @@
         data-contacts='<?php echo htmlspecialchars(json_encode($contactsData), ENT_QUOTES, 'UTF-8'); ?>'
     >
         <h2>Contacts</h2>
-        
+
         <table class="contact-table">
             <thead>
                 <tr>
-                    <th>ID</th>
                     <th>Company Name</th>
                     <th>Customer Number</th>
+                    <th>Lex Customer Number</th>
                 </tr>
             </thead>
             <tbody>
                 <?php foreach ($contactsData['contacts'] as $contact): ?>
                     <tr>
-                        <td><?= htmlspecialchars($contact['id']) ?></td>
-                        <td><?= htmlspecialchars($contact['companyName']) ?></td>
-                        <td><?= htmlspecialchars($contact['customerNumber']) ?></td>
+                        <td><?= htmlspecialchars($contact['companyName'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($contact['customerNumber'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($contact['lexCustomerNumber'] ?? '') ?></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -33,9 +33,9 @@
         <table class="contact-table">
             <thead>
                 <tr>
-                    <th>ID</th>
                     <th>Company Name</th>
                     <th>Customer Number</th>
+                    <th>Lex Customer Number</th>
                 </tr>
             </thead>
             <tbody>

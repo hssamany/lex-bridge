@@ -24,20 +24,31 @@ final class ContactController
      * @param int $page Page number
      * @return array Formatted contact data
      */
-    public function getContacts(int $page = 0): array
+    public function getContacts(): array
     {
-        $result = $this->contactService -> syncContacts($page);
+        $contacts = $this->contactService->listContacts();
+
+        return [
+            'statusCode' => 200,
+            'isSuccess' => true,
+            'error' => null,
+            'contacts' => $contacts
+        ];
+    }
+
+    public function syncContacts(int $page = 0): array
+    {
+        $result = $this->contactService->syncContacts($page);
         $response = $result['response'];
         $contacts = $result['contacts'];
-        
-        // Convert Contact objects to arrays for JSON serialization
-        $formattedContacts = array_map(fn($c) => $c->toArray(), $contacts);
-                
+        $hasContacts = !empty($contacts);
+        $isSuccess = $response->isSuccess() || $hasContacts;
+
         return [
             'statusCode' => $response->getStatusCode(),
-            'isSuccess' => $response->isSuccess(),
-            'error' => $response->getError(),
-            'contacts' => $formattedContacts
+            'isSuccess' => $isSuccess,
+            'error' => $result['error'],
+            'contacts' => $contacts
         ];
     }
 }

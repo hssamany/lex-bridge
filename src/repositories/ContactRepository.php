@@ -48,6 +48,29 @@ class ContactRepository
     }
 
     /**
+     * Fetch contacts persisted in the customer table for UI display.
+     *
+     * @return array<int, array<string, string|null>>
+     */
+    public function getCustomerContacts(): array
+    {
+        $sql = "SELECT company_name, customer_number, lex_customer_number
+                FROM {$this->customerTable}
+                ORDER BY company_name ASC";
+
+        $stmt = $this->db->query($sql);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        return array_map(static function (array $row): array {
+            return [
+                'companyName' => $row['company_name'] ?? '',
+                'customerNumber' => $row['customer_number'] ?? '',
+                'lexCustomerNumber' => $row['lex_customer_number'] ?? ''
+            ];
+        }, $rows ?: []);
+    }
+
+    /**
      * Find a contact by lex_contact_id
      * 
      * @param string $lexContactId Lexware contact ID

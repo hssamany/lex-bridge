@@ -22,7 +22,7 @@ final class ApiKernel {
         $this->postInvoiceRouteRegistration();
         $this->postInvoiceCreateRouteRegistration();
         $this->getContactsRouteRegistration();
-        $this->postContactRouteRegistration();
+        $this->postContactsSyncRouteRegistration();
         $this->getCustomersSearchRouteRegistration();
         $this->getArticlesSearchRouteRegistration();
         $this->postArticlesSyncRouteRegistration();
@@ -204,20 +204,36 @@ final class ApiKernel {
     {
         $this->router -> get('/contacts', function() {
             $controller = ControllerFactory::makeContactController($this->httpClient);
-            $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
-                'options' => ['default' => 0, 'min_range' => 0]
-            ]);
-            return $controller->getContacts($page);
+            return $controller->getContacts();
         });
     }
     
-    // Create new contact
-    private function postContactRouteRegistration(): void
+    private function postContactsSyncRouteRegistration(): void
     {
-        $this->router -> post('/contacts', function() {
+        $this->router -> post('/contacts/sync', function() {
             $controller = ControllerFactory::makeContactController($this->httpClient);
-            $data = json_decode(file_get_contents('php://input'), true);
-            return $controller->createContact($data);
+            $page = 0;
+
+            $payload = json_decode(file_get_contents('php://input'), true);
+            if (is_array($payload) && array_key_exists('page', $payload)) {
+                $pageCandidate = filter_var($payload['page'], FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 0]
+                ]);
+                if ($pageCandidate !== false && $pageCandidate !== null) {
+                    $page = $pageCandidate;
+                }
+            }
+
+            if (isset($_GET['page'])) {
+                $pageCandidate = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, [
+                    'options' => ['min_range' => 0]
+                ]);
+                if ($pageCandidate !== false && $pageCandidate !== null) {
+                    $page = $pageCandidate;
+                }
+            }
+
+            return $controller->syncContacts($page);
         });
     }
 

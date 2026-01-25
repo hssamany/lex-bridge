@@ -16,7 +16,7 @@ class ContactsPage {
             this.setupRefreshButton();
             ContactsPage.handlerSetup = true;
         }
-        // Removed autoLoadIfEmpty to prevent toast on first tab load
+        this.autoLoadIfEmpty();
     }
     
     /**
@@ -45,11 +45,11 @@ class ContactsPage {
         // Use event delegation on document to catch form submit even if form is added later
         document.addEventListener('submit', async (e) => {
             if (e.target.matches('form[name="get-contacts"]')) {
-                console.log('Contacts form submit intercepted - loading via AJAX');
+                console.log('Contacts form submit intercepted - syncing before reload');
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                await this.loadContacts(0);
+                await this.syncAndReload(0);
                 return false;
             }
         }, true); // Use capture phase to intercept before other handlers
@@ -78,10 +78,10 @@ class ContactsPage {
                 button.type = 'button';
                 
                 button.addEventListener('click', async (e) => {
-                    console.log('Contacts button clicked - loading via AJAX');
+                    console.log('Contacts button clicked - syncing contacts');
                     e.preventDefault();
                     e.stopPropagation();
-                    await this.loadContacts(0);
+                    await this.syncAndReload(0);
                 });
             }
         }
@@ -91,51 +91,90 @@ class ContactsPage {
      * Load contacts via AJAX
      */
     async loadContacts(page = 0) {
-        const button = document.querySelector('form[name="get-contacts"] button');
-        
-        if (!button) {
-            console.error('Refresh button html tag not found');
-            return;
-        }
-        
-        const originalText = button.innerHTML;
-        console.log('Original button text:', originalText);
-        
-        try 
-        {
-            button.disabled = true;
-            button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
-            
+        try {
             console.log('Fetching contacts from API...');
             const response = await fetch(LexBridge.resolveApiUrl(`contacts?page=${page}`));
             console.log('Response received:', response.status);
-            
+
             const data = await response.json();
             console.log('Data received:', data);
-            
-            if (data.isSuccess) {
-                console.log('Success! Updating contact list with', data.contacts.length, 'contacts');
-                this.updateContactList(data);
-                this.lexBridge.toastNotifier.show
-                (
-                    `Loaded ${data.contacts.length} contacts`,
-                    'success'
-                );
 
-            } else {
-                throw new Error(data.error || 'Failed to load contacts');
-            }
-            
+            const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+            this.updateContactList({ contacts });
+
+            return contacts;
         } catch (error) {
             console.error('Error loading contacts:', error);
             this.lexBridge.toastNotifier.show(
                 'Error loading contacts: ' + error.message,
                 'error'
             );
+            return [];
+        }
+    }
+
+    async syncContacts(page = 0) {
+        console.log('Starting contact sync...');
+
+        const response = await fetch(LexBridge.resolveApiUrl(`contacts/sync?page=${page}`), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ page })
+        });
+
+        const data = await response.json();
+        console.log('Sync response:', data);
+
+        const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+        const hasContacts = contacts.length > 0;
+
+        if (!response.ok || (!data.isSuccess && !hasContacts)) {
+            throw new Error(data.error || 'Failed to sync contacts');
+        }
+
+        return data;
+    }
+
+    async syncAndReload(page = 0) {
+        const button = document.querySelector('form[name="get-contacts"] button');
+        const originalText = button ? button.innerHTML : '';
+
+        try {
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronizing...';
+            }
+
+            const syncData = await this.syncContacts(page);
+            const contacts = Array.isArray(syncData.contacts) ? syncData.contacts : [];
+
+            this.updateContactList({ contacts });
+
+            if (syncData.isSuccess) {
+                this.lexBridge.toastNotifier.show(
+                    `Synchronized ${contacts.length} contacts`,
+                    'success'
+                );
+            } else {
+                const warningMessage = syncData.error
+                    ? `Synchronized ${contacts.length} contacts (with warnings: ${syncData.error})`
+                    : `Synchronized ${contacts.length} contacts (with warnings)`;
+                this.lexBridge.toastNotifier.show(warningMessage, 'warning');
+            }
+        } catch (error) {
+            console.error('Contact sync failed:', error);
+            this.lexBridge.toastNotifier.show(
+                'Contact synchronization failed: ' + error.message,
+                'error'
+            );
+            await this.loadContacts(page);
         } finally {
-            button.disabled = false;
-            button.innerHTML = originalText;
-            console.log('=== loadContacts finished');
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
         }
     }
     
@@ -168,9 +207,9 @@ class ContactsPage {
     createContactRow(contact) {
         return `
             <tr>
-                <td>${this.escapeHtml(contact.id || '')}</td>
                 <td>${this.escapeHtml(contact.companyName || '')}</td>
                 <td>${this.escapeHtml(contact.customerNumber || '')}</td>
+                <td>${this.escapeHtml(contact.lexCustomerNumber || '')}</td>
             </tr>
         `;
     }

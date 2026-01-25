@@ -17,5 +17,8 @@
             "email": "ssmny2@live.de"
         }
     ],
-    "require": {}
+    "require": {},
+    "scripts": {
+        "test": "php vendor/phpunit/phpunit/phpunit"
+    }
 }
