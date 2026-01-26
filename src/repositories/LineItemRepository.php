@@ -18,9 +18,9 @@ class LineItemRepository
     public function __construct()
     {
         $this->db = Database::getConnection();
-        $this->lineItemTable = \lexbridge_table('invoice_line_items');
         $this->invoiceTable = \lexbridge_table('invoices');
         $this->customerTable = \lexbridge_table('customer');
+        $this->lineItemTable = \lexbridge_table('invoice_line_items');
     }
 
     /**
@@ -115,13 +115,13 @@ class LineItemRepository
                     li.article_valid_until,
                     li.created_at,
                     li.updated_at
-            FROM {$this->lineItemTable} li
-                WHERE li.id = :line_item_id
-                LIMIT 1";
-
+            FROM {$this->lineItemTable} li 
+            WHERE li.id = :line_item_id 
+            LIMIT 1";
+        
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':line_item_id' => $lineItemId]);
-
+        
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $row ?: null;

@@ -26,9 +26,9 @@ class OrderRepository
     private const MIN_QUANTITY_THRESHOLD = 0.0001;
 
     private PDO $db;
+    private string $priceTable;
     private string $ordersTable;
     private string $articleTable;
-    private string $priceTable;
     private ?bool $supportsProcessedFlag = null;
 
     public function __construct()
@@ -222,7 +222,9 @@ class OrderRepository
                 ORDER BY o.Kunde, o.Jahr, o.KW";
 
         $stmt = $this->db->prepare($sql);
+
         foreach ($params as $name => $value) {
+
             if (isset($paramTypes[$name])) {
                 $stmt->bindValue($name, $value, $paramTypes[$name]);
                 continue;
@@ -245,6 +247,7 @@ class OrderRepository
         $lineCountPerOrder = [];
 
         foreach ($rows as $row) {
+
             $year = (int) ($row['order_year'] ?? 0);
             $week = (int) ($row['order_week'] ?? 0);
 
@@ -260,6 +263,7 @@ class OrderRepository
             }
 
             foreach (self::WEEKDAY_OFFSETS as $column => $offset) {
+
                 $quantity = $row[$column] ?? null;
 
                 if ($quantity === null) {
@@ -267,6 +271,7 @@ class OrderRepository
                 }
 
                 $quantityValue = $this->normalizeQuantity((float) $quantity);
+
                 if (abs($quantityValue) < self::MIN_QUANTITY_THRESHOLD) {
                     continue;
                 }
@@ -431,6 +436,7 @@ class OrderRepository
         $sql .= ' ORDER BY a.id, pr.valid_from DESC, pr.id DESC';
 
         $stmt = $this->db->prepare($sql);
+        
         foreach ($params as $name => $value) {
             $stmt->bindValue($name, $value);
         }

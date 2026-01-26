@@ -334,7 +334,7 @@
                         <th>Mi</th>
                         <th>Do</th>
                         <th>Fr</th>
-                        <th>Geändert am</th>
+                        <th>Bestelldatum</th>
                         <th>Artikel-Nr.</th>
                     </tr>
                 </thead>
