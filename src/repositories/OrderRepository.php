@@ -10,6 +10,7 @@ use DateTimeInterface;
 use InvalidArgumentException;
 use RuntimeException;
 use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Services\LineItemCalculator;
 
 class OrderRepository
 {
@@ -31,15 +32,17 @@ class OrderRepository
     private string $ordersTable;
     private string $articleTable;
     private string $customerArticleTable;
+    private LineItemCalculator $calculator;
     private ?bool $supportsProcessedFlag = null;
 
-    public function __construct()
+    public function __construct(?LineItemCalculator $calculator = null)
     {
         $this->db = Database::getConnection();
         $this->ordersTable = \lexbridge_table('orders');
         $this->articleTable = \lexbridge_table('articles');
         $this->priceTable = \lexbridge_table('prices');
         $this->customerArticleTable = \lexbridge_table('customers_article');
+        $this->calculator = $calculator ?? new LineItemCalculator();
     }
 
     /**
@@ -298,7 +301,7 @@ class OrderRepository
                     continue;
                 }
 
-                $quantityValue = $this->normalizeQuantity((float) $quantity);
+                $quantityValue = $this->calculator->normalizeQuantity((float) $quantity);
 
                 if (abs($quantityValue) < self::MIN_QUANTITY_THRESHOLD) {
                     continue;
@@ -723,68 +726,10 @@ class OrderRepository
         $details['tax_rate_percentage'] = $priceData['tax_rate_percentage'] ?? null;
         $details['article_valid_from'] = $priceData['valid_from'] ?? null;
         $details['article_valid_until'] = $priceData['valid_until'] ?? null;
-        $details['line_total_net'] = $this->calculateLineTotal($quantity, $priceData['net_amount'] ?? null);
-        $details['line_total_gross'] = $this->calculateLineTotal($quantity, $priceData['gross_amount'] ?? null);
+        $details['line_total_net'] = $this->calculator->calculateLineTotal($quantity, $priceData['net_amount'] ?? null);
+        $details['line_total_gross'] = $this->calculator->calculateLineTotal($quantity, $priceData['gross_amount'] ?? null);
 
         return $details;
-    }
-
-    private function calculateLineTotal(float $quantity, float|string|null $unitAmount): ?float
-    {
-        if ($unitAmount === null) {
-            return null;
-        }
-
-        $quantityDecimal = $this->toDecimalString($quantity, 6);
-        $amountDecimal = $this->toDecimalString($unitAmount, 6);
-
-        if ($quantityDecimal === null || $amountDecimal === null) {
-            return round($quantity * (float) $unitAmount, 2);
-        }
-
-        if (function_exists('bcmul')) {
-            $product = bcmul($quantityDecimal, $amountDecimal, 6);
-            return round((float) $product, 2);
-        }
-
-        return round((float) $quantityDecimal * (float) $amountDecimal, 2);
-    }
-
-    private function normalizeQuantity(float $quantity): float
-    {
-        $decimal = $this->toDecimalString($quantity, 4);
-
-        if ($decimal !== null && function_exists('bcadd')) {
-            return (float) bcadd($decimal, '0', 4);
-        }
-
-        return round($quantity, 4);
-    }
-
-    private function toDecimalString(float|string $value, int $scale): ?string
-    {
-        if (is_string($value)) {
-            $trimmed = trim($value);
-            if ($trimmed === '') {
-                return null;
-            }
-            return $this->normalizeDecimalString($trimmed, $scale);
-        }
-
-        return number_format($value, $scale, '.', '');
-    }
-
-    private function normalizeDecimalString(string $value, int $scale): ?string
-    {
-        if (!is_numeric($value)) {
-            return null;
-        }
-
-        if (function_exists('bcadd')) {
-            return bcadd($value, '0', $scale);
-        }
-
-        return number_format((float) $value, $scale, '.', '');
     }
 
     /**
