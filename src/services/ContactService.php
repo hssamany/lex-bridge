@@ -84,4 +84,30 @@ final class ContactService
             'contacts' => $this->contactRepository->getCustomerContacts()
         ];
     }
+
+    public function updateCustomerArticle(int $customerId, ?int $articleId): array
+    {
+        try {
+            $this->contactRepository->updateCustomerArticleMapping($customerId, $articleId);
+        } catch (Exception $exception) {
+            return [
+                'statusCode' => 500,
+                'isSuccess' => false,
+                'error' => 'Aktualisierung der Artikelzuordnung fehlgeschlagen: ' . $exception->getMessage(),
+                'contacts' => $this->contactRepository->getCustomerContacts(),
+            ];
+        }
+
+        $message = $articleId === null
+            ? 'Artikelzuordnung entfernt.'
+            : 'Artikelzuordnung aktualisiert.';
+
+        return [
+            'statusCode' => 200,
+            'isSuccess' => true,
+            'error' => null,
+            'message' => $message,
+            'contacts' => $this->contactRepository->getCustomerContacts(),
+        ];
+    }
 }

@@ -23,6 +23,7 @@ final class ApiKernel {
         $this->postInvoiceCreateRouteRegistration();
         $this->getContactsRouteRegistration();
         $this->postContactsSyncRouteRegistration();
+        $this->postContactsArticleRouteRegistration();
         $this->getCustomersSearchRouteRegistration();
         $this->getArticlesSearchRouteRegistration();
         $this->postArticlesSyncRouteRegistration();
@@ -234,6 +235,19 @@ final class ApiKernel {
             }
 
             return $controller->syncContacts($page);
+        });
+    }
+
+    private function postContactsArticleRouteRegistration(): void
+    {
+        $this->router->post('/contacts/article', function () {
+            $controller = ControllerFactory::makeContactController($this->httpClient);
+            $payload = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+
+            return $controller->updateContactArticle($payload);
         });
     }
 

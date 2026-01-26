@@ -51,4 +51,43 @@ final class ContactController
             'contacts' => $contacts
         ];
     }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function updateContactArticle(array $payload): array
+    {
+        $customerIdRaw = $payload['customer_id'] ?? null;
+        $articleIdRaw = $payload['article_id'] ?? null;
+
+        $customerId = filter_var($customerIdRaw, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1],
+        ]);
+
+        if ($customerId === false || $customerId === null) {
+            return [
+                'statusCode' => 422,
+                'isSuccess' => false,
+                'error' => 'customer_id ist erforderlich.',
+            ];
+        }
+
+        $articleId = null;
+        if ($articleIdRaw !== null && $articleIdRaw !== '') {
+            $articleId = filter_var($articleIdRaw, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1],
+            ]);
+
+            if ($articleId === false || $articleId === null) {
+                return [
+                    'statusCode' => 422,
+                    'isSuccess' => false,
+                    'error' => 'article_id ist ungültig.',
+                ];
+            }
+        }
+
+        return $this->contactService->updateCustomerArticle($customerId, $articleId);
+    }
 }

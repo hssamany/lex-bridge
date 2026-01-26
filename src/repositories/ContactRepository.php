@@ -16,11 +16,15 @@ class ContactRepository
 {
     private \PDO $db;
     private string $customerTable;
+    private string $customerArticleTable;
+    private string $articleTable;
 
     public function __construct()
     {
         $this->db = Database::getConnection();
         $this->customerTable = \lexbridge_table('customer');
+        $this->customerArticleTable = \lexbridge_table('customers_article');
+        $this->articleTable = \lexbridge_table('articles');
     }
 
     /**
@@ -54,18 +58,16 @@ class ContactRepository
      */
     public function getCustomerContacts(): array
     {
-        $customersArticleTable = \lexbridge_table('customers_article');
-        $articlesTable = \lexbridge_table('articles');
-
         $sql = "SELECT c.company_name,
+                  c.id AS customer_id,
                        c.customer_number,
                        c.lex_customer_number,
                        ca.article_id,
                        a.article_number,
                        a.name AS article_name
-                FROM {$this->customerTable} AS c
-                LEFT JOIN {$customersArticleTable} AS ca ON ca.customer_id = c.id
-                LEFT JOIN {$articlesTable} AS a ON a.id = ca.article_id
+              FROM {$this->customerTable} AS c
+              LEFT JOIN {$this->customerArticleTable} AS ca ON ca.customer_id = c.id
+              LEFT JOIN {$this->articleTable} AS a ON a.id = ca.article_id
                 ORDER BY c.company_name ASC";
 
         $stmt = $this->db->query($sql);
@@ -80,6 +82,7 @@ class ContactRepository
             }
 
             return [
+                'customerId' => isset($row['customer_id']) ? (int) $row['customer_id'] : null,
                 'companyName' => $row['company_name'] ?? '',
                 'customerNumber' => $row['customer_number'] ?? '',
                 'lexCustomerNumber' => $row['lex_customer_number'] ?? '',
@@ -87,6 +90,36 @@ class ContactRepository
                 'articleLabel' => $articleLabel
             ];
         }, $rows ?: []);
+    }
+
+    public function updateCustomerArticleMapping(int $customerId, ?int $articleId): void
+    {
+        if ($articleId === null) {
+            $stmt = $this->db->prepare("DELETE FROM {$this->customerArticleTable} WHERE customer_id = :customer_id");
+            $stmt->execute([':customer_id' => $customerId]);
+            return;
+        }
+
+        $clearStmt = $this->db->prepare("DELETE FROM {$this->customerArticleTable} WHERE article_id = :article_id AND customer_id <> :customer_id");
+        $clearStmt->execute([
+            ':article_id' => $articleId,
+            ':customer_id' => $customerId,
+        ]);
+
+        $existsStmt = $this->db->prepare("SELECT COUNT(*) FROM {$this->customerArticleTable} WHERE customer_id = :customer_id");
+        $existsStmt->execute([':customer_id' => $customerId]);
+        $exists = (int) $existsStmt->fetchColumn() > 0;
+
+        if ($exists) {
+            $stmt = $this->db->prepare("UPDATE {$this->customerArticleTable} SET article_id = :article_id WHERE customer_id = :customer_id");
+        } else {
+            $stmt = $this->db->prepare("INSERT INTO {$this->customerArticleTable} (customer_id, article_id) VALUES (:customer_id, :article_id)");
+        }
+
+        $stmt->execute([
+            ':customer_id' => $customerId,
+            ':article_id' => $articleId,
+        ]);
     }
 
     /**
