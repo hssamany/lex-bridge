@@ -206,7 +206,8 @@
                     await this.reloadOrders();
                 } catch (error) {
                     console.error('Bulk generate line items error:', error);
-                    this.notify('Fehler beim Erstellen der Positionen.', 'error');
+                    const message = error instanceof Error && error.message ? error.message : 'Fehler beim Erstellen der Positionen.';
+                    this.notify(message, 'error');
                 }
             });
         }

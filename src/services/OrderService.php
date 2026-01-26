@@ -92,7 +92,7 @@ final class OrderService
         } catch (Throwable $exception) {
             return [
                 'isSuccess' => false,
-                'error' => 'Line item generation failed: ' . $exception->getMessage(),
+                'error' => 'Positionsgenerierung fehlgeschlagen: ' . $exception->getMessage(),
             ];
         }
 

@@ -8,6 +8,7 @@ use PDO;
 use DateTimeImmutable;
 use DateTimeInterface;
 use InvalidArgumentException;
+use RuntimeException;
 use Luxullus\LexBridge\Database\Database;
 
 class OrderRepository
@@ -29,6 +30,7 @@ class OrderRepository
     private string $priceTable;
     private string $ordersTable;
     private string $articleTable;
+    private string $customerArticleTable;
     private ?bool $supportsProcessedFlag = null;
 
     public function __construct()
@@ -37,6 +39,7 @@ class OrderRepository
         $this->ordersTable = \lexbridge_table('orders');
         $this->articleTable = \lexbridge_table('articles');
         $this->priceTable = \lexbridge_table('prices');
+        $this->customerArticleTable = \lexbridge_table('customers_article');
     }
 
     /**
@@ -192,7 +195,9 @@ class OrderRepository
             $where[] = '(o.verarbeitet = 0 OR o.verarbeitet IS NULL)';
         }
 
-        $whereSql = 'WHERE ' . implode(' AND ', $where);
+        $whereSql = $where
+            ? 'WHERE ' . implode(' AND ', $where)
+            : '';
 
         $deliveryFrom = null;
         if ($this->filterValueProvided($filters, 'liefer_datum_von')) {
@@ -215,9 +220,13 @@ class OrderRepository
                     o.Mi,
                     o.Do,
                     o.Fr,
-                    o.article_id,
-                    o.article_number
+                    ca.article_id,
+                    COALESCE(a.article_number, o.article_number) AS article_number
                 FROM {$this->ordersTable} o
+                LEFT JOIN {$this->customerArticleTable} ca
+                    ON ca.customer_id = o.Kunde
+                LEFT JOIN {$this->articleTable} a
+                    ON a.id = ca.article_id
                 {$whereSql}
                 ORDER BY o.Kunde, o.Jahr, o.KW";
 
@@ -245,6 +254,25 @@ class OrderRepository
 
         $results = [];
         $lineCountPerOrder = [];
+        $missingMappings = [];
+        $missingArticles = [];
+        $missingPrices = [];
+
+        $formatList = static function (array $values): string {
+            $unique = array_values(array_unique(array_map(static fn($value) => (string) $value, $values)));
+            if (!$unique) {
+                return '-';
+            }
+
+            $slice = array_slice($unique, 0, 5);
+            $list = implode(', ', $slice);
+
+            if (count($unique) > 5) {
+                $list .= ', ...';
+            }
+
+            return $list;
+        };
 
         foreach ($rows as $row) {
 
@@ -287,16 +315,118 @@ class OrderRepository
                     break; // remaining days in the week would also exceed upper bound
                 }
 
+                $orderId = (int) $row['order_id'];
                 $customerKey = (int) $row['customer_id'];
                 $articleId = $row['article_id'] !== null ? (int) $row['article_id'] : null;
                 $articleNumber = $row['article_number'] ?? null;
 
+                if ($articleId === null) {
+                    if (!isset($missingMappings[$customerKey])) {
+                        $missingMappings[$customerKey] = [
+                            'orders' => [],
+                        ];
+                    }
+
+                    $missingMappings[$customerKey]['orders'][$orderId] = true;
+                    continue 2;
+                }
+
                 $pricing = $this->extractArticleSnapshot($articleCatalog, $articleId, $articleNumber, $deliveryDate);
+
+                if ($pricing === null) {
+                    if (!isset($missingArticles[$articleId])) {
+                        $missingArticles[$articleId] = [
+                            'orders' => [],
+                            'customer_ids' => [],
+                            'article_id' => $articleId,
+                            'article_number' => $articleNumber,
+                        ];
+                    }
+
+                    $missingArticles[$articleId]['orders'][$orderId] = true;
+                    $missingArticles[$articleId]['customer_ids'][$customerKey] = true;
+                    if ($articleNumber !== null && $articleNumber !== '') {
+                        $missingArticles[$articleId]['article_number'] = $articleNumber;
+                    }
+
+                    continue 2;
+                }
+
+                $priceData = $pricing['price'] ?? null;
+
+                if ($priceData === null) {
+                    if (!isset($missingPrices[$articleId])) {
+                        $missingPrices[$articleId] = [
+                            'orders' => [],
+                            'dates' => [],
+                            'customer_ids' => [],
+                            'article_id' => $articleId,
+                            'article_number' => $pricing['article']['article_number'] ?? $articleNumber,
+                        ];
+                    }
+
+                    $missingPrices[$articleId]['orders'][$orderId] = true;
+                    $missingPrices[$articleId]['customer_ids'][$customerKey] = true;
+                    $missingPrices[$articleId]['dates'][$deliveryDate->format('Y-m-d')] = true;
+                    if (!empty($articleNumber)) {
+                        $missingPrices[$articleId]['article_number'] = $articleNumber;
+                    }
+
+                    continue;
+                }
+
                 $lineItem = $this->buildLineItemPayload($row, $pricing, $deliveryDate, $quantityValue);
 
-                $lineCountPerOrder[(int) $row['order_id']] = ($lineCountPerOrder[(int) $row['order_id']] ?? 0) + 1;
+                $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + 1;
                 $results[$customerKey][] = $lineItem;
             }
+        }
+
+        if ($missingMappings || $missingArticles || $missingPrices) {
+            $messages = [];
+
+            if ($missingMappings) {
+                foreach ($missingMappings as $customerId => $info) {
+                    $orders = $formatList(array_keys($info['orders'] ?? []));
+                    $messages[] = sprintf(
+                        'Fuer Kunde %d fehlt eine Artikelzuordnung (Bestellungen: %s).',
+                        $customerId,
+                        $orders
+                    );
+                }
+            }
+
+            if ($missingArticles) {
+                foreach ($missingArticles as $articleId => $info) {
+                    $orders = $formatList(array_keys($info['orders'] ?? []));
+                    $customers = $formatList(array_keys($info['customer_ids'] ?? []));
+                    $articleNumber = $info['article_number'] ?? 'unbekannt';
+                    $messages[] = sprintf(
+                        'Artikel-ID %d (Nr. %s) wurde nicht gefunden (Kunden: %s, Bestellungen: %s).',
+                        $articleId,
+                        $articleNumber,
+                        $customers,
+                        $orders
+                    );
+                }
+            }
+
+            if ($missingPrices) {
+                foreach ($missingPrices as $articleId => $info) {
+                    $orders = $formatList(array_keys($info['orders'] ?? []));
+                    $dates = $formatList(array_keys($info['dates'] ?? []));
+                    $articleNumber = $info['article_number'] ?? 'unbekannt';
+                    $messages[] = sprintf(
+                        'Fuer Artikel-ID %d (Nr. %s) existiert kein gueltiger Preis fuer Lieferdatum/Lieferdaten %s (Bestellungen: %s).',
+                        $articleId,
+                        $articleNumber,
+                        $dates,
+                        $orders
+                    );
+                }
+            }
+
+            throw new RuntimeException(implode(' ', $messages));
         }
 
         $this->markOrdersAsProcessed($lineCountPerOrder);
@@ -605,12 +735,56 @@ class OrderRepository
             return null;
         }
 
-        return round($quantity * (float) $unitAmount, 2);
+        $quantityDecimal = $this->toDecimalString($quantity, 6);
+        $amountDecimal = $this->toDecimalString($unitAmount, 6);
+
+        if ($quantityDecimal === null || $amountDecimal === null) {
+            return round($quantity * (float) $unitAmount, 2);
+        }
+
+        if (function_exists('bcmul')) {
+            $product = bcmul($quantityDecimal, $amountDecimal, 6);
+            return round((float) $product, 2);
+        }
+
+        return round((float) $quantityDecimal * (float) $amountDecimal, 2);
     }
 
     private function normalizeQuantity(float $quantity): float
     {
+        $decimal = $this->toDecimalString($quantity, 4);
+
+        if ($decimal !== null && function_exists('bcadd')) {
+            return (float) bcadd($decimal, '0', 4);
+        }
+
         return round($quantity, 4);
+    }
+
+    private function toDecimalString(float|string $value, int $scale): ?string
+    {
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+            return $this->normalizeDecimalString($trimmed, $scale);
+        }
+
+        return number_format($value, $scale, '.', '');
+    }
+
+    private function normalizeDecimalString(string $value, int $scale): ?string
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        if (function_exists('bcadd')) {
+            return bcadd($value, '0', $scale);
+        }
+
+        return number_format((float) $value, $scale, '.', '');
     }
 
     /**
