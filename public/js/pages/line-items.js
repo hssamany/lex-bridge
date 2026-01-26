@@ -795,6 +795,10 @@
         window.lexBridge = {};
     }
 
+    if (!window.lexBridge.writeRowArticleState) {
+        window.lexBridge.writeRowArticleState = writeRowArticleState;
+    }
+
     if (!window.lexBridge.syncArticleSelection) {
         window.lexBridge.syncArticleSelection = syncArticleSelectionInternal;
     }
@@ -885,490 +889,6 @@
         syncArticleSelectionInternal(target);
     }, true);
 })();
-
-class LineItemEditorDialog {
-    constructor(page) {
-        this.page = page;
-        this.dialog = null;
-        this.form = null;
-        this.articleContainer = null;
-        this.articleWrapper = null;
-        this.articleInput = null;
-        this.boundArticleHandler = null;
-        this.nameInput = null;
-        this.articleNumberInput = null;
-        this.articleIdInput = null;
-        this.currencyInput = null;
-        this.netAmountInput = null;
-        this.grossAmountInput = null;
-        this.taxRateInput = null;
-        this.validFromInput = null;
-        this.validUntilInput = null;
-        this.saveButton = null;
-        this.cancelButton = null;
-        this.titleElement = null;
-        this.currentRow = null;
-    }
-
-    ensureDialog() {
-        if (this.dialog) {
-            return;
-        }
-
-        if (!document.getElementById('line-item-editor-styles')) {
-            const style = document.createElement('style');
-            style.id = 'line-item-editor-styles';
-            style.textContent = '.line-item-editor-dialog{border:none;border-radius:8px;padding:0;width:100%;max-width:520px;box-sizing:border-box;font-family:inherit;}\n.line-item-editor-dialog::backdrop{background:rgba(0,0,0,0.35);}\n.line-item-editor-form{display:flex;flex-direction:column;gap:16px;padding:20px;box-sizing:border-box;}\n.line-item-editor-title{margin:0;font-size:1.2em;}\n.line-item-editor-body{display:flex;flex-direction:column;gap:12px;}\n.line-item-editor-field{display:flex;flex-direction:column;gap:4px;}\n.line-item-editor-field label{font-size:0.85em;color:#333;}\n.line-item-editor-field input{width:100%;padding:6px 8px;border:1px solid #ccc;border-radius:4px;font-size:0.95em;box-sizing:border-box;}\n.line-item-editor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;}\n.line-item-editor-footer{display:flex;justify-content:flex-end;gap:8px;}\n.line-item-editor-dialog.line-item-editor-open{display:block;}\n.line-item-editor-dialog .article-selector{display:flex;flex-direction:column;gap:4px;}\n.line-item-editor-dialog .article-selector input[type="text"]{padding:6px 8px;}';
-            document.head.appendChild(style);
-        }
-
-        const dialog = document.createElement('dialog');
-        dialog.className = 'line-item-editor-dialog';
-        dialog.innerHTML = '<form method="dialog" class="line-item-editor-form">\n                <h2 class="line-item-editor-title">Position bearbeiten</h2>\n                <div class="line-item-editor-body">\n                    <div class="line-item-editor-field">\n                        <label>Artikel</label>\n                        <div class="line-item-editor-article"></div>\n                    </div>\n                    <div class="line-item-editor-grid">\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-article-number">Artikelnummer</label>\n                            <input type="text" id="line-item-editor-article-number" autocomplete="off" disabled>\n                        </div>\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-article-id">Artikel-ID</label>\n                            <input type="text" id="line-item-editor-article-id" autocomplete="off" disabled>\n                        </div>\n                    </div>\n                    <div class="line-item-editor-field">\n                        <label for="line-item-editor-name">Bezeichnung</label>\n                        <input type="text" id="line-item-editor-name" autocomplete="off" disabled>\n                    </div>\n                    <div class="line-item-editor-grid">\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-net">Netto</label>\n                            <input type="number" step="0.01" id="line-item-editor-net" autocomplete="off" disabled>\n                        </div>\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-gross">Brutto</label>\n                            <input type="number" step="0.01" id="line-item-editor-gross" autocomplete="off" disabled>\n                        </div>\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-tax">Steuer %</label>\n                            <input type="number" step="0.01" id="line-item-editor-tax" autocomplete="off" disabled>\n                        </div>\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-currency">Währung</label>\n                            <input type="text" id="line-item-editor-currency" maxlength="3" autocomplete="off" disabled>\n                        </div>\n                    </div>\n                    <div class="line-item-editor-grid">\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-valid-from">Gültig ab</label>\n                            <input type="text" id="line-item-editor-valid-from" placeholder="YYYY-MM-DD" disabled>\n                        </div>\n                        <div class="line-item-editor-field">\n                            <label for="line-item-editor-valid-until">Gültig bis</label>\n                            <input type="text" id="line-item-editor-valid-until" placeholder="YYYY-MM-DD" disabled>\n                        </div>\n                    </div>\n                </div>\n                <div class="line-item-editor-footer">\n                    <button type="button" class="btn btn-secondary" data-action="cancel">Abbrechen</button>\n                    <button type="submit" class="btn btn-primary" data-action="save">Speichern</button>\n                </div>\n            </form>';
-        document.body.appendChild(dialog);
-
-        this.dialog = dialog;
-        this.form = dialog.querySelector('.line-item-editor-form');
-        this.articleContainer = dialog.querySelector('.line-item-editor-article');
-        this.titleElement = dialog.querySelector('.line-item-editor-title');
-        this.articleNumberInput = dialog.querySelector('#line-item-editor-article-number');
-        this.articleIdInput = dialog.querySelector('#line-item-editor-article-id');
-        this.nameInput = dialog.querySelector('#line-item-editor-name');
-        this.netAmountInput = dialog.querySelector('#line-item-editor-net');
-        this.grossAmountInput = dialog.querySelector('#line-item-editor-gross');
-        this.taxRateInput = dialog.querySelector('#line-item-editor-tax');
-        this.currencyInput = dialog.querySelector('#line-item-editor-currency');
-        this.validFromInput = dialog.querySelector('#line-item-editor-valid-from');
-        this.validUntilInput = dialog.querySelector('#line-item-editor-valid-until');
-        this.saveButton = dialog.querySelector('[data-action="save"]');
-        this.cancelButton = dialog.querySelector('[data-action="cancel"]');
-
-        this.form.addEventListener('submit', (event) => {
-            event.preventDefault();
-            this.handleSave();
-        });
-
-        if (this.cancelButton) {
-            this.cancelButton.addEventListener('click', () => {
-                this.close();
-            });
-        }
-
-        dialog.addEventListener('cancel', (event) => {
-            event.preventDefault();
-            this.close();
-        });
-
-        dialog.addEventListener('close', () => {
-            this.currentRow = null;
-        });
-
-        const syncHiddenFields = () => {
-            this.syncHiddenFieldsFromInputs();
-        };
-
-        const inputs = [
-            this.articleNumberInput,
-            this.articleIdInput,
-            this.nameInput,
-            this.netAmountInput,
-            this.grossAmountInput,
-            this.taxRateInput,
-            this.currencyInput,
-            this.validFromInput,
-            this.validUntilInput
-        ];
-        inputs.forEach(input => {
-            if (input) {
-                input.addEventListener('input', syncHiddenFields);
-            }
-        });
-    }
-
-    escapeHtml(value) {
-        const div = document.createElement('div');
-        div.textContent = value == null ? '' : String(value);
-        return div.innerHTML;
-    }
-
-    renderArticleSelector(values) {
-        this.ensureDialog();
-
-        if (this.articleInput && this.boundArticleHandler) {
-            this.articleInput.removeEventListener('input', this.boundArticleHandler);
-            this.articleInput.removeEventListener('change', this.boundArticleHandler);
-        }
-
-        if (this.articleContainer) {
-            this.articleContainer.innerHTML = '';
-        }
-
-        const safeValues = {
-            label: values?.label || '',
-            id: values?.id || '',
-            number: values?.number || '',
-            name: values?.name || '',
-            netAmount: values?.netAmount || '',
-            grossAmount: values?.grossAmount || '',
-            taxRate: values?.taxRate || '',
-            currency: values?.currency || '',
-            validFrom: values?.validFrom || '',
-            validUntil: values?.validUntil || ''
-        };
-
-        const datalistId = `line-item-editor-options-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const wrapper = document.createElement('div');
-        wrapper.className = 'article-selector';
-
-        const presetOption = safeValues.label && safeValues.id
-            ? `<option value="${this.escapeHtml(safeValues.label)}" data-article-id="${this.escapeHtml(safeValues.id)}" data-article-number="${this.escapeHtml(safeValues.number)}" data-article-name="${this.escapeHtml(safeValues.name)}" data-net-amount="${this.escapeHtml(safeValues.netAmount)}" data-gross-amount="${this.escapeHtml(safeValues.grossAmount)}" data-tax-rate-percentage="${this.escapeHtml(safeValues.taxRate)}" data-currency="${this.escapeHtml(safeValues.currency)}" data-valid-from="${this.escapeHtml(safeValues.validFrom)}" data-valid-until="${this.escapeHtml(safeValues.validUntil)}"></option>`
-            : '';
-
-        wrapper.innerHTML = `
-            <input type="text" class="article-search-combobox" list="${datalistId}" value="${this.escapeHtml(safeValues.label)}" placeholder="Artikel wählen">
-            <input type="hidden" class="article-id-field" value="${this.escapeHtml(safeValues.id)}">
-            <input type="hidden" class="article-number-field" value="${this.escapeHtml(safeValues.number)}">
-            <input type="hidden" class="article-name-field" value="${this.escapeHtml(safeValues.name)}">
-            <input type="hidden" class="article-net-field" value="${this.escapeHtml(safeValues.netAmount)}">
-            <input type="hidden" class="article-gross-field" value="${this.escapeHtml(safeValues.grossAmount)}">
-            <input type="hidden" class="article-tax-field" value="${this.escapeHtml(safeValues.taxRate)}">
-            <input type="hidden" class="article-currency-field" value="${this.escapeHtml(safeValues.currency)}">
-            <input type="hidden" class="article-valid-from-field" value="${this.escapeHtml(safeValues.validFrom)}">
-            <input type="hidden" class="article-valid-until-field" value="${this.escapeHtml(safeValues.validUntil)}">
-            <input type="hidden" class="article-label-field" value="${this.escapeHtml(safeValues.label)}">
-            <datalist id="${datalistId}">
-                <option value="">Artikel wählen</option>
-                ${presetOption}
-            </datalist>
-        `;
-
-        if (this.articleContainer) {
-            this.articleContainer.appendChild(wrapper);
-        }
-
-        this.articleWrapper = wrapper;
-        this.articleInput = wrapper.querySelector('.article-search-combobox');
-        this.boundArticleHandler = () => {
-            this.syncDialogArticleSelection();
-        };
-        if (this.articleInput) {
-            this.articleInput.addEventListener('input', this.boundArticleHandler);
-            this.articleInput.addEventListener('change', this.boundArticleHandler);
-        }
-
-        setTimeout(() => {
-            this.syncDialogArticleSelection();
-        }, 0);
-    }
-
-    syncDialogArticleSelection() {
-        if (!this.articleInput) {
-            return;
-        }
-
-        const listId = this.articleInput.getAttribute('list');
-        const datalist = listId ? document.getElementById(listId) : null;
-        const value = this.articleInput.value.trim();
-
-        let option = null;
-        if (datalist) {
-            const options = datalist.options || datalist.children;
-            for (let index = 0; index < options.length; index += 1) {
-                const candidate = options[index];
-                if (candidate.value === value) {
-                    option = candidate;
-                    break;
-                }
-            }
-        }
-
-        if (option) {
-            const data = this.extractArticleOption(option);
-            this.applyArticleDataToDialog(data, value);
-        } else {
-            this.applyArticleDataToDialog(null, value);
-        }
-    }
-
-    extractArticleOption(option) {
-        if (!option) {
-            return null;
-        }
-
-        const readDataset = (key) => {
-            if (!option) {
-                return '';
-            }
-            if (option.dataset && option.dataset[key] !== undefined) {
-                return option.dataset[key];
-            }
-            const attributeValue = option.getAttribute(`data-${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`);
-            return attributeValue ?? '';
-        };
-
-        return {
-            id: option.dataset.articleId || option.getAttribute('data-article-id') || '',
-            number: readDataset('articleNumber'),
-            name: readDataset('articleName'),
-            netAmount: readDataset('netAmount'),
-            grossAmount: readDataset('grossAmount'),
-            taxRate: readDataset('taxRatePercentage'),
-            currency: readDataset('currency'),
-            validFrom: readDataset('validFrom'),
-            validUntil: readDataset('validUntil')
-        };
-    }
-
-    applyArticleDataToDialog(data, label) {
-        if (!this.articleWrapper) {
-            return;
-        }
-
-        const setField = (selector, value) => {
-            const field = this.articleWrapper.querySelector(selector);
-            if (field) {
-                field.value = value ?? '';
-            }
-        };
-
-        setField('.article-label-field', label ?? '');
-
-        if (data) {
-            setField('.article-id-field', data.id ?? '');
-            setField('.article-number-field', data.number ?? '');
-            setField('.article-name-field', data.name ?? '');
-            setField('.article-net-field', data.netAmount ?? '');
-            setField('.article-gross-field', data.grossAmount ?? '');
-            setField('.article-tax-field', data.taxRate ?? '');
-            setField('.article-currency-field', data.currency ?? '');
-            setField('.article-valid-from-field', data.validFrom ?? '');
-            setField('.article-valid-until-field', data.validUntil ?? '');
-
-            if (this.articleNumberInput) {
-                this.articleNumberInput.value = data.number ?? '';
-            }
-            if (this.articleIdInput) {
-                this.articleIdInput.value = data.id ?? '';
-            }
-            if (this.nameInput && data.name !== undefined) {
-                this.nameInput.value = data.name ?? '';
-            }
-            if (this.netAmountInput && data.netAmount !== undefined) {
-                this.netAmountInput.value = data.netAmount ?? '';
-            }
-            if (this.grossAmountInput && data.grossAmount !== undefined) {
-                this.grossAmountInput.value = data.grossAmount ?? '';
-            }
-            if (this.taxRateInput && data.taxRate !== undefined) {
-                this.taxRateInput.value = data.taxRate ?? '';
-            }
-            if (this.currencyInput && data.currency !== undefined) {
-                this.currencyInput.value = data.currency ?? '';
-            }
-            if (this.validFromInput && data.validFrom !== undefined) {
-                this.validFromInput.value = data.validFrom ?? '';
-            }
-            if (this.validUntilInput && data.validUntil !== undefined) {
-                this.validUntilInput.value = data.validUntil ?? '';
-            }
-        }
-
-        this.syncHiddenFieldsFromInputs();
-    }
-
-    updateHiddenField(selector, value) {
-        if (!this.articleWrapper) {
-            return;
-        }
-        const field = this.articleWrapper.querySelector(selector);
-        if (field) {
-            field.value = value ?? '';
-        }
-    }
-
-    syncHiddenFieldsFromInputs() {
-        this.updateHiddenField('.article-number-field', this.articleNumberInput ? this.articleNumberInput.value : '');
-        this.updateHiddenField('.article-id-field', this.articleIdInput ? this.articleIdInput.value : '');
-        this.updateHiddenField('.article-name-field', this.nameInput ? this.nameInput.value : '');
-        this.updateHiddenField('.article-net-field', this.netAmountInput ? this.netAmountInput.value : '');
-        this.updateHiddenField('.article-gross-field', this.grossAmountInput ? this.grossAmountInput.value : '');
-        this.updateHiddenField('.article-tax-field', this.taxRateInput ? this.taxRateInput.value : '');
-        this.updateHiddenField('.article-currency-field', this.currencyInput ? this.currencyInput.value : '');
-        this.updateHiddenField('.article-valid-from-field', this.validFromInput ? this.validFromInput.value : '');
-        this.updateHiddenField('.article-valid-until-field', this.validUntilInput ? this.validUntilInput.value : '');
-        this.updateHiddenField('.article-label-field', this.articleInput ? this.articleInput.value : '');
-    }
-
-    normalizeDecimal(value) {
-        if (value === null || value === undefined) {
-            return '';
-        }
-
-        const trimmed = String(value).trim();
-        if (trimmed === '') {
-            return '';
-        }
-
-        return trimmed.replace(',', '.');
-    }
-
-    collectRowData(row) {
-        const dataset = row?.dataset || {};
-        const wrapper = row ? row.querySelector('.article-selector') : null;
-        const readWrapper = (selector) => {
-            if (!wrapper) {
-                return '';
-            }
-            const field = wrapper.querySelector(selector);
-            return field ? field.value : '';
-        };
-
-        return {
-            label: dataset.selectedArticleLabel || dataset.articleLabel || readWrapper('.article-label-field') || '',
-            id: dataset.selectedArticleId || dataset.articleId || readWrapper('.article-id-field') || '',
-            number: dataset.selectedArticleNumber || dataset.articleNumber || readWrapper('.article-number-field') || '',
-            name: dataset.selectedArticleName || dataset.articleName || readWrapper('.article-name-field') || '',
-            currency: dataset.selectedArticleCurrency || dataset.articleCurrency || readWrapper('.article-currency-field') || '',
-            netAmount: dataset.selectedArticleNet || dataset.articleNet || readWrapper('.article-net-field') || '',
-            grossAmount: dataset.selectedArticleGross || dataset.articleGross || readWrapper('.article-gross-field') || '',
-            taxRate: dataset.selectedArticleTax || dataset.articleTax || readWrapper('.article-tax-field') || '',
-            validFrom: dataset.selectedArticleValidFrom || dataset.articleValidFrom || readWrapper('.article-valid-from-field') || '',
-            validUntil: dataset.selectedArticleValidUntil || dataset.articleValidUntil || readWrapper('.article-valid-until-field') || ''
-        };
-    }
-
-    open(row) 
-    {
-        if (!row) {
-            return;
-        }
-
-        this.ensureDialog();
-        this.currentRow = row;
-
-        const data = this.collectRowData(row);
-        this.renderArticleSelector(data);
-
-        if (this.articleNumberInput) {
-            this.articleNumberInput.value = data.number ?? '';
-        }
-        if (this.articleIdInput) {
-            this.articleIdInput.value = data.id ?? '';
-        }
-        if (this.nameInput) {
-            this.nameInput.value = data.name ?? '';
-        }
-        if (this.currencyInput) {
-            this.currencyInput.value = data.currency ?? '';
-        }
-        if (this.netAmountInput) {
-            this.netAmountInput.value = data.netAmount ?? '';
-        }
-        if (this.grossAmountInput) {
-            this.grossAmountInput.value = data.grossAmount ?? '';
-        }
-        if (this.taxRateInput) {
-            this.taxRateInput.value = data.taxRate ?? '';
-        }
-        if (this.validFromInput) {
-            this.validFromInput.value = data.validFrom ?? '';
-        }
-        if (this.validUntilInput) {
-            this.validUntilInput.value = data.validUntil ?? '';
-        }
-
-        this.syncHiddenFieldsFromInputs();
-
-        if (this.titleElement) {
-            const rowId = row.dataset.lineItemId || '';
-            const positionNumber = row.dataset.lineOrder || '';
-            const labelNumber = positionNumber || rowId;
-            this.titleElement.textContent = labelNumber ? `Position Nr. ${labelNumber}` : 'Position';
-        }
-
-        if (this.dialog) {
-            this.dialog.classList.remove('line-item-editor-open');
-        }
-
-        if (typeof this.dialog?.showModal === 'function') {
-            if (!this.dialog.open) {
-                this.dialog.showModal();
-            }
-        } else if (this.dialog) {
-            this.dialog.setAttribute('open', 'open');
-            this.dialog.classList.add('line-item-editor-open');
-        }
-
-        if (this.articleInput) {
-            this.articleInput.focus();
-            this.articleInput.select();
-        }
-    }
-
-    handleSave() {
-        if (!this.currentRow) {
-            this.close();
-            return;
-        }
-
-        const readWrapperField = (selector) => {
-            if (!this.articleWrapper) {
-                return '';
-            }
-            const field = this.articleWrapper.querySelector(selector);
-            return field ? field.value : '';
-        };
-
-        const payload = {
-            articleLabel: this.articleInput ? this.articleInput.value : '',
-            articleId: this.articleIdInput ? this.articleIdInput.value : readWrapperField('.article-id-field'),
-            articleNumber: this.articleNumberInput ? this.articleNumberInput.value : readWrapperField('.article-number-field'),
-            articleName: this.nameInput ? this.nameInput.value : readWrapperField('.article-name-field'),
-            netAmount: this.netAmountInput ? this.netAmountInput.value : readWrapperField('.article-net-field'),
-            grossAmount: this.grossAmountInput ? this.grossAmountInput.value : readWrapperField('.article-gross-field'),
-            taxRate: this.taxRateInput ? this.taxRateInput.value : readWrapperField('.article-tax-field'),
-            currency: this.currencyInput ? this.currencyInput.value : readWrapperField('.article-currency-field'),
-            validFrom: this.validFromInput ? this.validFromInput.value : readWrapperField('.article-valid-from-field'),
-            validUntil: this.validUntilInput ? this.validUntilInput.value : readWrapperField('.article-valid-until-field')
-        };
-
-        if (payload.currency) {
-            payload.currency = payload.currency.toUpperCase();
-        }
-
-        payload.netAmount = this.normalizeDecimal(payload.netAmount);
-        payload.grossAmount = this.normalizeDecimal(payload.grossAmount);
-        payload.taxRate = this.normalizeDecimal(payload.taxRate);
-
-        this.syncHiddenFieldsFromInputs();
-
-        if (window.lexBridge?.applyLineItemDialogResult) {
-            window.lexBridge.applyLineItemDialogResult(this.currentRow, payload);
-        } else {
-            console.warn('applyLineItemDialogResult is not available');
-        }
-
-        this.close();
-    }
-
-    close() {
-        if (!this.dialog) {
-            return;
-        }
-
-        if (typeof this.dialog.close === 'function') {
-            if (this.dialog.open) {
-                this.dialog.close();
-            }
-        } else {
-            this.dialog.removeAttribute('open');
-        }
-
-        this.dialog.classList.remove('line-item-editor-open');
-
-        this.currentRow = null;
-    }
-}
 
 class LineItemsPage {
         getSelectedLineItemIds() {
@@ -1482,13 +1002,26 @@ class LineItemsPage {
     constructor(lexBridge) {
         this.lexBridge = lexBridge;
         this.editorDialog = new LineItemEditorDialog(this);
-        this.lineItemsClickHandler = null;
+        this.listContainer = null;
+        this.tableElement = null;
+        this.tbodyElement = null;
+        this.emptyStateElement = null;
+        this.sendInvoiceButton = null;
+        this.syncArticlesButton = null;
+        this.rowTemplate = document.getElementById('line-item-row-template');
+        this.listHandlersAttached = false;
+        this.boundListChangeHandler = this.handleListChange.bind(this);
+        this.boundListClickHandler = this.handleListClick.bind(this);
+
         if (!LineItemsPage.handlerSetup) {
             this.setupFilterDelegation();
             LineItemsPage.handlerSetup = true;
         }
+
         this.setupFilterFormDirect();
-        // Send-invoice button is rendered dynamically with the line-items list
+        this.cacheDomReferences();
+        this.setupToolbarHandlers();
+        this.setupListDelegation();
     }
 
     setupFilterDelegation() {
@@ -1515,6 +1048,68 @@ class LineItemsPage {
             event.stopPropagation();
             await this.handleFilterSubmit(form);
         });
+    }
+
+    cacheDomReferences() {
+        const latestContainer = document.querySelector('.line-items-list');
+
+        if (latestContainer && this.listContainer && this.listHandlersAttached && this.listContainer !== latestContainer) {
+            this.listContainer.removeEventListener('change', this.boundListChangeHandler);
+            this.listContainer.removeEventListener('click', this.boundListClickHandler);
+            this.listHandlersAttached = false;
+        }
+
+        this.listContainer = latestContainer || null;
+
+        if (!this.listContainer) {
+            this.tableElement = null;
+            this.tbodyElement = null;
+            this.emptyStateElement = null;
+            this.sendInvoiceButton = null;
+            this.syncArticlesButton = null;
+            this.listHandlersAttached = false;
+            return;
+        }
+
+        this.tableElement = this.listContainer.querySelector('.line-items-table') || null;
+        this.tbodyElement = this.tableElement?.querySelector('[data-role="line-items-tbody"]') || null;
+        this.emptyStateElement = this.listContainer.querySelector('[data-role="line-items-empty"]') || null;
+        this.sendInvoiceButton = this.listContainer.querySelector('#send-invoice-btn') || null;
+        this.syncArticlesButton = this.listContainer.querySelector('#sync-articles-btn') || null;
+
+        if (!this.rowTemplate) {
+            this.rowTemplate = document.getElementById('line-item-row-template');
+        }
+    }
+
+    setupToolbarHandlers() {
+        this.cacheDomReferences();
+
+        if (this.sendInvoiceButton && !this.sendInvoiceButton.dataset.handlerAttached) {
+            this.sendInvoiceButton.dataset.handlerAttached = 'true';
+            this.sendInvoiceButton.addEventListener('click', () => {
+                this.handleCreateInvoiceFromSelection();
+            });
+        }
+
+        if (this.syncArticlesButton && !this.syncArticlesButton.dataset.handlerAttached) {
+            this.syncArticlesButton.dataset.handlerAttached = 'true';
+            this.syncArticlesButton.addEventListener('click', () => {
+                this.syncArticlesFromLexware(this.syncArticlesButton);
+            });
+        }
+    }
+
+    setupListDelegation() {
+        this.cacheDomReferences();
+
+        if (!this.listContainer || this.listHandlersAttached) {
+            return;
+        }
+
+        this.listContainer.addEventListener('change', this.boundListChangeHandler);
+        this.listContainer.addEventListener('click', this.boundListClickHandler);
+        this.listHandlersAttached = true;
     }
 
     async handleFilterSubmit(form) {
@@ -1569,243 +1164,264 @@ class LineItemsPage {
         }
     }
 
-    updateLineItemsList(data) {
-        const container = document.querySelector('.line-items-list');
-        if (!container) {
-            console.warn('Line items list container not found');
+    handleListChange(event) {
+        const target = event.target;
+        if (!target || !this.listContainer) {
             return;
         }
 
-        if (this.lineItemsChangeHandler) {
-            container.removeEventListener('change', this.lineItemsChangeHandler);
-            this.lineItemsChangeHandler = null;
+        if (target.classList.contains('line-items-select-all')) {
+            const selectAllChecked = target.checked;
+            const checkboxes = this.listContainer.querySelectorAll('.line-item-select-checkbox');
+            checkboxes.forEach((checkbox) => {
+                checkbox.checked = selectAllChecked;
+            });
+        } else if (target.classList.contains('line-item-select-checkbox')) {
+            if (!target.checked) {
+                const selectAll = this.listContainer.querySelector('.line-items-select-all');
+                if (selectAll) {
+                    selectAll.checked = false;
+                }
+            } else {
+                const checkboxes = Array.from(this.listContainer.querySelectorAll('.line-item-select-checkbox'));
+                const allChecked = checkboxes.length > 0 && checkboxes.every((checkbox) => checkbox.checked);
+                const selectAll = this.listContainer.querySelector('.line-items-select-all');
+                if (selectAll) {
+                    selectAll.checked = allChecked;
+                }
+            }
         }
 
-        if (this.lineItemsClickHandler) {
-            container.removeEventListener('click', this.lineItemsClickHandler);
-            this.lineItemsClickHandler = null;
+        this.updateSendButtonState();
+    }
+
+    handleListClick(event) {
+        const target = event.target instanceof Element ? event.target.closest('.line-item-edit-btn') : null;
+        if (!target) {
+            return;
         }
 
-        container.innerHTML = '';
+        event.preventDefault();
 
-        const toolbar = document.createElement('div');
-        toolbar.className = 'line-items-toolbar';
+        const row = target.closest('tr[data-line-item-id]');
+        if (row && this.editorDialog) {
+            this.editorDialog.open(row);
+        }
+    }
 
-        const sendBtn = document.createElement('button');
-        sendBtn.type = 'button';
-        sendBtn.id = 'send-invoice-btn';
-        sendBtn.className = 'btn btn-primary';
-        sendBtn.classList.add('line-items-toolbar-btn');
-        sendBtn.innerHTML = 'Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
-        sendBtn.disabled = true;
-        sendBtn.addEventListener('click', () => {
-            this.handleCreateInvoiceFromSelection();
+    updateSendButtonState() {
+        if (!this.sendInvoiceButton || !this.listContainer) {
+            return;
+        }
+
+        const anyChecked = this.listContainer.querySelector('.line-item-select-checkbox:checked');
+        this.sendInvoiceButton.disabled = !anyChecked;
+    }
+
+    toggleEmptyState(shouldShow) {
+        if (!this.emptyStateElement) {
+            return;
+        }
+
+        if (shouldShow) {
+            this.emptyStateElement.removeAttribute('hidden');
+        } else {
+            this.emptyStateElement.setAttribute('hidden', '');
+        }
+    }
+
+    applyArticleState(row, articleData, label, options = {}) {
+        const helper = window.lexBridge?.writeRowArticleState;
+        if (typeof helper === 'function') {
+            helper(row, articleData, label, options);
+        } else {
+            console.warn('writeRowArticleState helper is unavailable.');
+        }
+    }
+
+    renderLineItemRow(item, index) {
+        if (!this.rowTemplate || !this.rowTemplate.content) {
+            return null;
+        }
+
+        const clone = this.rowTemplate.content.cloneNode(true);
+        const row = clone.querySelector('tr');
+        if (!row) {
+            return null;
+        }
+
+        const rowId = item?.id != null ? String(item.id) : '';
+        row.dataset.lineItemId = rowId;
+
+        const positionValue = item?.line_order != null ? String(item.line_order) : '';
+        row.dataset.lineOrder = positionValue;
+
+        const quantityValue = item?.quantity != null ? String(item.quantity) : '';
+        row.dataset.quantity = quantityValue;
+
+        const netValue = item?.net_amount != null ? String(item.net_amount) : '';
+        const grossValueRaw = item?.gross_amount ?? item?.line_total_gross;
+        const grossValue = grossValueRaw != null ? String(grossValueRaw) : '';
+        const taxValue = item?.tax_rate_percentage != null ? String(item.tax_rate_percentage) : '';
+        const currencyValue = item?.currency != null ? String(item.currency) : '';
+        const articleIdValue = item?.article_id != null ? String(item.article_id) : '';
+        const articleNumberValue = item?.article_number != null ? String(item.article_number) : '';
+        const articleNameValue = item?.name != null ? String(item.name) : '';
+        const articleLabelValue = item?.article_label
+            || (articleNumberValue && articleNameValue ? `${articleNumberValue} - ${articleNameValue}` : articleNameValue)
+            || '';
+        const validFromValue = item?.article_valid_from != null ? String(item.article_valid_from) : '';
+        const validUntilValue = item?.article_valid_until != null ? String(item.article_valid_until) : '';
+
+        row.dataset.articleId = articleIdValue;
+        row.dataset.articleNumber = articleNumberValue;
+        row.dataset.articleName = articleNameValue;
+        row.dataset.articleCurrency = currencyValue;
+        row.dataset.articleNet = netValue;
+        row.dataset.articleGross = grossValue;
+        row.dataset.articleTax = taxValue;
+        row.dataset.articleValidFrom = validFromValue;
+        row.dataset.articleValidUntil = validUntilValue;
+        row.dataset.articleLabel = articleLabelValue;
+
+        const checkbox = row.querySelector('.line-item-select-checkbox');
+        if (checkbox) {
+            checkbox.dataset.lineItemId = rowId;
+            checkbox.checked = false;
+        }
+
+        const articleInput = row.querySelector('[data-role="article-input"]');
+        const datalist = row.querySelector('[data-role="article-datalist"]');
+        if (articleInput && datalist) {
+            const uniqueId = `article-options-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`;
+            datalist.id = uniqueId;
+            articleInput.setAttribute('list', uniqueId);
+
+            if (articleLabelValue && articleIdValue) {
+                const option = document.createElement('option');
+                option.value = articleLabelValue;
+                option.dataset.articleId = articleIdValue;
+                if (articleNumberValue) {
+                    option.dataset.articleNumber = articleNumberValue;
+                }
+                if (articleNameValue) {
+                    option.dataset.articleName = articleNameValue;
+                }
+                if (netValue) {
+                    option.dataset.netAmount = netValue;
+                }
+                if (grossValue) {
+                    option.dataset.grossAmount = grossValue;
+                }
+                if (taxValue) {
+                    option.dataset.taxRatePercentage = taxValue;
+                }
+                if (currencyValue) {
+                    option.dataset.currency = currencyValue;
+                }
+                if (validFromValue) {
+                    option.dataset.validFrom = validFromValue;
+                }
+                if (validUntilValue) {
+                    option.dataset.validUntil = validUntilValue;
+                }
+                datalist.appendChild(option);
+            }
+        }
+
+        const setCellText = (selector, value) => {
+            const cell = row.querySelector(selector);
+            if (cell) {
+                cell.textContent = value ?? '';
+            }
+        };
+
+        setCellText('[data-field="position"]', positionValue);
+        setCellText('.line-item-name-cell', articleNameValue);
+
+        const quantityDisplay = quantityValue !== '' ? this.formatNumber(quantityValue, 3) : '';
+        const netAmountDisplay = netValue !== '' ? this.formatNumber(netValue, 2) : '';
+        const grossAmountDisplay = grossValue !== '' ? this.formatNumber(grossValue, 2) : '';
+        const taxRateDisplay = taxValue !== '' ? this.formatNumber(taxValue, 2) : '';
+
+        setCellText('[data-field="quantity"]', quantityDisplay);
+        setCellText('.line-item-net-cell', netAmountDisplay);
+        setCellText('.line-item-gross-cell', grossAmountDisplay);
+        setCellText('.line-item-tax-cell', taxRateDisplay);
+
+        const { date: createdDate, time: createdTime } = this.splitDateTime(item?.created_at);
+        setCellText('[data-field="created-date"]', createdDate);
+        setCellText('[data-field="created-time"]', createdTime);
+
+        const articleData = {
+            id: articleIdValue,
+            number: articleNumberValue,
+            name: articleNameValue,
+            netAmount: netValue,
+            grossAmount: grossValue,
+            taxRate: taxValue,
+            currency: currencyValue,
+            validFrom: validFromValue,
+            validUntil: validUntilValue
+        };
+
+        this.applyArticleState(row, articleData, articleLabelValue, {
+            skipSchedule: true,
+            markPersistedSignature: true
         });
-        const actionGroupLeft = document.createElement('div');
-        actionGroupLeft.className = 'line-items-toolbar-left';
-        actionGroupLeft.appendChild(sendBtn);
-        toolbar.appendChild(actionGroupLeft);
 
-        const actionGroupRight = document.createElement('div');
-        actionGroupRight.className = 'line-items-toolbar-right';
+        return row;
+    }
 
-        const syncBtn = document.createElement('button');
-        syncBtn.type = 'button';
-        syncBtn.id = 'sync-articles-btn';
-        syncBtn.className = 'btn btn-secondary';
-        syncBtn.classList.add('line-items-toolbar-btn');
-        syncBtn.innerHTML = '<span class="btn-icon" aria-hidden="true">↻</span> Artikel synchr';
-        syncBtn.addEventListener('click', () => {
-            this.syncArticlesFromLexware(syncBtn);
-        });
-        actionGroupRight.appendChild(syncBtn);
-        toolbar.appendChild(actionGroupRight);
+    updateLineItemsList(data) {
+        this.cacheDomReferences();
 
-        container.appendChild(toolbar);
+        this.setupToolbarHandlers();
+        this.setupListDelegation();
+
+        if (!this.listContainer || !this.tableElement || !this.tbodyElement) {
+            console.warn('Line items table structure not found');
+            return;
+        }
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
+
+        try {
+            this.listContainer.dataset.lineItems = JSON.stringify({ lineItems: items });
+            this.listContainer.dataset.lineItemsLoaded = 'true';
+        } catch (error) {
+            console.warn('Could not store line items dataset:', error);
+        }
+
+        const selectAll = this.listContainer.querySelector('.line-items-select-all');
+        if (selectAll) {
+            selectAll.checked = false;
+        }
+
+        this.tbodyElement.innerHTML = '';
+
         if (items.length === 0) {
-            const emptyState = document.createElement('p');
-            emptyState.className = 'line-items-empty';
-            emptyState.textContent = 'Keine Positionen gefunden.';
-            container.appendChild(emptyState);
+            this.toggleEmptyState(true);
+            this.updateSendButtonState();
             return;
         }
 
-        const tableRows = items.map((item, index) => {
-            const position = item.line_order != null ? item.line_order : '';
-            const quantityValue = item.quantity != null ? String(item.quantity) : '';
-            const netValue = item.net_amount != null ? String(item.net_amount) : '';
-            const grossValue = (item.gross_amount ?? item.line_total_gross) != null
-                ? String(item.gross_amount ?? item.line_total_gross)
-                : '';
-            const taxValue = item.tax_rate_percentage != null ? String(item.tax_rate_percentage) : '';
-            const currencyValue = item.currency ?? '';
-            const articleIdValue = item.article_id ?? '';
-            const articleNumberValue = item.article_number ?? '';
-            const articleNameValue = item.name ?? '';
-            const articleLabelValue = item.article_label
-                || (articleNumberValue && articleNameValue ? `${articleNumberValue} - ${articleNameValue}` : articleNameValue)
-                || '';
-            const validFromValue = item.article_valid_from ?? '';
-            const validUntilValue = item.article_valid_until ?? '';
-            const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
+        const fragment = document.createDocumentFragment();
+        items.forEach((item, index) => {
+            const row = this.renderLineItemRow(item, index);
+            if (row) {
+                fragment.appendChild(row);
+            }
+        });
 
-            const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id ?? '')}">`;
-            const articleListId = `article-options-${index}-${item.id ?? 'row'}`;
-            const safeArticleLabel = this.escapeHtml(articleLabelValue);
-            const safeArticleId = this.escapeHtml(articleIdValue);
-            const safeArticleNumber = this.escapeHtml(articleNumberValue);
-            const safeArticleName = this.escapeHtml(articleNameValue);
-            const safeNetValue = this.escapeHtml(netValue);
-            const safeGrossValue = this.escapeHtml(grossValue);
-            const safeTaxValue = this.escapeHtml(taxValue);
-            const safeCurrencyValue = this.escapeHtml(currencyValue);
-            const safeValidFrom = this.escapeHtml(validFromValue);
-            const safeValidUntil = this.escapeHtml(validUntilValue);
+        this.tbodyElement.appendChild(fragment);
+        this.toggleEmptyState(false);
 
-            const presetOption = safeArticleLabel && safeArticleId
-                ? `<option value="${safeArticleLabel}" data-article-id="${safeArticleId}"></option>`
-                : '';
-
-            const articleCell = `
-                <div class="article-selector">
-                    <input type="text" class="article-search-combobox" list="${articleListId}" value="${safeArticleLabel}" placeholder="Artikel wählen">
-                    <input type="hidden" class="article-id-field" value="${safeArticleId}">
-                    <input type="hidden" class="article-number-field" value="${safeArticleNumber}">
-                    <input type="hidden" class="article-name-field" value="${safeArticleName}">
-                    <input type="hidden" class="article-net-field" value="${safeNetValue}">
-                    <input type="hidden" class="article-gross-field" value="${safeGrossValue}">
-                    <input type="hidden" class="article-tax-field" value="${safeTaxValue}">
-                    <input type="hidden" class="article-currency-field" value="${safeCurrencyValue}">
-                    <input type="hidden" class="article-valid-from-field" value="${safeValidFrom}">
-                    <input type="hidden" class="article-valid-until-field" value="${safeValidUntil}">
-                    <input type="hidden" class="article-label-field" value="${safeArticleLabel}">
-                    <datalist id="${articleListId}">
-                        <option value="">Artikel wählen</option>
-                        ${presetOption}
-                    </datalist>
-                </div>
-            `;
-
-            const quantityDisplay = quantityValue !== '' ? this.formatNumber(quantityValue, 3) : '';
-            const netAmountDisplay = netValue !== '' ? this.formatNumber(netValue, 2) : '';
-            const grossAmountDisplay = grossValue !== '' ? this.formatNumber(grossValue, 2) : '';
-            const taxRateDisplay = taxValue !== '' ? this.formatNumber(taxValue, 2) : '';
-
-            const editButton = `
-                <button type="button" class="btn btn-secondary btn-sm line-item-edit-btn" aria-label="Bearbeiten">
-                    <span class="btn-icon" aria-hidden="true">✎</span>
-                </button>
-            `;
-
-            return `
-                <tr
-                    data-line-item-id="${this.escapeHtml(item.id ?? '')}"
-                    data-line-order="${this.escapeHtml(position)}"
-                    data-quantity="${this.escapeHtml(quantityValue)}"
-                    data-article-id="${safeArticleId}"
-                    data-article-number="${safeArticleNumber}"
-                    data-article-name="${safeArticleName}"
-                    data-article-currency="${safeCurrencyValue}"
-                    data-article-net="${safeNetValue}"
-                    data-article-gross="${safeGrossValue}"
-                    data-article-tax="${safeTaxValue}"
-                    data-article-valid-from="${safeValidFrom}"
-                    data-article-valid-until="${safeValidUntil}"
-                    data-article-label="${safeArticleLabel}"
-                >
-                    <td>${checkbox}</td>
-                    <td>${editButton}</td>
-                    <td>${this.escapeHtml(position)}</td>
-                    <td class="line-item-name-cell">${this.escapeHtml(articleNameValue || '')}</td>
-                    <td>${articleCell}</td>
-                    <td>${this.escapeHtml(quantityDisplay)}</td>
-                    <td class="line-item-net-cell">${this.escapeHtml(netAmountDisplay)}</td>
-                    <td class="line-item-gross-cell">${this.escapeHtml(grossAmountDisplay)}</td>
-                    <td class="line-item-tax-cell">${this.escapeHtml(taxRateDisplay)}</td>
-                    <td>${this.escapeHtml(createdDate)}</td>
-                    <td>${this.escapeHtml(createdTime)}</td>
-                </tr>
-            `;
-        }).join('');
-
-        const table = document.createElement('table');
-        table.className = 'line-items-table';
-        table.innerHTML = `
-            <thead>
-                <tr>
-                    <th><input type="checkbox" class="line-items-select-all"></th>
-                    <th>Aktion</th>
-                    <th>Pos.</th>
-                    <th>Bezeichnung</th>
-                    <th>Artikel</th>
-                    <th>Menge</th>
-                    <th>Netto</th>
-                    <th>Brutto</th>
-                    <th>Steuer(%)</th>
-                    <th>Erst.Datum</th>
-                    <th>Uhrzeit</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${tableRows}
-            </tbody>
-        `;
-        container.appendChild(table);
         if (window.lexBridge?.initializeLineItemPersistenceState) {
-            window.lexBridge.initializeLineItemPersistenceState(table);
+            window.lexBridge.initializeLineItemPersistenceState(this.tableElement);
         }
 
-        const updateButtonState = () => {
-            const anyChecked = container.querySelector('.line-item-select-checkbox:checked');
-            sendBtn.disabled = !anyChecked;
-        };
-
-        updateButtonState();
-
-        this.lineItemsChangeHandler = (event) => {
-            const target = event.target;
-            if (!target) {
-                return;
-            }
-
-            if (target.classList.contains('line-items-select-all')) {
-                const checkboxes = container.querySelectorAll('.line-item-select-checkbox');
-                checkboxes.forEach(cb => {
-                    cb.checked = target.checked;
-                });
-                updateButtonState();
-                return;
-            }
-
-            if (target.classList.contains('line-item-select-checkbox')) {
-                updateButtonState();
-                return;
-            }
-
-            if (target.classList.contains('article-search-combobox')) {
-                this.syncArticleSelection(target);
-            }
-        };
-
-        container.addEventListener('change', this.lineItemsChangeHandler);
-
-        this.lineItemsClickHandler = (event) => {
-            const target = event.target instanceof Element ? event.target.closest('.line-item-edit-btn') : null;
-            if (!target) {
-                return;
-            }
-
-            event.preventDefault();
-
-            const row = target.closest('tr[data-line-item-id]');
-            if (row && this.editorDialog) {
-                this.editorDialog.open(row);
-            }
-        };
-
-        container.addEventListener('click', this.lineItemsClickHandler);
+        this.updateSendButtonState();
     }
 
     escapeHtml(value) {
