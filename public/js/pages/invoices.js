@@ -1,3 +1,4 @@
+(function () {
 'use strict';
 
 class InvoicesPage {
@@ -261,4 +262,10 @@ class InvoicesPage {
     }
 }
 
+if (!window.lexBridge) {
+    window.lexBridge = {};
+}
+
+window.lexBridge.InvoicesPage = InvoicesPage;
 window.InvoicesPage = InvoicesPage;
+})();
