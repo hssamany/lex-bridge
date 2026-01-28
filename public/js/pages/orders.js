@@ -300,7 +300,7 @@
             const generateBtn = document.createElement('button');
             generateBtn.type = 'button';
             generateBtn.className = CLASS_NAMES.toolbarButton;
-            generateBtn.innerHTML = 'Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
+            generateBtn.innerHTML = 'Positionen Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
             generateBtn.disabled = true;
             generateBtn.addEventListener('click', () => {
                 this.bulkGenerateSelectedOrders(generateBtn);
@@ -328,6 +328,7 @@
                     <tr>
                         <th><input type="checkbox" class="${CLASS_NAMES.ordersSelectAll}"></th>
                         <th>Kunde</th>
+                        <th>Lex Kunden-Nr.</th>
                         <th>Jahr</th>
                         <th>KW</th>
                         <th>Mo</th>
@@ -366,6 +367,7 @@
                 };
 
                 appendCell(this.safeText(order.customer_id));
+                appendCell(this.safeText(order.lex_customer_number));
                 appendCell(this.safeText(order.order_year));
                 appendCell(this.safeText(order.order_week));
 
@@ -623,8 +625,11 @@
             const prefix = value.split('-')[0]?.trim() ?? '';
             return /^\d+$/.test(prefix) ? prefix : '';
         }
-
     }
 
-    window.OrdersPage = OrdersPage;
+    if (!window.lexBridge) {
+        window.lexBridge = {};
+    }
+
+    window.lexBridge.OrdersPage = OrdersPage;
 })();

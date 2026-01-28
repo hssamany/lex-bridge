@@ -267,5 +267,4 @@ if (!window.lexBridge) {
 }
 
 window.lexBridge.InvoicesPage = InvoicesPage;
-window.InvoicesPage = InvoicesPage;
 })();

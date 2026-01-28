@@ -1,3 +1,6 @@
+(function () {
+'use strict';
+
 // public/js/pages/line-items.js
 // Relies on customer-search-controller.js and article-search-controller.js with line-item persistence helpers
 
@@ -627,8 +630,12 @@ class LineItemsPage {
     }
 }
 
+if (!window.lexBridge) {
+    window.lexBridge = {};
+}
 
-window.LineItemsPage = LineItemsPage;
+window.lexBridge.LineItemsPage = LineItemsPage;
+})();
 
 // Utility to show/hide both form and sendBtn together
 window.showLineItemsFilter = function(show) {

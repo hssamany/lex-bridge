@@ -51,6 +51,27 @@ class LexBridge {
         const cleanedPath = (path || '').replace(/^\//, '');
         return LexBridge.resolveInAppUrl(`api/${cleanedPath}`);
     }
+
+    static resolvePageClass(name) {
+        if (typeof window === 'undefined') {
+            return undefined;
+        }
+
+        const namespace = window.lexBridge && typeof window.lexBridge === 'object'
+            ? window.lexBridge
+            : undefined;
+
+        if (!namespace) {
+            return undefined;
+        }
+
+        const ctor = namespace[name];
+        if (!ctor && window.console && typeof window.console.warn === 'function') {
+            window.console.warn(`LexBridge: Page class "${name}" not found on window.lexBridge.`);
+        }
+
+        return ctor;
+    }
     
     constructor() {
         const baseConfig = LexBridge.getBaseConfig();
@@ -297,17 +318,29 @@ class LexBridge {
         
         // Initialize page-specific functionality
         if (tabName === 'kontakte' && !this.contactsPage) {
-            console.log('Creating ContactsPage instance');
-            this.contactsPage = new ContactsPage(this);
+            const ContactsPageCtor = LexBridge.resolvePageClass('ContactsPage');
+            if (ContactsPageCtor) {
+                console.log('Creating ContactsPage instance');
+                this.contactsPage = new ContactsPageCtor(this);
+            }
         } else if (tabName === 'rechn' && !this.invoicesPage) {
-            console.log('Creating InvoicesPage instance');
-            this.invoicesPage = new InvoicesPage(this);
-        } else if (tabName === 'bestellg' && !this.ordersPage && window.OrdersPage) {
-            console.log('Creating OrdersPage instance');
-            this.ordersPage = new OrdersPage(this);
-        } else if (tabName === 'posn' && !this.lineItemsPage && window.LineItemsPage) {
-            console.log('Creating LineItemsPage instance');
-            this.lineItemsPage = new LineItemsPage(this);
+            const InvoicesPageCtor = LexBridge.resolvePageClass('InvoicesPage');
+            if (InvoicesPageCtor) {
+                console.log('Creating InvoicesPage instance');
+                this.invoicesPage = new InvoicesPageCtor(this);
+            }
+        } else if (tabName === 'bestellg' && !this.ordersPage) {
+            const OrdersPageCtor = LexBridge.resolvePageClass('OrdersPage');
+            if (OrdersPageCtor) {
+                console.log('Creating OrdersPage instance');
+                this.ordersPage = new OrdersPageCtor(this);
+            }
+        } else if (tabName === 'posn' && !this.lineItemsPage) {
+            const LineItemsPageCtor = LexBridge.resolvePageClass('LineItemsPage');
+            if (LineItemsPageCtor) {
+                console.log('Creating LineItemsPage instance');
+                this.lineItemsPage = new LineItemsPageCtor(this);
+            }
         }
         
         this.updateActionButtons(tabName);

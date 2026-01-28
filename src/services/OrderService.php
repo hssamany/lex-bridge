@@ -135,6 +135,8 @@ final class OrderService
         return [
             'order_id' => isset($order['order_id']) ? (int) $order['order_id'] : null,
             'customer_id' => isset($order['customer_id']) ? (int) $order['customer_id'] : null,
+            'customer_number' => $order['customer_number'] ?? null,
+            'lex_customer_number' => $order['lex_customer_number'] ?? null,
             'order_year' => isset($order['order_year']) ? (int) $order['order_year'] : null,
             'order_week' => isset($order['order_week']) ? (int) $order['order_week'] : null,
             'article_id' => isset($order['article_id']) && $order['article_id'] !== null ? (int) $order['article_id'] : null,

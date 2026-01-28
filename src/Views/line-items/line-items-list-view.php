@@ -8,7 +8,7 @@
                     class="btn btn-primary line-items-toolbar-btn"
                     disabled
                 >
-                    Erstellen <span class="btn-icon" aria-hidden="true">➤</span>
+                    Rechn. Erstellen <span class="btn-icon" aria-hidden="true">➤</span>
                 </button>
             </div>
             <div class="line-items-toolbar-right">
@@ -18,7 +18,7 @@
                     class="btn btn-secondary line-items-toolbar-btn"
                     title="Artikel aus Lexware synchronisieren"
                 >
-                    <span class="btn-icon" aria-hidden="true">↻</span> Artikel synchr
+                    <span class="btn-icon" aria-hidden="true">↻</span> Artikeln synchronisieren
                 </button>
             </div>
         </div>

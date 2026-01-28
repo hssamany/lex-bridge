@@ -721,5 +721,4 @@
     }
 
     window.lexBridge.ContactsPage = ContactsPage;
-    window.ContactsPage = ContactsPage;
 })();

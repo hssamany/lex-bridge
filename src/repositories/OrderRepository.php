@@ -31,6 +31,7 @@ class OrderRepository
     private string $priceTable;
     private string $ordersTable;
     private string $articleTable;
+    private string $customerTable;
     private string $customerArticleTable;
     private LineItemCalculator $calculator;
     private ?bool $supportsProcessedFlag = null;
@@ -42,6 +43,7 @@ class OrderRepository
         $this->articleTable = \lexbridge_table('articles');
         $this->priceTable = \lexbridge_table('prices');
         $this->customerArticleTable = \lexbridge_table('customers_article');
+        $this->customerTable = \lexbridge_table('customer');
         $this->calculator = $calculator ?? new LineItemCalculator();
     }
 
@@ -85,10 +87,10 @@ class OrderRepository
             ':changed_to' => $changedTo->format('Y-m-d H:i:s'),
         ];
 
-        $customerId = $filters['customer_id'] ?? null;
-        if ($customerId !== null && $customerId !== '') {
+        $customerReference = $filters['customer_id'] ?? null;
+        if ($customerReference !== null && $customerReference !== '') {
             $conditions[] = 'o.Kunde = :customer_id';
-            $params[':customer_id'] = (int) $customerId;
+            $params[':customer_id'] = (int) $customerReference;
         }
 
         $sql = "SELECT
@@ -103,8 +105,12 @@ class OrderRepository
                     o.Fr,
                     o.article_id,
                     o.article_number,
-                    o.GeaendertAm
+                    o.GeaendertAm,
+                    c.customer_number,
+                    c.lex_customer_number
                 FROM {$this->ordersTable} o
+                LEFT JOIN {$this->customerTable} c
+                    ON CAST(c.customer_number AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
                 WHERE " . implode(' AND ', $conditions) . '
                 ORDER BY o.GeaendertAm ASC, o.Id ASC';
 
@@ -216,6 +222,7 @@ class OrderRepository
         $sql = "SELECT 
                     o.Id AS order_id,
                     o.Kunde AS customer_id,
+                    c.id AS customer_internal_id,
                     o.Jahr AS order_year,
                     o.KW AS order_week,
                     o.Mo,
@@ -226,8 +233,10 @@ class OrderRepository
                     ca.article_id,
                     COALESCE(a.article_number, o.article_number) AS article_number
                 FROM {$this->ordersTable} o
+                LEFT JOIN {$this->customerTable} c
+                    ON CAST(c.customer_number AS UNSIGNED) = o.Kunde
                 LEFT JOIN {$this->customerArticleTable} ca
-                    ON ca.customer_id = o.Kunde
+                    ON ca.customer_id = c.id
                 LEFT JOIN {$this->articleTable} a
                     ON a.id = ca.article_id
                 {$whereSql}
@@ -319,7 +328,9 @@ class OrderRepository
                 }
 
                 $orderId = (int) $row['order_id'];
-                $customerKey = (int) $row['customer_id'];
+                $customerReference = isset($row['customer_id']) ? (int) $row['customer_id'] : 0;
+                $customerInternalId = isset($row['customer_internal_id']) ? (int) $row['customer_internal_id'] : 0;
+                $customerKey = $customerReference !== 0 ? $customerReference : $customerInternalId;
                 $articleId = $row['article_id'] !== null ? (int) $row['article_id'] : null;
                 $articleNumber = $row['article_number'] ?? null;
 
@@ -685,10 +696,18 @@ class OrderRepository
      */
     private function buildLineItemPayload(array $orderRow, ?array $pricing, DateTimeImmutable $deliveryDate, float $quantity): array
     {
+        $internalCustomerId = null;
+        if (isset($orderRow['customer_internal_id']) && $orderRow['customer_internal_id'] !== null) {
+            $internalCustomerId = (int) $orderRow['customer_internal_id'];
+        } elseif (isset($orderRow['customer_id'])) {
+            $internalCustomerId = (int) $orderRow['customer_id'];
+        }
+
         $payload = [
             'order_id' => (int) $orderRow['order_id'],
             'order_delivery_date' => $deliveryDate->format('Y-m-d'),
-            'customer_id' => (int) $orderRow['customer_id'],
+            'customer_id' => $internalCustomerId,
+            'customer_reference' => isset($orderRow['customer_id']) ? (int) $orderRow['customer_id'] : null,
             'article_id' => isset($orderRow['article_id']) && $orderRow['article_id'] !== null
                 ? (int) $orderRow['article_id']
                 : null,
@@ -744,6 +763,7 @@ class OrderRepository
         }
 
         $orderIds = [];
+
         foreach ($lineCountPerOrder as $orderId => $count) {
             if ($count > 0) {
                 $orderIds[] = $orderId;
@@ -756,15 +776,21 @@ class OrderRepository
 
         $placeholders = [];
         $params = [];
+
         foreach ($orderIds as $index => $orderId) {
             $placeholder = ':processed_' . $index;
             $placeholders[] = $placeholder;
             $params[$placeholder] = $orderId;
         }
 
-        $sql = "UPDATE {$this->ordersTable} SET verarbeitet = 1 WHERE Id IN (" . implode(', ', $placeholders) . ")";
+        $sql = "
+            UPDATE {$this->ordersTable} 
+            SET verarbeitet = 1 
+            WHERE Id IN (" . implode(', ', $placeholders) . ")
+        ";
 
         $stmt = $this->db->prepare($sql);
+
         foreach ($params as $placeholder => $value) {
             $stmt->bindValue($placeholder, $value, PDO::PARAM_INT);
         }
@@ -779,17 +805,24 @@ class OrderRepository
         }
 
         try {
+
             $sql = "SHOW COLUMNS FROM {$this->ordersTable} LIKE 'verarbeitet'";
+            
             $stmt = $this->db->query($sql);
+
             if ($stmt === false) {
                 $this->supportsProcessedFlag = false;
                 return $this->supportsProcessedFlag;
             }
 
             $this->supportsProcessedFlag = $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+
             return $this->supportsProcessedFlag;
+
         } catch (\Throwable $exception) {
+
             $this->supportsProcessedFlag = false;
+
             return $this->supportsProcessedFlag;
         }
     }
