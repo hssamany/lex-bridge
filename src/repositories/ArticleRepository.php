@@ -37,61 +37,28 @@ final class ArticleRepository
                 a.id,
                 a.article_number,
                 a.name,
-                (
-                    SELECT pr.net_amount
-                    FROM {$priceTable} pr
-                    WHERE pr.article_id = a.id
-                        AND pr.valid_from <= CURRENT_DATE
-                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                    ORDER BY pr.valid_from DESC, pr.id DESC
-                    LIMIT 1
-                ) AS net_amount,
-                (
-                    SELECT pr.gross_amount
-                    FROM {$priceTable} pr
-                    WHERE pr.article_id = a.id
-                        AND pr.valid_from <= CURRENT_DATE
-                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                    ORDER BY pr.valid_from DESC, pr.id DESC
-                    LIMIT 1
-                ) AS gross_amount,
-                (
-                    SELECT pr.tax_rate_percentage
-                    FROM {$priceTable} pr
-                    WHERE pr.article_id = a.id
-                        AND pr.valid_from <= CURRENT_DATE
-                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                    ORDER BY pr.valid_from DESC, pr.id DESC
-                    LIMIT 1
-                ) AS tax_rate_percentage,
-                (
-                    SELECT pr.currency
-                    FROM {$priceTable} pr
-                    WHERE pr.article_id = a.id
-                        AND pr.valid_from <= CURRENT_DATE
-                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                    ORDER BY pr.valid_from DESC, pr.id DESC
-                    LIMIT 1
-                ) AS currency,
-                (
-                    SELECT pr.valid_from
-                    FROM {$priceTable} pr
-                    WHERE pr.article_id = a.id
-                        AND pr.valid_from <= CURRENT_DATE
-                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                    ORDER BY pr.valid_from DESC, pr.id DESC
-                    LIMIT 1
-                ) AS valid_from,
-                (
-                    SELECT pr.valid_until
-                    FROM {$priceTable} pr
-                    WHERE pr.article_id = a.id
-                        AND pr.valid_from <= CURRENT_DATE
-                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                    ORDER BY pr.valid_from DESC, pr.id DESC
-                    LIMIT 1
-                ) AS valid_until
+                lp.net_amount,
+                lp.gross_amount,
+                lp.tax_rate_percentage,
+                lp.currency,
+                lp.valid_from,
+                lp.valid_until
             FROM {$articleTable} a
+            LEFT JOIN LATERAL (
+                SELECT
+                    pr.net_amount,
+                    pr.gross_amount,
+                    pr.tax_rate_percentage,
+                    pr.currency,
+                    pr.valid_from,
+                    pr.valid_until
+                FROM {$priceTable} pr
+                WHERE pr.article_id = a.id
+                    AND pr.valid_from <= CURRENT_DATE
+                    AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                ORDER BY pr.valid_from DESC, pr.id DESC
+                LIMIT 1
+            ) AS lp ON TRUE
         SQL;
 
         $hasQuery = $query !== null && $query !== '';
