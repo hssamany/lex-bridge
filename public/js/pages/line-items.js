@@ -1,556 +1,540 @@
-(function () {
-'use strict';
-
 // public/js/pages/line-items.js
-// Relies on customer-search-controller.js and article-search-controller.js with line-item persistence helpers
+// Handles AJAX customer search for the Line-Items tab using event delegation
+
+const resolveApiUrl = (path = '') => {
+    if (typeof LexBridge !== 'undefined' && typeof LexBridge.resolveApiUrl === 'function') {
+        return LexBridge.resolveApiUrl(path);
+    }
+
+    const cleanedPath = (path || '').replace(/^\/+/u, '');
+    if (cleanedPath.startsWith('api/')) {
+        return `/lex-bridge/${cleanedPath}`;
+    }
+
+    return `/lex-bridge/api/${cleanedPath}`;
+};
+
+(function () {
+    const debounceTimers = new WeakMap();
+
+    function syncCustomerSelection(input, datalistOverride) {
+        if (!input) {
+            return;
+        }
+
+        const form = input.closest('form');
+        if (!form) {
+            return;
+        }
+
+        const hiddenField = form.querySelector('input[type="hidden"][name="customer_id"]');
+        if (!hiddenField) {
+            return;
+        }
+
+        const listId = input.getAttribute('list');
+        const datalist = datalistOverride || (listId ? document.getElementById(listId) : null);
+
+        hiddenField.value = '';
+
+        if (!datalist) {
+            return;
+        }
+
+        const value = input.value.trim();
+        if (!value) {
+            return;
+        }
+
+        const options = datalist.options || datalist.children;
+        for (let index = 0; index < options.length; index += 1) {
+            const option = options[index];
+            if (option.value !== value) {
+                continue;
+            }
+
+            const customerId = option.dataset.customerId || option.getAttribute('data-customer-id');
+            if (customerId) {
+                hiddenField.value = customerId;
+            }
+            break;
+        }
+    }
+
+    function handleCustomerSearch(input) {
+        const listId = input.getAttribute('list');
+        const datalist = listId ? document.getElementById(listId) : null;
+        if (!datalist) {
+            console.warn('Customer datalist not found for input', input);
+            return;
+        }
+
+        const query = input.value.trim();
+        if (!query) {
+            datalist.innerHTML = '<option value="">Alle Kunden</option>';
+            syncCustomerSelection(input, datalist);
+            return;
+        }
+
+        const timer = debounceTimers.get(input);
+        if (timer) {
+            clearTimeout(timer);
+        }
+
+        syncCustomerSelection(input, datalist);
+
+        const newTimer = setTimeout(() => {
+            const url = resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`);
+            fetch(url)
+                .then(async res => {
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        console.error('Customer search HTTP error:', res.status, errorText);
+                        return null;
+                    }
+                    const text = await res.text();
+                    try {
+                        return JSON.parse(text);
+                    } catch (error) {
+                        console.error('Customer search response parse error:', error, text);
+                        return null;
+                    }
+                })
+                .then(data => {
+                    datalist.innerHTML = '<option value="">Alle Kunden</option>';
+                    if (Array.isArray(data)) {
+                        data.forEach(cust => {
+                            const opt = document.createElement('option');
+                            const number = cust.customer_number || '';
+                            const name = cust.company_name || '';
+                            opt.value = `${number}${number && name ? ' - ' : ''}${name}`;
+                            opt.dataset.customerId = String(cust.id ?? '');
+                            opt.setAttribute('data-customer-id', String(cust.id ?? ''));
+                            datalist.appendChild(opt);
+                        });
+                    }
+
+                    syncCustomerSelection(input, datalist);
+                })
+                .catch(error => {
+                    console.error('Customer search error:', error);
+                });
+        }, 300);
+
+        debounceTimers.set(input, newTimer);
+    }
+
+    document.addEventListener('input', function (event) {
+        const target = event.target;
+        if (!target || !target.classList.contains('customer-search-combobox')) {
+            return;
+        }
+        handleCustomerSearch(target);
+        syncCustomerSelection(target);
+    }, true); // capture to ensure we catch events even if re-rendered
+
+    document.addEventListener('change', function (event) {
+        const target = event.target;
+        if (!target || !target.classList.contains('customer-search-combobox')) {
+            return;
+        }
+        syncCustomerSelection(target);
+    }, true); // capture to ensure we catch events even if re-rendered
+})();
 
 class LineItemsPage {
-        getSelectedLineItemIds() {
-            return Array.from(document.querySelectorAll('.line-item-select-checkbox:checked'))
-                .map(cb => cb.getAttribute('data-line-item-id'))
-                .filter(Boolean);
-        }
-
-        async handleCreateInvoiceFromSelection() {
-            // Get selected line item IDs
-            const selectedIds = this.getSelectedLineItemIds();
-            if (!selectedIds.length) {
-                alert('Bitte wählen Sie mindestens eine Position aus.');
-                return;
-            }
-
-            // Get customer ID from filter form
-            const form = document.querySelector('form[name="get-line-items"]');
-            let customerId = '';
-            if (form) {
-                const hidden = form.querySelector('input[type="hidden"][name="customer_id"]');
-                if (hidden) customerId = hidden.value;
-            }
-            if (!customerId) {
-                alert('Bitte wählen Sie einen Kunden aus.');
-                return;
-            }
-
-            // Prepare lineItems array (just IDs, or you can fetch more info if needed)
-            const lineItems = selectedIds.map(id => ({ id }));
-
-            // Optionally, ask for currency or use a default
-            const currency = 'EUR';
-
-            // Send to API
-            try {
-                const response = await fetch(LexBridge.resolveApiUrl('invoices'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customer_id: customerId, currency, line_items: lineItems })
-                });
-                const result = await response.json();
-                if (response.ok && result.invoice_id) {
-                    alert('Rechnung erfolgreich erstellt!');
-                } else {
-                    alert('Fehler beim Erstellen der Rechnung: ' + (result.error || 'Unbekannter Fehler'));
-                }
-            } catch (e) {
-                alert('Fehler beim Senden der Anfrage: ' + e.message);
-            }
-        }
-
-        async syncArticlesFromLexware(button) {
-            const targetButton = button instanceof HTMLElement ? button : null;
-            const originalLabel = targetButton ? targetButton.innerHTML : null;
-
-            try {
-                if (targetButton) {
-                    targetButton.disabled = true;
-                    targetButton.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronisieren...';
-                }
-
-                const response = await fetch(LexBridge.resolveApiUrl('articles/sync'), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: '{}'
-                });
-
-                const text = await response.text();
-                let result;
-                try {
-                    result = text ? JSON.parse(text) : {};
-                } catch (parseError) {
-                    throw new Error('Antwort der Artikelsynchronisation konnte nicht gelesen werden.');
-                }
-
-                if (!response.ok || !result?.isSuccess) {
-                    const errorMessage = Array.isArray(result?.errors) && result.errors.length
-                        ? result.errors.join(', ')
-                        : result?.error || `Synchronisation fehlgeschlagen (${response.status})`;
-                    throw new Error(errorMessage);
-                }
-
-                if (window.lexBridge?.clearArticleCache) {
-                    window.lexBridge.clearArticleCache();
-                }
-
-                if (this.lexBridge?.toastNotifier) {
-                    const created = result.created ?? 0;
-                    const updated = result.updated ?? 0;
-                    const prices = result.price_updates ?? 0;
-                    this.lexBridge.toastNotifier.show(`Artikel synchronisiert (neu: ${created}, aktualisiert: ${updated}, Preise: ${prices})`, 'success');
-                } else {
-                    alert('Artikel erfolgreich synchronisiert.');
-                }
-            } catch (error) {
-                console.error('Article sync error:', error);
-                const message = error instanceof Error ? error.message : String(error);
-                if (this.lexBridge?.toastNotifier) {
-                    this.lexBridge.toastNotifier.show(message, 'error');
-                } else {
-                    alert(message);
-                }
-            } finally {
-                if (targetButton && originalLabel !== null) {
-                    targetButton.disabled = false;
-                    targetButton.innerHTML = originalLabel;
-                }
-            }
-        }
     static handlerSetup = false;
+    static activeInstance = null;
 
     constructor(lexBridge) {
         this.lexBridge = lexBridge;
-        this.editorDialog = new LineItemEditorDialog(this);
-        this.listContainer = null;
-        this.tableElement = null;
-        this.tbodyElement = null;
-        this.emptyStateElement = null;
+        this.filterForm = null;
         this.sendInvoiceButton = null;
         this.syncArticlesButton = null;
-        this.rowTemplate = document.getElementById('line-item-row-template');
-        this.listHandlersAttached = false;
-        this.boundListChangeHandler = this.handleListChange.bind(this);
-        this.boundListClickHandler = this.handleListClick.bind(this);
 
         if (!LineItemsPage.handlerSetup) {
-            this.setupFilterDelegation();
+            this.registerGlobalSubmitInterceptor();
+            this.registerSelectAllHandler();
             LineItemsPage.handlerSetup = true;
         }
 
-        this.setupFilterFormDirect();
-        this.cacheDomReferences();
-        this.setupToolbarHandlers();
-        this.setupListDelegation();
+        LineItemsPage.activeInstance = this;
+        this.initialize();
     }
 
-    setupFilterDelegation() {
+    initialize() {
+        this.filterForm = document.querySelector('form[name="get-line-items"]');
+        this.sendInvoiceButton = document.getElementById('send-invoice-btn');
+        this.syncArticlesButton = document.getElementById('sync-articles-btn');
+
+        this.setupFilterFormDirect();
+        this.setupSendInvoiceButton();
+        this.setupSyncArticlesButton();
+    }
+
+    registerGlobalSubmitInterceptor() {
         document.addEventListener('submit', async (event) => {
             const form = event.target;
-            if (!form || !form.matches('form[name="get-line-items"]')) {
+            if (!(form instanceof HTMLFormElement)) {
+                return;
+            }
+            if (!form.matches('form[name="get-line-items"]')) {
                 return;
             }
 
             event.preventDefault();
             event.stopPropagation();
-            await this.handleFilterSubmit(form);
+
+            const instance = LineItemsPage.activeInstance;
+            if (instance) {
+                await instance.handleFilterSubmit(form);
+            }
+        }, true);
+    }
+
+    registerSelectAllHandler() {
+        document.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement)) {
+                return;
+            }
+
+            const instance = LineItemsPage.activeInstance;
+            if (!instance) {
+                return;
+            }
+
+            if (target.classList.contains('line-items-select-all')) {
+                const checkboxes = document.querySelectorAll('.line-item-select-checkbox');
+                checkboxes.forEach((checkbox) => {
+                    checkbox.checked = target.checked;
+                });
+                instance.updateSendInvoiceButtonState();
+                return;
+            }
+
+            if (target.classList.contains('line-item-select-checkbox')) {
+                instance.updateSendInvoiceButtonState();
+            }
         }, true);
     }
 
     setupFilterFormDirect() {
-        const form = document.querySelector('form[name="get-line-items"]');
-        if (!form || form.dataset.ajaxHandlerAttached === 'true') {
+        if (!this.filterForm || this.filterForm.dataset.ajaxHandlerAttached === 'true') {
             return;
         }
-        form.dataset.ajaxHandlerAttached = 'true';
-        form.addEventListener('submit', async (event) => {
+
+        this.filterForm.dataset.ajaxHandlerAttached = 'true';
+        this.filterForm.addEventListener('submit', async (event) => {
             event.preventDefault();
             event.stopPropagation();
-            await this.handleFilterSubmit(form);
+            await this.handleFilterSubmit(this.filterForm);
         });
     }
 
-    cacheDomReferences() {
-        const latestContainer = document.querySelector('.line-items-list');
-
-        if (latestContainer && this.listContainer && this.listHandlersAttached && this.listContainer !== latestContainer) {
-            this.listContainer.removeEventListener('change', this.boundListChangeHandler);
-            this.listContainer.removeEventListener('click', this.boundListClickHandler);
-            this.listHandlersAttached = false;
-        }
-
-        this.listContainer = latestContainer || null;
-
-        if (!this.listContainer) {
-            this.tableElement = null;
-            this.tbodyElement = null;
-            this.emptyStateElement = null;
-            this.sendInvoiceButton = null;
-            this.syncArticlesButton = null;
-            this.listHandlersAttached = false;
+    setupSendInvoiceButton() {
+        if (!this.sendInvoiceButton) {
             return;
         }
 
-        this.tableElement = this.listContainer.querySelector('.line-items-table') || null;
-        this.tbodyElement = this.tableElement?.querySelector('[data-role="line-items-tbody"]') || null;
-        this.emptyStateElement = this.listContainer.querySelector('[data-role="line-items-empty"]') || null;
-        this.sendInvoiceButton = this.listContainer.querySelector('#send-invoice-btn') || null;
-        this.syncArticlesButton = this.listContainer.querySelector('#sync-articles-btn') || null;
-
-        if (!this.rowTemplate) {
-            this.rowTemplate = document.getElementById('line-item-row-template');
-        }
-    }
-
-    setupToolbarHandlers() {
-        this.cacheDomReferences();
-
-        if (this.sendInvoiceButton && !this.sendInvoiceButton.dataset.handlerAttached) {
-            this.sendInvoiceButton.dataset.handlerAttached = 'true';
-            this.sendInvoiceButton.addEventListener('click', () => {
-                this.handleCreateInvoiceFromSelection();
+        if (this.sendInvoiceButton.dataset.ajaxHandlerAttached !== 'true') {
+            this.sendInvoiceButton.dataset.ajaxHandlerAttached = 'true';
+            this.sendInvoiceButton.addEventListener('click', async () => {
+                await this.handleCreateInvoiceFromSelection();
             });
         }
 
-        if (this.syncArticlesButton && !this.syncArticlesButton.dataset.handlerAttached) {
-            this.syncArticlesButton.dataset.handlerAttached = 'true';
-            this.syncArticlesButton.addEventListener('click', () => {
-                this.syncArticlesFromLexware(this.syncArticlesButton);
-            });
-        }
+        this.updateSendInvoiceButtonState();
     }
 
-    setupListDelegation() {
-        this.cacheDomReferences();
-
-        if (!this.listContainer || this.listHandlersAttached) {
+    setupSyncArticlesButton() {
+        if (!this.syncArticlesButton || this.syncArticlesButton.dataset.ajaxHandlerAttached === 'true') {
             return;
         }
 
-        this.listContainer.addEventListener('change', this.boundListChangeHandler);
-        this.listContainer.addEventListener('click', this.boundListClickHandler);
-        this.listHandlersAttached = true;
+        this.syncArticlesButton.dataset.ajaxHandlerAttached = 'true';
+        this.syncArticlesButton.addEventListener('click', async () => {
+            await this.handleArticlesSync();
+        });
     }
 
     async handleFilterSubmit(form) {
         this.ensureCustomerSelection(form);
 
-        const formData = new FormData(form);
-        const params = new URLSearchParams();
+        const params = this.buildFilterParams(form);
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalLabel = submitButton ? submitButton.innerHTML : null;
 
-        const formEntries = formData.entries();
-        for (const [key, value] of formEntries) {
+        try {
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="btn-icon spinning">↻</span> Filtern...';
+            }
+
+            const data = await this.fetchLineItems(params);
+            this.updateLineItemsList(data);
+            this.updateSendInvoiceButtonState();
+            this.showToast('Line items aktualisiert', 'success');
+        } catch (error) {
+            console.error('Line items filter error:', error);
+            this.showToast(error.message || 'Fehler beim Laden der Positionen', 'error');
+        } finally {
+            if (submitButton && originalLabel !== null) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalLabel;
+            }
+        }
+    }
+
+    buildFilterParams(form) {
+        const params = new URLSearchParams();
+        const formData = new FormData(form);
+
+        for (const [key, value] of formData.entries()) {
             if (key === 'customer_search') {
                 continue;
             }
+
             if (value !== null && value !== '') {
                 params.append(key, value);
             }
         }
 
-        const button = form.querySelector('button[type="submit"]');
-        const originalLabel = button ? button.innerHTML : null;
-
-        try {
-            if (button) {
-                button.disabled = true;
-                button.innerHTML = '<span class="btn-icon spinning">↻</span> Filtern...';
-            }
-
-            const response = await fetch(`${LexBridge.resolveApiUrl('line-items')}?${params.toString()}`);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Line items request failed (${response.status}): ${errorText}`);
-            }
-
-            const data = await response.json();
-            this.updateLineItemsList(data);
-
-            if (this.lexBridge?.toastNotifier) {
-                this.lexBridge.toastNotifier.show('Line items aktualisiert', 'success');
-            }
-
-        } 
-        catch (error) {
-            console.error('Line items filter error:', error);
-            if (this.lexBridge?.toastNotifier) {
-                this.lexBridge.toastNotifier.show('Fehler beim Laden der Positionen', 'error');
-            }
-        } finally {
-            if (button && originalLabel !== null) {
-                button.disabled = false;
-                button.innerHTML = originalLabel;
-            }
-        }
+        return params;
     }
 
-    handleListChange(event) {
-        const target = event.target;
-        if (!target || !this.listContainer) {
-            return;
-        }
+    async fetchLineItems(params) {
+        const query = params.toString();
+        const url = query ? resolveApiUrl(`line-items?${query}`) : resolveApiUrl('line-items');
 
-        if (target.classList.contains('line-items-select-all')) {
-            const selectAllChecked = target.checked;
-            const checkboxes = this.listContainer.querySelectorAll('.line-item-select-checkbox');
-            checkboxes.forEach((checkbox) => {
-                checkbox.checked = selectAllChecked;
-            });
-        } else if (target.classList.contains('line-item-select-checkbox')) {
-            if (!target.checked) {
-                const selectAll = this.listContainer.querySelector('.line-items-select-all');
-                if (selectAll) {
-                    selectAll.checked = false;
-                }
-            } else {
-                const checkboxes = Array.from(this.listContainer.querySelectorAll('.line-item-select-checkbox'));
-                const allChecked = checkboxes.length > 0 && checkboxes.every((checkbox) => checkbox.checked);
-                const selectAll = this.listContainer.querySelector('.line-items-select-all');
-                if (selectAll) {
-                    selectAll.checked = allChecked;
-                }
+        const response = await fetch(url, {
+            headers: {
+                Accept: 'application/json'
             }
-        }
-
-        this.updateSendButtonState();
-    }
-
-    handleListClick(event) {
-        const target = event.target instanceof Element ? event.target.closest('.line-item-edit-btn') : null;
-        if (!target) {
-            return;
-        }
-
-        event.preventDefault();
-
-        const row = target.closest('tr[data-line-item-id]');
-        if (row && this.editorDialog) {
-            this.editorDialog.open(row);
-        }
-    }
-
-    updateSendButtonState() {
-        if (!this.sendInvoiceButton || !this.listContainer) {
-            return;
-        }
-
-        const anyChecked = this.listContainer.querySelector('.line-item-select-checkbox:checked');
-        this.sendInvoiceButton.disabled = !anyChecked;
-    }
-
-    toggleEmptyState(shouldShow) {
-        if (!this.emptyStateElement) {
-            return;
-        }
-
-        if (shouldShow) {
-            this.emptyStateElement.removeAttribute('hidden');
-        } else {
-            this.emptyStateElement.setAttribute('hidden', '');
-        }
-    }
-
-    applyArticleState(row, articleData, label, options = {}) {
-        const helper = window.lexBridge?.writeRowArticleState;
-        if (typeof helper === 'function') {
-            helper(row, articleData, label, options);
-        } else {
-            console.warn('writeRowArticleState helper is unavailable.');
-        }
-    }
-
-    renderLineItemRow(item, index) {
-        if (!this.rowTemplate || !this.rowTemplate.content) {
-            return null;
-        }
-
-        const clone = this.rowTemplate.content.cloneNode(true);
-        const row = clone.querySelector('tr');
-        if (!row) {
-            return null;
-        }
-
-        const rowId = item?.id != null ? String(item.id) : '';
-        row.dataset.lineItemId = rowId;
-
-        const positionValue = item?.line_order != null ? String(item.line_order) : '';
-        row.dataset.lineOrder = positionValue;
-
-        const quantityValue = item?.quantity != null ? String(item.quantity) : '';
-        row.dataset.quantity = quantityValue;
-
-        const netValue = item?.net_amount != null ? String(item.net_amount) : '';
-        const grossValueRaw = item?.gross_amount ?? item?.line_total_gross;
-        const grossValue = grossValueRaw != null ? String(grossValueRaw) : '';
-        const taxValue = item?.tax_rate_percentage != null ? String(item.tax_rate_percentage) : '';
-        const currencyValue = item?.currency != null ? String(item.currency) : '';
-        const articleIdValue = item?.article_id != null ? String(item.article_id) : '';
-        const articleNumberValue = item?.article_number != null ? String(item.article_number) : '';
-        const articleNameValue = item?.name != null ? String(item.name) : '';
-        const articleLabelValue = item?.article_label
-            || (articleNumberValue && articleNameValue ? `${articleNumberValue} - ${articleNameValue}` : articleNameValue)
-            || '';
-        const validFromValue = item?.article_valid_from != null ? String(item.article_valid_from) : '';
-        const validUntilValue = item?.article_valid_until != null ? String(item.article_valid_until) : '';
-
-        row.dataset.articleId = articleIdValue;
-        row.dataset.articleNumber = articleNumberValue;
-        row.dataset.articleName = articleNameValue;
-        row.dataset.articleCurrency = currencyValue;
-        row.dataset.articleNet = netValue;
-        row.dataset.articleGross = grossValue;
-        row.dataset.articleTax = taxValue;
-        row.dataset.articleValidFrom = validFromValue;
-        row.dataset.articleValidUntil = validUntilValue;
-        row.dataset.articleLabel = articleLabelValue;
-
-        const checkbox = row.querySelector('.line-item-select-checkbox');
-        if (checkbox) {
-            checkbox.dataset.lineItemId = rowId;
-            checkbox.checked = false;
-        }
-
-        const articleInput = row.querySelector('[data-role="article-input"]');
-        const datalist = row.querySelector('[data-role="article-datalist"]');
-        if (articleInput && datalist) {
-            const uniqueId = `article-options-${Date.now()}-${index}-${Math.random().toString(16).slice(2)}`;
-            datalist.id = uniqueId;
-            articleInput.setAttribute('list', uniqueId);
-
-            if (articleLabelValue && articleIdValue) {
-                const option = document.createElement('option');
-                option.value = articleLabelValue;
-                option.dataset.articleId = articleIdValue;
-                if (articleNumberValue) {
-                    option.dataset.articleNumber = articleNumberValue;
-                }
-                if (articleNameValue) {
-                    option.dataset.articleName = articleNameValue;
-                }
-                if (netValue) {
-                    option.dataset.netAmount = netValue;
-                }
-                if (grossValue) {
-                    option.dataset.grossAmount = grossValue;
-                }
-                if (taxValue) {
-                    option.dataset.taxRatePercentage = taxValue;
-                }
-                if (currencyValue) {
-                    option.dataset.currency = currencyValue;
-                }
-                if (validFromValue) {
-                    option.dataset.validFrom = validFromValue;
-                }
-                if (validUntilValue) {
-                    option.dataset.validUntil = validUntilValue;
-                }
-                datalist.appendChild(option);
-            }
-        }
-
-        const setCellText = (selector, value) => {
-            const cell = row.querySelector(selector);
-            if (cell) {
-                cell.textContent = value ?? '';
-            }
-        };
-
-        setCellText('[data-field="position"]', positionValue);
-        setCellText('.line-item-name-cell', articleNameValue);
-
-        const quantityDisplay = quantityValue !== '' ? this.formatNumber(quantityValue, 3) : '';
-        const netAmountDisplay = netValue !== '' ? this.formatNumber(netValue, 2) : '';
-        const grossAmountDisplay = grossValue !== '' ? this.formatNumber(grossValue, 2) : '';
-        const taxRateDisplay = taxValue !== '' ? this.formatNumber(taxValue, 2) : '';
-
-        setCellText('[data-field="quantity"]', quantityDisplay);
-        setCellText('.line-item-net-cell', netAmountDisplay);
-        setCellText('.line-item-gross-cell', grossAmountDisplay);
-        setCellText('.line-item-tax-cell', taxRateDisplay);
-
-        const { date: createdDate, time: createdTime } = this.splitDateTime(item?.created_at);
-        setCellText('[data-field="created-date"]', createdDate);
-        setCellText('[data-field="created-time"]', createdTime);
-
-        const articleData = {
-            id: articleIdValue,
-            number: articleNumberValue,
-            name: articleNameValue,
-            netAmount: netValue,
-            grossAmount: grossValue,
-            taxRate: taxValue,
-            currency: currencyValue,
-            validFrom: validFromValue,
-            validUntil: validUntilValue
-        };
-
-        this.applyArticleState(row, articleData, articleLabelValue, {
-            skipSchedule: true,
-            markPersistedSignature: true
         });
 
-        return row;
+        const text = await response.text();
+        let data = {};
+        if (text.trim() !== '') {
+            try {
+                data = JSON.parse(text);
+            } catch (error) {
+                throw new Error('Antwort konnte nicht interpretiert werden.');
+            }
+        }
+
+        if (!response.ok) {
+            const message = data.error || `Line items Anfrage fehlgeschlagen (Status ${response.status}).`;
+            throw new Error(message);
+        }
+
+        return data;
     }
 
     updateLineItemsList(data) {
-        this.cacheDomReferences();
+        const container = document.querySelector('.line-items-list');
+        if (!container) {
+            console.warn('Line items list container not found');
+            return;
+        }
 
-        this.setupToolbarHandlers();
-        this.setupListDelegation();
+        const tableBody = container.querySelector('.line-items-table-body');
+        const selectAll = container.querySelector('.line-items-select-all');
+        const totalLabel = container.querySelector('.line-items-total');
 
-        if (!this.listContainer || !this.tableElement || !this.tbodyElement) {
-            console.warn('Line items table structure not found');
+        if (!(tableBody instanceof HTMLElement)) {
+            console.warn('Line items table body not found');
             return;
         }
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
-
-        try {
-            this.listContainer.dataset.lineItems = JSON.stringify({ lineItems: items });
-            this.listContainer.dataset.lineItemsLoaded = 'true';
-        } catch (error) {
-            console.warn('Could not store line items dataset:', error);
-        }
-
-        const selectAll = this.listContainer.querySelector('.line-items-select-all');
-        if (selectAll) {
-            selectAll.checked = false;
-        }
-
-        this.tbodyElement.innerHTML = '';
+        const columnCount = container.querySelectorAll('thead th').length || 9;
 
         if (items.length === 0) {
-            this.toggleEmptyState(true);
-            this.updateSendButtonState();
+            tableBody.innerHTML = `
+                <tr class="line-items-empty-row">
+                    <td colspan="${columnCount}" style="text-align:center;">Keine Positionen gefunden.</td>
+                </tr>
+            `;
+        } else {
+            const tableRows = items.map((item) => {
+                const position = item.line_order != null ? item.line_order : '';
+                const quantity = item.quantity != null ? this.formatNumber(item.quantity, 3) : '';
+                const netAmount = item.net_amount != null ? this.formatNumber(item.net_amount, 2) : '';
+                const grossAmount = item.line_total_gross != null ? this.formatNumber(item.line_total_gross, 2) : '';
+                const taxRate = item.tax_rate_percentage != null ? this.formatNumber(item.tax_rate_percentage, 2) : '';
+                const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
+
+                const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id)}">`;
+
+                return `
+                    <tr>
+                        <td>${checkbox}</td>
+                        <td>${this.escapeHtml(position)}</td>
+                        <td>${this.escapeHtml(item.name || '')}</td>
+                        <td>${this.escapeHtml(quantity)}</td>
+                        <td>${this.escapeHtml(netAmount)}</td>
+                        <td>${this.escapeHtml(grossAmount)}</td>
+                        <td>${this.escapeHtml(taxRate)}</td>
+                        <td>${this.escapeHtml(createdDate)}</td>
+                        <td>${this.escapeHtml(createdTime)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            tableBody.innerHTML = tableRows;
+        }
+
+        if (selectAll instanceof HTMLInputElement) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
+
+        if (totalLabel) {
+            totalLabel.textContent = `Gesammt: ${items.length}`;
+        }
+    }
+
+    async handleArticlesSync() {
+        const button = this.syncArticlesButton;
+        if (!button) {
             return;
         }
 
-        const fragment = document.createDocumentFragment();
-        items.forEach((item, index) => {
-            const row = this.renderLineItemRow(item, index);
-            if (row) {
-                fragment.appendChild(row);
+        const originalDisabled = button.disabled;
+        const originalHtml = button.innerHTML;
+
+        try {
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon spinning">↻</span><span>Synchronisiere...</span>';
+
+            const response = await fetch(resolveApiUrl('articles/sync'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({})
+            });
+
+            const text = await response.text();
+            const data = this.parseJsonSafely(text);
+
+            if (!response.ok || data.isSuccess === false) {
+                const errors = Array.isArray(data.errors) && data.errors.length ? data.errors.join(', ') : null;
+                const message = data.error || errors || `Synchronisierung fehlgeschlagen (Status ${response.status}).`;
+                throw new Error(message);
             }
-        });
 
-        this.tbodyElement.appendChild(fragment);
-        this.toggleEmptyState(false);
+            const created = typeof data.created === 'number' ? data.created : 0;
+            const updated = typeof data.updated === 'number' ? data.updated : 0;
+            const priceUpdates = typeof data.price_updates === 'number' ? data.price_updates : 0;
 
-        if (window.lexBridge?.initializeLineItemPersistenceState) {
-            window.lexBridge.initializeLineItemPersistenceState(this.tableElement);
+            const summaryParts = [];
+            if (created > 0) {
+                summaryParts.push(`${created} neu`);
+            }
+            if (updated > 0) {
+                summaryParts.push(`${updated} aktualisiert`);
+            }
+            if (priceUpdates > 0) {
+                summaryParts.push(`${priceUpdates} Preisänderungen`);
+            }
+
+            const suffix = summaryParts.length ? ` (${summaryParts.join(', ')})` : '';
+            this.showToast(`Artikel synchronisiert${suffix}`, 'success');
+
+            await this.reloadCurrentLineItems();
+        } catch (error) {
+            console.error('Article sync failed:', error);
+            this.showToast(error.message || 'Artikel konnten nicht synchronisiert werden.', 'error');
+        } finally {
+            button.disabled = originalDisabled;
+            button.innerHTML = originalHtml;
         }
-
-        this.updateSendButtonState();
     }
 
-    formatNumber(value, fractionDigits) {
-        const number = Number(value);
-        if (Number.isNaN(number)) {
+    async handleCreateInvoiceFromSelection() {
+        const selectedIds = this.getSelectedLineItemIds();
+        if (selectedIds.length === 0) {
+            this.showToast('Bitte wählen Sie mindestens eine Position aus.', 'warning');
+            return;
+        }
+
+        const customerId = this.getSelectedCustomerId();
+        if (!customerId) {
+            this.showToast('Bitte wählen Sie einen Kunden aus.', 'warning');
+            return;
+        }
+
+        try {
+            const payload = {
+                customer_id: customerId,
+                currency: 'EUR',
+                line_items: selectedIds.map((id) => ({ id }))
+            };
+
+            const response = await fetch(resolveApiUrl('invoices'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const text = await response.text();
+            const data = this.parseJsonSafely(text);
+
+            if (!response.ok || !data.invoice_id) {
+                const message = data.error || `Rechnung konnte nicht erstellt werden (Status ${response.status}).`;
+                throw new Error(message);
+            }
+
+            this.showToast('Rechnung erfolgreich erstellt.', 'success');
+            await this.reloadCurrentLineItems();
+        } catch (error) {
+            console.error('Invoice creation failed:', error);
+            this.showToast(error.message || 'Rechnung konnte nicht erstellt werden.', 'error');
+        }
+    }
+
+    async reloadCurrentLineItems() {
+        if (!this.filterForm) {
+            return;
+        }
+
+        try {
+            this.ensureCustomerSelection(this.filterForm);
+            const params = this.buildFilterParams(this.filterForm);
+            const data = await this.fetchLineItems(params);
+            this.updateLineItemsList(data);
+            this.updateSendInvoiceButtonState();
+        } catch (error) {
+            console.error('Reloading line items failed:', error);
+        }
+    }
+
+    getSelectedLineItemIds() {
+        return Array.from(document.querySelectorAll('.line-item-select-checkbox:checked'))
+            .map((checkbox) => checkbox.getAttribute('data-line-item-id'))
+            .filter(Boolean);
+    }
+
+    getSelectedCustomerId() {
+        if (!this.filterForm) {
             return '';
         }
 
-        const digits = typeof fractionDigits === 'number' ? fractionDigits : 2;
-        return number.toLocaleString('de-DE', {
-            minimumFractionDigits: digits,
-            maximumFractionDigits: digits
-        });
+        const hidden = this.filterForm.querySelector('input[type="hidden"][name="customer_id"]');
+        return hidden ? hidden.value.trim() : '';
+    }
+
+    updateSendInvoiceButtonState() {
+        if (!this.sendInvoiceButton) {
+            return;
+        }
+
+        const anyChecked = document.querySelector('.line-item-select-checkbox:checked');
+        this.sendInvoiceButton.disabled = !anyChecked;
     }
 
     ensureCustomerSelection(form) {
@@ -565,6 +549,48 @@ class LineItemsPage {
 
         const event = new Event('change');
         customerInput.dispatchEvent(event);
+    }
+
+    parseJsonSafely(text) {
+        if (typeof text !== 'string' || text.trim() === '') {
+            return {};
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            throw new Error('Antwort konnte nicht interpretiert werden.');
+        }
+    }
+
+    showToast(message, level = 'info') {
+        if (this.lexBridge && this.lexBridge.toastNotifier) {
+            this.lexBridge.toastNotifier.show(message, level);
+            return;
+        }
+
+        if (level === 'error' || level === 'warning') {
+            window.alert(message);
+        }
+    }
+
+    escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value == null ? '' : String(value);
+        return div.innerHTML;
+    }
+
+    formatNumber(value, fractionDigits) {
+        const number = Number(value);
+        if (Number.isNaN(number)) {
+            return '';
+        }
+
+        const digits = typeof fractionDigits === 'number' ? fractionDigits : 2;
+        return number.toLocaleString('de-DE', {
+            minimumFractionDigits: digits,
+            maximumFractionDigits: digits
+        });
     }
 
     splitDateTime(value) {
@@ -601,7 +627,7 @@ class LineItemsPage {
         }
 
         const [year, month, dayWithRest] = parts;
-        const day = dayWithRest?.substring(0, 2) || dayWithRest;
+        const day = dayWithRest && typeof dayWithRest === 'string' ? dayWithRest.substring(0, 2) : dayWithRest;
 
         if (!year || !month || !day) {
             return value;
@@ -616,7 +642,7 @@ class LineItemsPage {
         }
 
         const [timePart] = value.split(/[Z+-]/);
-        const normalized = timePart?.trim() || '';
+        const normalized = timePart && typeof timePart === 'string' ? timePart.trim() : '';
         if (!normalized) {
             return '';
         }
@@ -629,19 +655,22 @@ class LineItemsPage {
         return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
     }
 }
-
 if (!window.lexBridge) {
     window.lexBridge = {};
 }
 
 window.lexBridge.LineItemsPage = LineItemsPage;
-})();
+window.LineItemsPage = LineItemsPage;
 
 // Utility to show/hide both form and sendBtn together
 window.showLineItemsFilter = function(show) {
     const container = document.getElementById('line-items-filter-container');
     if (container) {
         container.style.display = show ? '' : 'none';
+    }
+    const actionBar = document.querySelector('.line-items-actions-bar');
+    if (actionBar) {
+        actionBar.style.display = show ? 'flex' : 'none';
     }
 };
 
