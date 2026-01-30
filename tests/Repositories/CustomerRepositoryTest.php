@@ -6,7 +6,8 @@ namespace Tests\Repositories;
 
 use Luxullus\LexBridge\Database\Database;
 use Luxullus\LexBridge\Models\Contact;
-use Luxullus\LexBridge\Repositories\ContactRepository;
+use Luxullus\LexBridge\Models\Customer;
+use Luxullus\LexBridge\Repositories\CustomerRepository;
 use PDO;
 use PDOStatement;
 use PHPUnit\Framework\TestCase;
@@ -14,16 +15,16 @@ use ReflectionClass;
 
 require_once dirname(__DIR__, 2) . '/config.php';
 
-final class ContactRepositoryTest extends TestCase
+final class CustomerRepositoryTest extends TestCase
 {
-    private ContactTestingPDO $pdo;
-    private ContactRepository $repository;
+    private CustomerTestingPDO $pdo;
+    private CustomerRepository $repository;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->pdo = new ContactTestingPDO();
+        $this->pdo = new CustomerTestingPDO();
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $this->pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
         $this->pdo->exec('PRAGMA foreign_keys = ON');
@@ -36,7 +37,7 @@ final class ContactRepositoryTest extends TestCase
         $tableNames['customers_article'] = 'customers_article';
         $tableNames['articles'] = 'articles';
 
-        $this->repository = new ContactRepository();
+        $this->repository = new CustomerRepository();
     }
 
     protected function tearDown(): void
@@ -178,6 +179,54 @@ final class ContactRepositoryTest extends TestCase
         self::assertNull($this->repository->findByLexContactId('missing'));
     }
 
+    public function testSearchCustomersWithoutQueryReturnsTwentySortedByNumber(): void
+    {
+        for ($i = 25; $i >= 1; $i--) {
+            $this->insertCustomer([
+                'company_name' => sprintf('Company %02d GmbH', $i),
+                'kundenNummer' => sprintf('C%03d', $i),
+            ]);
+        }
+
+        $results = $this->repository->searchCustomers(null);
+
+        self::assertCount(20, $results);
+        self::assertContainsOnlyInstancesOf(Customer::class, $results);
+
+        $numbers = array_map(static fn(Customer $customer): string => $customer->customer_number, $results);
+        $sorted = $numbers;
+        sort($sorted, SORT_STRING);
+        self::assertSame($sorted, $numbers);
+        self::assertSame('C001', $results[0]->customer_number);
+        self::assertSame('C020', $results[19]->customer_number);
+    }
+
+    public function testSearchCustomersFiltersByNumberOrCompanyPrefix(): void
+    {
+        $this->insertCustomer([
+            'company_name' => 'Alpha Consulting',
+            'kundenNummer' => 'ALP-01',
+        ]);
+        $this->insertCustomer([
+            'company_name' => 'Bravo Solutions',
+            'kundenNummer' => 'BRV-02',
+        ]);
+        $this->insertCustomer([
+            'company_name' => 'Gamma Group',
+            'kundenNummer' => 'GM-99',
+        ]);
+
+        $byName = $this->repository->searchCustomers('Alp');
+        self::assertCount(1, $byName);
+        self::assertSame('Alpha Consulting', $byName[0]->company_name);
+        self::assertSame('ALP-01', $byName[0]->customer_number);
+
+        $byNumber = $this->repository->searchCustomers('BRV');
+        self::assertCount(1, $byNumber);
+        self::assertSame('Bravo Solutions', $byNumber[0]->company_name);
+        self::assertSame('BRV-02', $byNumber[0]->customer_number);
+    }
+
     private function createSchema(): void
     {
         $this->pdo->exec(
@@ -292,7 +341,7 @@ final class ContactRepositoryTest extends TestCase
     }
 }
 
-final class ContactTestingPDO extends PDO
+final class CustomerTestingPDO extends PDO
 {
     public function __construct()
     {

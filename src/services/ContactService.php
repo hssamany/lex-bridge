@@ -9,20 +9,21 @@ use Exception;
 use Luxullus\LexBridge\Http\HttpClient;
 use Luxullus\LexBridge\Http\HttpResponse;
 use Luxullus\LexBridge\Models\Contact;
-use Luxullus\LexBridge\Repositories\ContactRepository;
+use Luxullus\LexBridge\Repositories\CustomerRepository;
+
 /**
  * Service class to manage contact operations
  */
 final class ContactService
 {
     private HttpClient $client;
-    private ContactRepository $contactRepository;
+    private CustomerRepository $customerRepository;
     private ?Closure $contactFetcher;
     
-    public function __construct(HttpClient $client, ?ContactRepository $contactRepository = null, ?callable $contactFetcher = null)
+    public function __construct(HttpClient $client, ?CustomerRepository $customerRepository = null, ?callable $contactFetcher = null)
     {
         $this->client = $client;
-        $this->contactRepository = $contactRepository ?? new ContactRepository();
+        $this->customerRepository = $customerRepository ?? new CustomerRepository();
         $this->contactFetcher = $contactFetcher !== null ? Closure::fromCallable($contactFetcher) : null;
     }
     
@@ -48,7 +49,7 @@ final class ContactService
      */
     public function listContacts(): array
     {
-        return $this->contactRepository->getCustomerContacts();
+        return $this->customerRepository->getCustomerContacts();
     }
     
     /**
@@ -69,7 +70,7 @@ final class ContactService
 
             foreach ($contacts as $contact) {
                 try {
-                    $this->contactRepository->updateContact($contact);
+                    $this->customerRepository->updateContact($contact);
                 } catch (Exception $e) {
                     error_log("Failed to update contact: " . $e->getMessage());
                 }
@@ -81,20 +82,20 @@ final class ContactService
         return [
             'response' => $response,
             'error' => $errorMessage,
-            'contacts' => $this->contactRepository->getCustomerContacts()
+            'contacts' => $this->customerRepository->getCustomerContacts()
         ];
     }
 
     public function updateCustomerArticle(int $customerId, ?int $articleId): array
     {
         try {
-            $this->contactRepository->updateCustomerArticleMapping($customerId, $articleId);
+            $this->customerRepository->updateCustomerArticleMapping($customerId, $articleId);
         } catch (Exception $exception) {
             return [
                 'statusCode' => 500,
                 'isSuccess' => false,
                 'error' => 'Aktualisierung der Artikelzuordnung fehlgeschlagen: ' . $exception->getMessage(),
-                'contacts' => $this->contactRepository->getCustomerContacts(),
+                'contacts' => $this->customerRepository->getCustomerContacts(),
             ];
         }
 
@@ -107,7 +108,7 @@ final class ContactService
             'isSuccess' => true,
             'error' => null,
             'message' => $message,
-            'contacts' => $this->contactRepository->getCustomerContacts(),
+            'contacts' => $this->customerRepository->getCustomerContacts(),
         ];
     }
 }
