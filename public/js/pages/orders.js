@@ -247,7 +247,43 @@
             }
 
             container.setAttribute('aria-busy', 'true');
-            container.innerHTML = `<p class="${CLASS_NAMES.loading}">Lade Bestellungen...</p>`;
+            const toolbarHost = container.querySelector('.orders-toolbar-container');
+            const table = container.querySelector(`.${CLASS_NAMES.ordersTable}`);
+            const tableBody = table ? table.querySelector('.orders-table-body') : null;
+            const selectAllCheckbox = table ? table.querySelector(`.${CLASS_NAMES.ordersSelectAll}`) : null;
+            const totalLabel = container.querySelector('.orders-total');
+            const columnCount = table ? table.querySelectorAll('thead th').length : 12;
+
+            if (this.ordersChangeHandler) {
+                container.removeEventListener('change', this.ordersChangeHandler);
+                this.ordersChangeHandler = null;
+            }
+
+            if (toolbarHost instanceof HTMLElement) {
+                toolbarHost.innerHTML = '';
+            }
+
+            this.ordersGenerateButton = null;
+
+            if (tableBody instanceof HTMLElement) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="${columnCount}" style="text-align:center;">
+                            <span class="${CLASS_NAMES.loading}">Lade Bestellungen...</span>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            if (selectAllCheckbox instanceof HTMLInputElement) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.disabled = true;
+                selectAllCheckbox.indeterminate = false;
+            }
+
+            if (totalLabel instanceof HTMLElement) {
+                totalLabel.textContent = 'Gesammt: 0';
+            }
 
             let originalButtonLabel = null;
             if (submitButton) {
@@ -266,7 +302,18 @@
                 this.notify('Bestellungen aktualisiert.', 'success');
             } catch (error) {
                 console.error('Orders filter error:', error);
-                container.innerHTML = `<p class="${CLASS_NAMES.error}">Fehler beim Laden der Bestellungen.</p>`;
+                if (tableBody instanceof HTMLElement) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="${columnCount}" style="text-align:center;">
+                                <span class="${CLASS_NAMES.error}">Fehler beim Laden der Bestellungen.</span>
+                            </td>
+                        </tr>
+                    `;
+                }
+                if (totalLabel instanceof HTMLElement) {
+                    totalLabel.textContent = 'Gesammt: 0';
+                }
                 this.notify('Fehler beim Laden der Bestellungen.', 'error');
             } finally {
                 container.setAttribute('aria-busy', 'false');
@@ -287,9 +334,19 @@
                 container.removeEventListener('change', this.ordersChangeHandler);
                 this.ordersChangeHandler = null;
             }
+            const toolbarHost = container.querySelector('.orders-toolbar-container');
+            const table = container.querySelector(`.${CLASS_NAMES.ordersTable}`);
+            const tableBody = table ? table.querySelector('.orders-table-body') : null;
+            const selectAllCheckbox = table ? table.querySelector(`.${CLASS_NAMES.ordersSelectAll}`) : null;
+            const totalLabel = container.querySelector('.orders-total');
+            const columnCount = table ? table.querySelectorAll('thead th').length : 12;
 
-            this.ordersGenerateButton = null;
-            container.innerHTML = '';
+            if (!(toolbarHost instanceof HTMLElement) || !(tableBody instanceof HTMLElement)) {
+                console.warn('Orders table structure not found.');
+                return;
+            }
+
+            toolbarHost.innerHTML = '';
 
             const toolbar = document.createElement('div');
             toolbar.className = CLASS_NAMES.ordersToolbar;
@@ -308,81 +365,63 @@
 
             leftGroup.appendChild(generateBtn);
             toolbar.appendChild(leftGroup);
-            container.appendChild(toolbar);
+            toolbarHost.appendChild(toolbar);
 
             this.ordersGenerateButton = generateBtn;
-            this.updateGenerateButtonState();
 
             if (!orders.length) {
-                const emptyState = document.createElement('p');
-                emptyState.className = CLASS_NAMES.empty;
-                emptyState.textContent = 'Keine Bestellungen gefunden.';
-                container.appendChild(emptyState);
+                tableBody.innerHTML = `
+                    <tr class="${CLASS_NAMES.empty}">
+                        <td colspan="${columnCount}" style="text-align:center;">Keine Bestellungen gefunden.</td>
+                    </tr>
+                `;
+                if (selectAllCheckbox instanceof HTMLInputElement) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.disabled = true;
+                    selectAllCheckbox.indeterminate = false;
+                }
+                if (totalLabel instanceof HTMLElement) {
+                    totalLabel.textContent = 'Gesammt: 0';
+                }
+                this.updateGenerateButtonState();
                 return;
             }
 
-            const table = document.createElement('table');
-            table.className = CLASS_NAMES.ordersTable;
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" class="${CLASS_NAMES.ordersSelectAll}"></th>
-                        <th>Kunde</th>
-                        <th>Lex Kunden-Nr.</th>
-                        <th>Jahr</th>
-                        <th>KW</th>
-                        <th>Mo</th>
-                        <th>Di</th>
-                        <th>Mi</th>
-                        <th>Do</th>
-                        <th>Fr</th>
-                        <th>Bestelldatum</th>
-                        <th>Artikel-Nr.</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            `;
-
-            const tbody = table.querySelector('tbody');
-            const selectAllCheckbox = table.querySelector(`.${CLASS_NAMES.ordersSelectAll}`);
-
-            orders.forEach((order) => {
-                const row = document.createElement('tr');
-                row.dataset.orderId = String(order.order_id ?? '');
-
-                const selectCell = document.createElement('td');
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = CLASS_NAMES.orderSelectCheckbox;
+            const rowsHtml = orders.map((order) => {
+                const positionCells = [];
                 const orderIdValue = this.safeText(order.order_id);
-                checkbox.value = orderIdValue;
-                checkbox.setAttribute('data-order-id', orderIdValue);
-                selectCell.appendChild(checkbox);
-                row.appendChild(selectCell);
+                const orderIdEscaped = this.escapeHtml(orderIdValue);
+                positionCells.push(`
+                    <td><input type="checkbox" class="${CLASS_NAMES.orderSelectCheckbox}" data-order-id="${orderIdEscaped}" value="${orderIdEscaped}"></td>
+                `);
 
-                const appendCell = (value) => {
-                    const cell = document.createElement('td');
-                    cell.textContent = value;
-                    row.appendChild(cell);
-                };
-
-                appendCell(this.safeText(order.customer_id));
-                appendCell(this.safeText(order.lex_customer_number));
-                appendCell(this.safeText(order.order_year));
-                appendCell(this.safeText(order.order_week));
+                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.customer_id))}</td>`);
+                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.lex_customer_number))}</td>`);
+                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.order_year))}</td>`);
+                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.order_week))}</td>`);
 
                 const quantities = order.quantities || {};
                 ['Mo', 'Di', 'Mi', 'Do', 'Fr'].forEach((day) => {
-                    appendCell(this.formatNumber(quantities[day] ?? null));
+                    positionCells.push(`<td>${this.escapeHtml(this.formatNumber(quantities[day] ?? null))}</td>`);
                 });
 
-                appendCell(this.formatDateTime(order.geaendert_am));
-                appendCell(this.safeText(order.article_number));
+                positionCells.push(`<td>${this.escapeHtml(this.formatDateTime(order.geaendert_am))}</td>`);
+                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.article_number))}</td>`);
 
-                tbody.appendChild(row);
-            });
+                return `<tr data-order-id="${orderIdEscaped}">${positionCells.join('')}</tr>`;
+            }).join('');
 
-            container.appendChild(table);
+            tableBody.innerHTML = rowsHtml;
+
+            if (selectAllCheckbox instanceof HTMLInputElement) {
+                selectAllCheckbox.checked = false;
+                selectAllCheckbox.disabled = false;
+                selectAllCheckbox.indeterminate = false;
+            }
+
+            if (totalLabel instanceof HTMLElement) {
+                totalLabel.textContent = `Gesammt: ${orders.length}`;
+            }
 
             this.ordersChangeHandler = (event) => {
                 const target = event.target;
@@ -624,6 +663,12 @@
 
             const prefix = value.split('-')[0]?.trim() ?? '';
             return /^\d+$/.test(prefix) ? prefix : '';
+        }
+
+        escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
         }
     }
 
