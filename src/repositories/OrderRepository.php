@@ -103,14 +103,18 @@ class OrderRepository
                     o.Mi,
                     o.Do,
                     o.Fr,
-                    o.article_id,
-                    o.article_number,
+                    ca.article_id,
+                    a.article_number,
                     o.GeaendertAm,
                     c.kundenNummer AS customer_number,
                     c.lex_customer_number
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
                     ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
+                LEFT JOIN {$this->customerArticleTable} ca
+                    ON ca.customer_id = c.id
+                LEFT JOIN {$this->articleTable} a
+                    ON a.id = ca.article_id
                 WHERE " . implode(' AND ', $conditions) . '
                 ORDER BY o.GeaendertAm ASC, o.Id ASC';
 
@@ -232,7 +236,7 @@ class OrderRepository
                     o.Do,
                     o.Fr,
                     ca.article_id,
-                    COALESCE(a.article_number, o.article_number) AS article_number
+                    a.article_number
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
                     ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde

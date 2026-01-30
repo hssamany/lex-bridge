@@ -61,6 +61,14 @@ final class OrderRepositoryTest extends TestCase
         $customerId = $this->insertCustomer('Acme GmbH');
         $otherCustomerId = $this->insertCustomer('Globex SE');
 
+        $articleId = $this->insertArticle([
+            'article_number' => 'LEG-010',
+            'name' => 'Artikel 10',
+            'description' => null,
+            'unit_name' => 'stk',
+        ]);
+        $this->insertCustomerArticle($otherCustomerId, $articleId);
+
         $this->insertOrder([
             'Kunde' => $customerId,
             'Jahr' => 2024,
@@ -71,8 +79,6 @@ final class OrderRepositoryTest extends TestCase
             'Do' => 0,
             'Fr' => 0,
             'GeaendertAm' => '2024-01-15 10:00:00',
-            'article_id' => null,
-            'article_number' => 'LEG-001',
         ]);
 
         $secondOrderId = $this->insertOrder([
@@ -85,8 +91,6 @@ final class OrderRepositoryTest extends TestCase
             'Do' => 1.00,
             'Fr' => 1.00,
             'GeaendertAm' => '2024-01-24 09:00:00',
-            'article_id' => 10,
-            'article_number' => 'LEG-010',
         ]);
 
         $orders = $this->repository->getOrders([
@@ -101,7 +105,7 @@ final class OrderRepositoryTest extends TestCase
         self::assertSame($otherCustomerId, (int) $order['customer_id']);
         self::assertSame(2024, (int) $order['order_year']);
         self::assertSame(4, (int) $order['order_week']);
-        self::assertSame(10, (int) $order['article_id']);
+        self::assertSame($articleId, (int) $order['article_id']);
         self::assertSame('LEG-010', $order['article_number']);
     }
 
@@ -136,8 +140,6 @@ final class OrderRepositoryTest extends TestCase
             'Do' => 0,
             'Fr' => 0,
             'GeaendertAm' => '2024-02-01 08:00:00',
-            'article_id' => null,
-            'article_number' => null,
         ]);
 
         $results = $this->repository->generateInvoiceLineItemsFromOrders([
@@ -188,8 +190,6 @@ final class OrderRepositoryTest extends TestCase
             'Do' => 0,
             'Fr' => 0,
             'GeaendertAm' => '2024-03-18 10:00:00',
-            'article_id' => null,
-            'article_number' => 'FALLBACK',
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -217,8 +217,6 @@ final class OrderRepositoryTest extends TestCase
             'Do' => 0,
             'Fr' => 0,
             'GeaendertAm' => '2024-04-08 12:00:00',
-            'article_id' => null,
-            'article_number' => 'MISS-ART',
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -260,8 +258,6 @@ final class OrderRepositoryTest extends TestCase
             'Do' => 0,
             'Fr' => 0,
             'GeaendertAm' => '2024-01-02 07:30:00',
-            'article_id' => null,
-            'article_number' => null,
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -292,8 +288,6 @@ final class OrderRepositoryTest extends TestCase
             Fr REAL,
             GeaendertAm TEXT,
             verarbeitet INTEGER DEFAULT 0,
-            article_id INTEGER,
-            article_number TEXT,
             FOREIGN KEY(Kunde) REFERENCES customer(id)
         )');
 
@@ -347,9 +341,7 @@ final class OrderRepositoryTest extends TestCase
      */
     private function insertOrder(array $data): int
     {
-        $columns = array_merge([
-            'Kunde', 'Jahr', 'KW', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'GeaendertAm', 'article_id', 'article_number'
-        ], []);
+        $columns = ['Kunde', 'Jahr', 'KW', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'GeaendertAm'];
 
         $placeholders = [];
         $params = [];
