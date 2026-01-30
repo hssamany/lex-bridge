@@ -35,8 +35,8 @@ BEGIN
     SELECT
         o.Id,
         o.Kunde,
-        o.article_id,
-        o.article_number,
+        ca.article_id,
+        a.article_number,
         DATE_ADD(
             STR_TO_DATE(CONCAT(o.Jahr, ' ', LPAD(o.KW, 2, '0'), ' Monday'), '%x %v %W'),
             INTERVAL d.offset_day DAY
@@ -49,6 +49,9 @@ BEGIN
             WHEN 'Fr' THEN o.Fr
         END AS quantity
     FROM orders o
+    LEFT JOIN customer c ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde
+    LEFT JOIN customers_article ca ON ca.customer_id = c.id
+    LEFT JOIN articles a ON a.id = ca.article_id
     JOIN (
         SELECT 0 AS offset_day, 'Mo' AS day_code
         UNION ALL SELECT 1, 'Di'
@@ -71,11 +74,12 @@ BEGIN
             WHEN 'Do' THEN o.Do
             WHEN 'Fr' THEN o.Fr
           END, 0)) > 0.0001
-      AND DATE_ADD(
+    AND DATE_ADD(
             STR_TO_DATE(CONCAT(o.Jahr, ' ', LPAD(o.KW, 2, '0'), ' Monday'), '%x %v %W'),
             INTERVAL d.offset_day DAY
           ) BETWEEN v_delivery_from AND v_delivery_to
-      AND (p_customer_id IS NULL OR p_customer_id = 0 OR o.Kunde = p_customer_id);
+    AND (p_customer_id IS NULL OR p_customer_id = 0 OR o.Kunde = p_customer_id)
+    AND ca.article_id IS NOT NULL;
 
     SELECT
         t.order_id,
@@ -102,7 +106,6 @@ BEGIN
     FROM tmp_order_lines t
     LEFT JOIN articles a
         ON a.id = t.article_id
-        OR (t.article_id IS NULL AND a.article_number = t.article_number)
     LEFT JOIN prices price
         ON price.id = (
             SELECT pr.id
