@@ -32,39 +32,109 @@ final class ArticleRepository
         $articleTable = $this->articleTable;
         $priceTable = $this->priceTable;
 
-        $sql = <<<SQL
-            SELECT
-                a.id,
-                a.article_number,
-                a.name,
-                lp.net_amount,
-                lp.gross_amount,
-                lp.tax_rate_percentage,
-                lp.currency,
-                lp.valid_from,
-                lp.valid_until
-            FROM {$articleTable} a
-            LEFT JOIN LATERAL (
+        $driver = (string) $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+        if ($driver === 'mysql') {
+            $sql = <<<SQL
                 SELECT
-                    pr.net_amount,
-                    pr.gross_amount,
-                    pr.tax_rate_percentage,
-                    pr.currency,
-                    pr.valid_from,
-                    pr.valid_until
-                FROM {$priceTable} pr
-                WHERE pr.article_id = a.id
-                    AND pr.valid_from <= CURRENT_DATE
-                    AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                ORDER BY pr.valid_from DESC, pr.id DESC
-                LIMIT 1
-            ) AS lp ON TRUE
-        SQL;
+                    a.id,
+                    a.article_number,
+                    a.name,
+                    lp.net_amount,
+                    lp.gross_amount,
+                    lp.tax_rate_percentage,
+                    lp.currency,
+                    lp.valid_from,
+                    lp.valid_until
+                FROM {$articleTable} a
+                LEFT JOIN LATERAL (
+                    SELECT
+                        pr.net_amount,
+                        pr.gross_amount,
+                        pr.tax_rate_percentage,
+                        pr.currency,
+                        pr.valid_from,
+                        pr.valid_until
+                    FROM {$priceTable} pr
+                    WHERE pr.article_id = a.id
+                        AND pr.valid_from <= CURRENT_DATE
+                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                    ORDER BY pr.valid_from DESC, pr.id DESC
+                    LIMIT 1
+                ) AS lp ON TRUE
+            SQL;
+        } else {
+            $sql = <<<SQL
+                SELECT
+                    a.id,
+                    a.article_number,
+                    a.name,
+                    (
+                        SELECT pr.net_amount
+                        FROM {$priceTable} pr
+                        WHERE pr.article_id = a.id
+                            AND pr.valid_from <= CURRENT_DATE
+                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                        ORDER BY pr.valid_from DESC, pr.id DESC
+                        LIMIT 1
+                    ) AS net_amount,
+                    (
+                        SELECT pr.gross_amount
+                        FROM {$priceTable} pr
+                        WHERE pr.article_id = a.id
+                            AND pr.valid_from <= CURRENT_DATE
+                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                        ORDER BY pr.valid_from DESC, pr.id DESC
+                        LIMIT 1
+                    ) AS gross_amount,
+                    (
+                        SELECT pr.tax_rate_percentage
+                        FROM {$priceTable} pr
+                        WHERE pr.article_id = a.id
+                            AND pr.valid_from <= CURRENT_DATE
+                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                        ORDER BY pr.valid_from DESC, pr.id DESC
+                        LIMIT 1
+                    ) AS tax_rate_percentage,
+                    (
+                        SELECT pr.currency
+                        FROM {$priceTable} pr
+                        WHERE pr.article_id = a.id
+                            AND pr.valid_from <= CURRENT_DATE
+                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                        ORDER BY pr.valid_from DESC, pr.id DESC
+                        LIMIT 1
+                    ) AS currency,
+                    (
+                        SELECT pr.valid_from
+                        FROM {$priceTable} pr
+                        WHERE pr.article_id = a.id
+                            AND pr.valid_from <= CURRENT_DATE
+                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                        ORDER BY pr.valid_from DESC, pr.id DESC
+                        LIMIT 1
+                    ) AS valid_from,
+                    (
+                        SELECT pr.valid_until
+                        FROM {$priceTable} pr
+                        WHERE pr.article_id = a.id
+                            AND pr.valid_from <= CURRENT_DATE
+                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
+                        ORDER BY pr.valid_from DESC, pr.id DESC
+                        LIMIT 1
+                    ) AS valid_until
+                FROM {$articleTable} a
+            SQL;
+        }
 
         $hasQuery = $query !== null && $query !== '';
         
         if ($hasQuery) {
-            $sql .= " WHERE article_number LIKE :term_num OR name LIKE :term_name OR CONCAT(article_number, ' - ', name) LIKE :term_combo";
+            if ($driver === 'mysql') {
+                $sql .= " WHERE article_number LIKE :term_num OR name LIKE :term_name OR CONCAT(article_number, ' - ', name) LIKE :term_combo";
+            } else {
+                $sql .= " WHERE article_number LIKE :term_num OR name LIKE :term_name OR (article_number || ' - ' || name) LIKE :term_combo";
+            }
         }
 
         $sql .= ' ORDER BY name ASC LIMIT 20';
@@ -142,7 +212,30 @@ final class ArticleRepository
 
     private function insertArticle(string $lexwareId, array $article): int
     {
-        $sql = "INSERT INTO {$this->articleTable} (lexware_article_id, article_number, name, description, unit_name, net_price, gross_price, tax_rate, active) VALUES (:lexware_id, :article_number, :name, :description, :unit_name, :net_price, :gross_price, :tax_rate, 1)"; // table map ensures configurable name
+        $sql = <<<SQL
+            INSERT INTO {$this->articleTable} (
+                lexware_article_id,
+                article_number,
+                name,
+                description,
+                unit_name,
+                net_price,
+                gross_price,
+                tax_rate,
+                active
+            )
+            VALUES (
+                :lexware_id,
+                :article_number,
+                :name,
+                :description,
+                :unit_name,
+                :net_price,
+                :gross_price,
+                :tax_rate,
+                1
+            )
+        SQL;
         $stmt = $this->db->prepare($sql);
 
         $stmt->bindValue(':lexware_id', $lexwareId, PDO::PARAM_STR);
@@ -161,7 +254,19 @@ final class ArticleRepository
 
     private function updateArticle(int $articleId, array $article): void
     {
-        $sql = "UPDATE {$this->articleTable} SET article_number = :article_number, name = :name, description = :description, unit_name = :unit_name, net_price = :net_price, gross_price = :gross_price, tax_rate = :tax_rate, updated_at = NOW() WHERE id = :id";
+        $sql = <<<SQL
+            UPDATE {$this->articleTable}
+            SET
+                article_number = :article_number,
+                name = :name,
+                description = :description,
+                unit_name = :unit_name,
+                net_price = :net_price,
+                gross_price = :gross_price,
+                tax_rate = :tax_rate,
+                updated_at = NOW()
+            WHERE id = :id
+        SQL;
         $stmt = $this->db->prepare($sql);
 
         $stmt->bindValue(':id', $articleId, PDO::PARAM_INT);
@@ -178,7 +283,19 @@ final class ArticleRepository
 
     private function ensurePriceRecord(int $articleId, array $price): bool
     {
-        $sql = "SELECT id, net_amount, gross_amount, tax_rate_percentage, currency, valid_until FROM {$this->priceTable} WHERE article_id = :article_id ORDER BY valid_from DESC, id DESC LIMIT 1 FOR UPDATE";
+        $sql = <<<SQL
+            SELECT
+                id,
+                net_amount,
+                gross_amount,
+                tax_rate_percentage,
+                currency,
+                valid_until
+            FROM {$this->priceTable}
+            WHERE article_id = :article_id
+            ORDER BY valid_from DESC, id DESC
+            LIMIT 1 FOR UPDATE
+        SQL;
         $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':article_id', $articleId, PDO::PARAM_INT);
         $stmt->execute();
@@ -190,12 +307,36 @@ final class ArticleRepository
         }
 
         if ($latest && $latest['valid_until'] === null) {
-            $closeStmt = $this->db->prepare("UPDATE {$this->priceTable} SET valid_until = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY) WHERE id = :id");
+            $closeSql = <<<SQL
+                UPDATE {$this->priceTable}
+                SET valid_until = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY)
+                WHERE id = :id
+            SQL;
+            $closeStmt = $this->db->prepare($closeSql);
             $closeStmt->bindValue(':id', (int) $latest['id'], PDO::PARAM_INT);
             $closeStmt->execute();
         }
 
-        $insertSql = "INSERT INTO {$this->priceTable} (article_id, net_amount, gross_amount, tax_rate_percentage, currency, valid_from, valid_until) VALUES (:article_id, :net_amount, :gross_amount, :tax_rate_percentage, :currency, CURRENT_DATE, NULL)";
+        $insertSql = <<<SQL
+            INSERT INTO {$this->priceTable} (
+                article_id,
+                net_amount,
+                gross_amount,
+                tax_rate_percentage,
+                currency,
+                valid_from,
+                valid_until
+            )
+            VALUES (
+                :article_id,
+                :net_amount,
+                :gross_amount,
+                :tax_rate_percentage,
+                :currency,
+                CURRENT_DATE,
+                NULL
+            )
+        SQL;
         $insert = $this->db->prepare($insertSql);
         $insert->bindValue(':article_id', $articleId, PDO::PARAM_INT);
         $insert->bindValue(':net_amount', $price['net_amount'], PDO::PARAM_STR);
@@ -210,7 +351,20 @@ final class ArticleRepository
 
     private function findArticleByLexwareIdForUpdate(string $lexwareId): ?array
     {
-        $sql = "SELECT id, article_number, name, description, unit_name, net_price, gross_price, tax_rate FROM {$this->articleTable} WHERE lexware_article_id = :lexware_id LIMIT 1 FOR UPDATE";
+        $sql = <<<SQL
+            SELECT
+                id,
+                article_number,
+                name,
+                description,
+                unit_name,
+                net_price,
+                gross_price,
+                tax_rate
+            FROM {$this->articleTable}
+            WHERE lexware_article_id = :lexware_id
+            LIMIT 1 FOR UPDATE
+        SQL;
         $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':lexware_id', $lexwareId, PDO::PARAM_STR);
         $stmt->execute();
