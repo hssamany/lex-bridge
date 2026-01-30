@@ -106,17 +106,18 @@ class OrderRepository
                     o.article_id,
                     o.article_number,
                     o.GeaendertAm,
-                    c.customer_number,
+                    c.kundenNummer AS customer_number,
                     c.lex_customer_number
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
-                    ON CAST(c.customer_number AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
+                    ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
                 WHERE " . implode(' AND ', $conditions) . '
                 ORDER BY o.GeaendertAm ASC, o.Id ASC';
 
         $stmt = $this->db->prepare($sql);
 
-        foreach ($params as $name => $value) {
+        foreach ($params as $name => $value) 
+        {
             if ($name === ':customer_id') {
                 $stmt->bindValue($name, $value, PDO::PARAM_INT);
                 continue;
@@ -234,7 +235,7 @@ class OrderRepository
                     COALESCE(a.article_number, o.article_number) AS article_number
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
-                    ON CAST(c.customer_number AS UNSIGNED) = o.Kunde
+                    ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde
                 LEFT JOIN {$this->customerArticleTable} ca
                     ON ca.customer_id = c.id
                 LEFT JOIN {$this->articleTable} a

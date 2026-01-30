@@ -121,6 +121,7 @@ final class ContactServiceTest extends TestCase
         $this->pdo->exec('CREATE TABLE customer (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             company_name TEXT,
+            kundenNummer TEXT,
             customer_number TEXT,
             lex_customer_number TEXT,
             lex_contact_id TEXT
@@ -142,7 +143,7 @@ final class ContactServiceTest extends TestCase
 
     private function seedCustomer(): void
     {
-        $stmt = $this->pdo->prepare('INSERT INTO customer (company_name, customer_number) VALUES (:company, :number)');
+        $stmt = $this->pdo->prepare('INSERT INTO customer (company_name, kundenNummer, customer_number) VALUES (:company, :number, :number)');
         $stmt->execute([
             ':company' => 'Acme GmbH',
             ':number' => 'CUST-001',

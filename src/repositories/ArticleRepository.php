@@ -95,6 +95,7 @@ final class ArticleRepository
         SQL;
 
         $hasQuery = $query !== null && $query !== '';
+        
         if ($hasQuery) {
             $sql .= " WHERE article_number LIKE :term_num OR name LIKE :term_name OR CONCAT(article_number, ' - ', name) LIKE :term_combo";
         }
@@ -155,16 +156,19 @@ final class ArticleRepository
                 $articleChanged = true;
             }
 
-            $this->db->commit();
-
-            return [
+            $result = [
                 'article_id' => $articleId,
                 'created' => $created,
                 'article_changed' => $articleChanged,
                 'price_changed' => $priceChanged
             ];
+            $this->db->commit();
+
+            return $result;
         } catch (Throwable $exception) {
-            $this->db->rollBack();
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             throw $exception;
         }
     }

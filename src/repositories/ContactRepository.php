@@ -58,9 +58,9 @@ class ContactRepository
      */
     public function getCustomerContacts(): array
     {
-        $sql = "SELECT c.company_name,
-                  c.id AS customer_id,
-                       c.customer_number,
+           $sql = "SELECT c.company_name,
+                   c.id AS customer_id,
+                       c.kundenNummer AS customer_number,
                        c.lex_customer_number,
                        ca.article_id,
                        a.article_number,

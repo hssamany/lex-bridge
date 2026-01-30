@@ -238,7 +238,7 @@ class InvoiceRepository
                 li.currency,
                 c.id AS customer_id
             FROM {$this->lineItemTable} li
-            LEFT JOIN {$this->customerTable} c ON c.customer_number = li.customer_number
+            LEFT JOIN {$this->customerTable} c ON c.kundenNummer = li.customer_number
             WHERE (li.invoice_id IS NULL OR li.invoice_id = '')
             ORDER BY li.customer_number ASC, li.created_at ASC, li.id ASC";
 

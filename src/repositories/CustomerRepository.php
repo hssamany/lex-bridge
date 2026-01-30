@@ -30,16 +30,16 @@ class CustomerRepository
     {
         $query = $query ?? '';
 
-        $sql = "SELECT id, customer_number, company_name FROM {$this->customerTable}";
+        $sql = "SELECT id, kundenNummer AS customer_number, company_name FROM {$this->customerTable}";
         $params = [];
 
         if ($query !== '') {
-            $sql .= " WHERE customer_number LIKE :customerNumber OR company_name LIKE :companyName";
+            $sql .= " WHERE kundenNummer LIKE :customerNumber OR company_name LIKE :companyName";
             $params[':customerNumber'] = $query . '%';
             $params[':companyName'] = $query . '%';
         }
 
-        $sql .= " ORDER BY customer_number ASC LIMIT 20";
+        $sql .= " ORDER BY kundenNummer ASC LIMIT 20";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);

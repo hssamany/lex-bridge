@@ -32,8 +32,8 @@ class LineItemRepository
     public function findLineItems(array $filters = []): array
     {
         $sql = "SELECT 
-                    li.id,
-                    c.customer_number,
+                li.id,
+                c.kundenNummer AS customer_number,
                     c.company_name,
                     c.id AS customer_id,
                     li.invoice_id,
