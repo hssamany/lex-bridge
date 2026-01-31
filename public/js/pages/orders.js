@@ -37,7 +37,15 @@
 
         init() {
             this.setupCustomerSearchController();
-            document.addEventListener('submit', this.onSubmitDelegate, true);
+            // Use centralized form interceptor utility for filter form
+            if (window.lexBridgeUtils && typeof window.lexBridgeUtils.registerAjaxFormHandler === 'function') {
+                window.lexBridgeUtils.registerAjaxFormHandler(
+                    SELECTORS.filterForm,
+                    async (form, event) => {
+                        await this.processFilterForm(form);
+                    }
+                );
+            }
         }
 
         setupCustomerSearchController() {
@@ -62,40 +70,7 @@
             this.customerSearchController = controller;
         }
 
-        setupFilterFormDirect() 
-        {
-            const form = document.querySelector(SELECTORS.filterForm);
-            if (!form || form.dataset.ajaxHandlerAttached === 'true') {
-                return;
-            }
 
-            form.dataset.ajaxHandlerAttached = 'true';
-            form.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                await this.processFilterForm(form);
-            });
-        }
-
-        handleSubmitEvent(event) 
-        {
-            const form = event.target;
-            if (!(form instanceof HTMLFormElement)) {
-                return;
-            }
-
-            if (!form.matches(SELECTORS.filterForm)) {
-                return;
-            }
-
-            if (form.dataset.ajaxHandlerAttached === 'true') {
-                return;
-            }
-
-            event.preventDefault();
-            event.stopPropagation();
-            this.processFilterForm(form);
-        }
 
         getSelectedOrderIds() 
         {

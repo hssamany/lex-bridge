@@ -18,7 +18,15 @@ class LineItemsPage {
         this.setupCustomerSearchController();
 
         if (!LineItemsPage.handlerSetup) {
-            this.registerGlobalSubmitInterceptor();
+            // Use centralized form interceptor utility
+            if (window.lexBridgeUtils && typeof window.lexBridgeUtils.registerAjaxFormHandler === 'function') {
+                window.lexBridgeUtils.registerAjaxFormHandler('form[name="get-line-items"]', async (form, event) => {
+                    const instance = LineItemsPage.activeInstance;
+                    if (instance) {
+                        await instance.handleFilterSubmit(form);
+                    }
+                });
+            }
             this.registerSelectAllHandler();
             LineItemsPage.handlerSetup = true;
         }
@@ -59,25 +67,7 @@ class LineItemsPage {
         this.customerSearchController = controller;
     }
 
-    registerGlobalSubmitInterceptor() {
-        document.addEventListener('submit', async (event) => {
-            const form = event.target;
-            if (!(form instanceof HTMLFormElement)) {
-                return;
-            }
-            if (!form.matches('form[name="get-line-items"]')) {
-                return;
-            }
 
-            event.preventDefault();
-            event.stopPropagation();
-
-            const instance = LineItemsPage.activeInstance;
-            if (instance) {
-                await instance.handleFilterSubmit(form);
-            }
-        }, true);
-    }
 
     registerSelectAllHandler() {
         document.addEventListener('change', (event) => {
@@ -106,18 +96,7 @@ class LineItemsPage {
         }, true);
     }
 
-    setupFilterFormDirect() {
-        if (!this.filterForm || this.filterForm.dataset.ajaxHandlerAttached === 'true') {
-            return;
-        }
 
-        this.filterForm.dataset.ajaxHandlerAttached = 'true';
-        this.filterForm.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            await this.handleFilterSubmit(this.filterForm);
-        });
-    }
 
     setupSendInvoiceButton() {
         if (!this.sendInvoiceButton) {
