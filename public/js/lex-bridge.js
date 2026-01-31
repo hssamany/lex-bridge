@@ -9,8 +9,10 @@ class LexBridge {
     static version = '1.0.0';
     static baseConfig = null;
 
-    static getBaseConfig() {
-        if (!LexBridge.baseConfig) {
+    static getBaseConfig() 
+    {
+        if (!LexBridge.baseConfig) 
+        {
             const globalConfig = (typeof window !== 'undefined' && window.lexBridgeConfig && typeof window.lexBridgeConfig === 'object')
                 ? window.lexBridgeConfig
                 : {};
@@ -41,18 +43,21 @@ class LexBridge {
         return LexBridge.baseConfig;
     }
 
-    static resolveInAppUrl(path = '') {
+    static resolveInAppUrl(path = '') 
+    {
         const { baseHref } = LexBridge.getBaseConfig();
         const cleanedPath = (path || '').replace(/^\//, '');
         return cleanedPath === '' ? baseHref : `${baseHref}${cleanedPath}`;
     }
 
-    static resolveApiUrl(path = '') {
+    static resolveApiUrl(path = '') 
+    {
         const cleanedPath = (path || '').replace(/^\//, '');
         return LexBridge.resolveInAppUrl(`api/${cleanedPath}`);
     }
 
-    static resolvePageClass(name) {
+    static resolvePageClass(name) 
+    {
         if (typeof window === 'undefined') {
             return undefined;
         }
@@ -74,9 +79,11 @@ class LexBridge {
     }
     
     constructor() {
+
         const baseConfig = LexBridge.getBaseConfig();
         const origin = window.location.origin.replace(/\/$/, '');
         const basePathForEndpoint = baseConfig.basePath === '/' ? '' : baseConfig.basePath;
+
         this.tabManager = null;
         this.toastNotifier = null;
         this.contactsPage = null;

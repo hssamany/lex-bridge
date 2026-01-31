@@ -19,7 +19,8 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
 $allowList = $allowedOrigins ?? [];
 $originAllowed = false;
 
-if ($origin !== null) {
+if ($origin !== null) 
+{
     if (in_array($origin, $allowList, true)) {
         $originAllowed = true;
     } elseif (preg_match('#^https://([a-z0-9-]+\.)*lukullus\.catering$#i', $origin)) {
@@ -27,10 +28,12 @@ if ($origin !== null) {
     }
 }
 
+$cors = 'Access-Control-Allow-Origin: ';
+
 if ($originAllowed) {
-    header('Access-Control-Allow-Origin: ' . $origin);
+    header($cors . $origin);
 } elseif (!empty($allowList)) {
-    header('Access-Control-Allow-Origin: ' . reset($allowList));
+    header($cors . reset($allowList));
 }
 
 $kernel = new ApiKernel();
