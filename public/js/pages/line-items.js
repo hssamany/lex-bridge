@@ -575,6 +575,9 @@ class LineItemsPage {
     }
 
     escapeHtml(value) {
+        if (window.lexBridgeUtils && typeof window.lexBridgeUtils.escapeHtml === 'function') {
+            return window.lexBridgeUtils.escapeHtml(value);
+        }
         const div = document.createElement('div');
         div.textContent = value == null ? '' : String(value);
         return div.innerHTML;

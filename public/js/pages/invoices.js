@@ -257,8 +257,11 @@ class InvoicesPage {
     
     escapeHtml(text) {
         const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+            if (window.lexBridgeUtils && typeof window.lexBridgeUtils.escapeHtml === 'function') {
+                return window.lexBridgeUtils.escapeHtml(text);
+            }
+            div.textContent = text ? String(text) : '';
+            return div.innerHTML;
     }
 }
 

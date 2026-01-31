@@ -710,8 +710,11 @@
          * Escape HTML to prevent XSS
          */
         escapeHtml(text) {
+            if (window.lexBridgeUtils && typeof window.lexBridgeUtils.escapeHtml === 'function') {
+                return window.lexBridgeUtils.escapeHtml(text);
+            }
             const div = document.createElement('div');
-            div.textContent = text;
+            div.textContent = text == null ? '' : String(text);
             return div.innerHTML;
         }
     }
