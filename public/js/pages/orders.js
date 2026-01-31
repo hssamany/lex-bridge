@@ -3,7 +3,6 @@
 (function () {
     const SELECTORS = {
         filterForm: 'form[name="get-bestellg"]',
-        customerSearch: 'form[name="get-bestellg"] .customer-search-combobox',
         customerSearchInput: '.customer-search-combobox',
         ordersContainer: '.orders-list',
         submitButton: 'button[type="submit"]'
@@ -25,23 +24,42 @@
         constructor(lexBridge) 
         {
             this.lexBridge = lexBridge;
-            this.customerSearchTimers = new WeakMap();
             this.lastQueryString = '';
             this.ordersContainer = null;
 
-            this.onInputDelegate = this.handleInputEvent.bind(this);
-            this.onChangeDelegate = this.handleChangeEvent.bind(this);
             this.onSubmitDelegate = this.handleSubmitEvent.bind(this);
             this.ordersChangeHandler = null;
             this.ordersGenerateButton = null;
+            this.customerSearchController = null;
 
             this.init();
         }
 
         init() {
-            document.addEventListener('input', this.onInputDelegate, true);
-            document.addEventListener('change', this.onChangeDelegate, true);
+            this.setupCustomerSearchController();
             document.addEventListener('submit', this.onSubmitDelegate, true);
+        }
+
+        setupCustomerSearchController() {
+            const globalController = window.lexBridge?.customerSearchController;
+            if (globalController) {
+                this.customerSearchController = globalController;
+                return;
+            }
+
+            if (!window.lexBridgeUtils || typeof window.lexBridgeUtils.createCustomerSearchController !== 'function') {
+                return;
+            }
+
+            const controller = window.lexBridgeUtils.createCustomerSearchController({
+                hiddenFieldName: 'customer_id'
+            });
+            controller.attach();
+            if (!window.lexBridge) {
+                window.lexBridge = {};
+            }
+            window.lexBridge.customerSearchController = controller;
+            this.customerSearchController = controller;
         }
 
         setupFilterFormDirect() 
@@ -57,33 +75,6 @@
                 event.stopPropagation();
                 await this.processFilterForm(form);
             });
-        }
-
-        handleInputEvent(event) {
-            const target = event.target;
-            if (!(target instanceof HTMLInputElement)) {
-                return;
-            }
-
-            if (!target.matches(SELECTORS.customerSearch)) {
-                return;
-            }
-
-            this.handleCustomerSearch(target);
-        }
-
-        handleChangeEvent(event) 
-        {
-            const target = event.target;
-            if (!(target instanceof HTMLInputElement)) {
-                return;
-            }
-
-            if (!target.matches(SELECTORS.customerSearch)) {
-                return;
-            }
-
-            this.syncCustomerSelection(target);
         }
 
         handleSubmitEvent(event) 
@@ -465,144 +456,20 @@
             await this.fetchOrders(params, null);
         }
 
-        handleCustomerSearch(input) {
-            const listId = input.getAttribute('list');
-            const datalist = listId ? document.getElementById(listId) : null;
-            if (!datalist) {
-                return;
-            }
-
-            const query = input.value.trim();
-
-            if (query === '') {
-                datalist.innerHTML = '<option value="">Alle Kunden</option>';
-                this.syncCustomerSelection(input, datalist);
-                return;
-            }
-
-            const timer = this.customerSearchTimers.get(input);
-            if (timer) {
-                clearTimeout(timer);
-            }
-
-            const newTimer = setTimeout(async () => {
-                try {
-                    const data = await this.requestJson(
-                        LexBridge.resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`),
-                        {},
-                        'Customer search failed'
-                    );
-
-                    datalist.innerHTML = '<option value="">Alle Kunden</option>';
-                    if (Array.isArray(data)) {
-                        data.forEach((customer) => {
-                            const option = document.createElement('option');
-                            const number = customer.customer_number ?? customer.customerNumber ?? '';
-                            const numberText = number !== null && number !== undefined ? String(number) : '';
-                            const name = customer.company_name || '';
-                            const label = [number, name].filter(Boolean).join(' - ');
-                            const backendKey = numberText !== '' ? numberText : (customer.id !== undefined && customer.id !== null ? String(customer.id) : '');
-                            option.value = label;
-                            if (backendKey !== '') {
-                                option.dataset.customerKey = backendKey;
-                                option.setAttribute('data-customer-key', backendKey);
-                            }
-                            if (numberText !== '') {
-                                option.dataset.customerNumber = numberText;
-                                option.setAttribute('data-customer-number', numberText);
-                            }
-                            if (customer.id !== undefined && customer.id !== null) {
-                                const idText = String(customer.id);
-                                option.dataset.customerId = idText;
-                                option.setAttribute('data-customer-id', idText);
-                            }
-                            datalist.appendChild(option);
-                        });
-                    }
-                } catch (error) {
-                    console.error('Customer search error:', error);
-                } finally {
-                    this.syncCustomerSelection(input, datalist);
-                }
-            }, 250);
-
-            this.customerSearchTimers.set(input, newTimer);
-        }
-
-        syncCustomerSelection(input, datalist) {
-            const form = input.closest(SELECTORS.filterForm);
+        ensureCustomerSelection(form) {
             if (!form) {
                 return;
             }
 
-            const hidden = form.querySelector('input[type="hidden"][name="customer_id"]');
-            if (!hidden) {
+            if (this.customerSearchController) {
+                this.customerSearchController.ensureSelection(form);
                 return;
             }
 
-            hidden.value = '';
-            const list = datalist || (input.getAttribute('list') ? document.getElementById(input.getAttribute('list')) : null);
-            if (!list) {
-                return;
-            }
-
-            const value = input.value.trim();
-            if (value === '') {
-                return;
-            }
-
-            const options = list instanceof HTMLDataListElement && list.options ? Array.from(list.options) : Array.from(list.children);
-            const lowerValue = value.toLowerCase();
-            let matchedKey = this.extractCustomerNumber(value);
-
-            for (const optionElement of options) {
-                if (!(optionElement instanceof HTMLOptionElement)) {
-                    continue;
-                }
-
-                const optionValue = (optionElement.value || optionElement.textContent || '').trim();
-                if (optionValue === '') {
-                    continue;
-                }
-
-                const optionLower = optionValue.toLowerCase();
-                const optionNumber = optionElement.dataset.customerNumber || optionElement.getAttribute('data-customer-number') || '';
-                const optionKey = optionElement.dataset.customerKey || optionElement.getAttribute('data-customer-key') || optionNumber || optionElement.dataset.customerId || optionElement.getAttribute('data-customer-id') || '';
-                const labelNumber = this.extractCustomerNumber(optionValue);
-
-                if (optionKey === '') {
-                    continue;
-                }
-
-                const labelMatches = optionValue === value || optionLower === lowerValue;
-                const numberMatches = optionNumber !== '' && (optionNumber === value || optionNumber === matchedKey);
-                const prefixMatches = labelNumber !== '' && (labelNumber === matchedKey || labelNumber === value || lowerValue.startsWith(labelNumber.toLowerCase()));
-
-                if (labelMatches || numberMatches || prefixMatches) {
-                    matchedKey = optionKey;
-                    break;
-                }
-            }
-
-            if (!matchedKey) {
-                const numericFallback = this.extractCustomerNumber(value);
-                if (numericFallback) {
-                    matchedKey = numericFallback;
-                }
-            }
-
-            if (matchedKey) {
-                hidden.value = matchedKey;
-            }
-        }
-
-        ensureCustomerSelection(form) {
             const input = form.querySelector(SELECTORS.customerSearchInput);
-            if (!input) {
-                return;
+            if (input instanceof HTMLInputElement) {
+                input.dispatchEvent(new Event('change'));
             }
-
-            this.syncCustomerSelection(input);
         }
 
         notify(message, type) {
@@ -654,15 +521,6 @@
             }
 
             return String(value);
-        }
-
-        extractCustomerNumber(value) {
-            if (typeof value !== 'string') {
-                return '';
-            }
-
-            const prefix = value.split('-')[0]?.trim() ?? '';
-            return /^\d+$/.test(prefix) ? prefix : '';
         }
 
         escapeHtml(value) {

@@ -1,146 +1,8 @@
 // public/js/pages/line-items.js
-// Handles AJAX customer search for the Line-Items tab using event delegation
+// Uses the shared customer search utility for the Line-Items tab
 
-const resolveApiUrl = (path = '') => {
-    if (typeof LexBridge !== 'undefined' && typeof LexBridge.resolveApiUrl === 'function') {
-        return LexBridge.resolveApiUrl(path);
-    }
 
-    const cleanedPath = (path || '').replace(/^\/+/u, '');
-    if (cleanedPath.startsWith('api/')) {
-        return `/lex-bridge/${cleanedPath}`;
-    }
 
-    return `/lex-bridge/api/${cleanedPath}`;
-};
-
-(function () {
-    const debounceTimers = new WeakMap();
-
-    function syncCustomerSelection(input, datalistOverride) {
-        if (!input) {
-            return;
-        }
-
-        const form = input.closest('form');
-        if (!form) {
-            return;
-        }
-
-        const hiddenField = form.querySelector('input[type="hidden"][name="customer_id"]');
-        if (!hiddenField) {
-            return;
-        }
-
-        const listId = input.getAttribute('list');
-        const datalist = datalistOverride || (listId ? document.getElementById(listId) : null);
-
-        hiddenField.value = '';
-
-        if (!datalist) {
-            return;
-        }
-
-        const value = input.value.trim();
-        if (!value) {
-            return;
-        }
-
-        const options = datalist.options || datalist.children;
-        for (let index = 0; index < options.length; index += 1) {
-            const option = options[index];
-            if (option.value !== value) {
-                continue;
-            }
-
-            const customerId = option.dataset.customerId || option.getAttribute('data-customer-id');
-            if (customerId) {
-                hiddenField.value = customerId;
-            }
-            break;
-        }
-    }
-
-    function handleCustomerSearch(input) {
-        const listId = input.getAttribute('list');
-        const datalist = listId ? document.getElementById(listId) : null;
-        if (!datalist) {
-            console.warn('Customer datalist not found for input', input);
-            return;
-        }
-
-        const query = input.value.trim();
-        if (!query) {
-            datalist.innerHTML = '<option value="">Alle Kunden</option>';
-            syncCustomerSelection(input, datalist);
-            return;
-        }
-
-        const timer = debounceTimers.get(input);
-        if (timer) {
-            clearTimeout(timer);
-        }
-
-        syncCustomerSelection(input, datalist);
-
-        const newTimer = setTimeout(() => {
-            const url = resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`);
-            fetch(url)
-                .then(async res => {
-                    if (!res.ok) {
-                        const errorText = await res.text();
-                        console.error('Customer search HTTP error:', res.status, errorText);
-                        return null;
-                    }
-                    const text = await res.text();
-                    try {
-                        return JSON.parse(text);
-                    } catch (error) {
-                        console.error('Customer search response parse error:', error, text);
-                        return null;
-                    }
-                })
-                .then(data => {
-                    datalist.innerHTML = '<option value="">Alle Kunden</option>';
-                    if (Array.isArray(data)) {
-                        data.forEach(cust => {
-                            const opt = document.createElement('option');
-                            const number = cust.customer_number || '';
-                            const name = cust.company_name || '';
-                            opt.value = `${number}${number && name ? ' - ' : ''}${name}`;
-                            opt.dataset.customerId = String(cust.id ?? '');
-                            opt.setAttribute('data-customer-id', String(cust.id ?? ''));
-                            datalist.appendChild(opt);
-                        });
-                    }
-
-                    syncCustomerSelection(input, datalist);
-                })
-                .catch(error => {
-                    console.error('Customer search error:', error);
-                });
-        }, 300);
-
-        debounceTimers.set(input, newTimer);
-    }
-
-    document.addEventListener('input', function (event) {
-        const target = event.target;
-        if (!target || !target.classList.contains('customer-search-combobox')) {
-            return;
-        }
-        handleCustomerSearch(target);
-        syncCustomerSelection(target);
-    }, true); // capture to ensure we catch events even if re-rendered
-
-    document.addEventListener('change', function (event) {
-        const target = event.target;
-        if (!target || !target.classList.contains('customer-search-combobox')) {
-            return;
-        }
-        syncCustomerSelection(target);
-    }, true); // capture to ensure we catch events even if re-rendered
-})();
 
 class LineItemsPage {
     static handlerSetup = false;
@@ -151,6 +13,9 @@ class LineItemsPage {
         this.filterForm = null;
         this.sendInvoiceButton = null;
         this.syncArticlesButton = null;
+        this.customerSearchController = null;
+
+        this.setupCustomerSearchController();
 
         if (!LineItemsPage.handlerSetup) {
             this.registerGlobalSubmitInterceptor();
@@ -170,6 +35,28 @@ class LineItemsPage {
         this.setupFilterFormDirect();
         this.setupSendInvoiceButton();
         this.setupSyncArticlesButton();
+    }
+
+    setupCustomerSearchController() {
+        const globalController = window.lexBridge?.customerSearchController;
+        if (globalController) {
+            this.customerSearchController = globalController;
+            return;
+        }
+
+        if (!window.lexBridgeUtils || typeof window.lexBridgeUtils.createCustomerSearchController !== 'function') {
+            return;
+        }
+
+        const controller = window.lexBridgeUtils.createCustomerSearchController({
+            hiddenFieldName: 'customer_id'
+        });
+        controller.attach();
+        if (!window.lexBridge) {
+            window.lexBridge = {};
+        }
+        window.lexBridge.customerSearchController = controller;
+        this.customerSearchController = controller;
     }
 
     registerGlobalSubmitInterceptor() {
@@ -305,7 +192,7 @@ class LineItemsPage {
 
     async fetchLineItems(params) {
         const query = params.toString();
-        const url = query ? resolveApiUrl(`line-items?${query}`) : resolveApiUrl('line-items');
+        const url = query ? LexBridge.resolveApiUrl(`line-items?${query}`) : LexBridge.resolveApiUrl('line-items');
 
         const response = await fetch(url, {
             headers: {
@@ -408,7 +295,7 @@ class LineItemsPage {
             button.disabled = true;
             button.innerHTML = '<span class="btn-icon spinning">↻</span><span>Synchronisiere...</span>';
 
-            const response = await fetch(resolveApiUrl('articles/sync'), {
+            const response = await fetch(LexBridge.resolveApiUrl('articles/sync'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -473,7 +360,7 @@ class LineItemsPage {
                 line_items: selectedIds.map((id) => ({ id }))
             };
 
-            const response = await fetch(resolveApiUrl('invoices'), {
+            const response = await fetch(LexBridge.resolveApiUrl('invoices'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -542,13 +429,15 @@ class LineItemsPage {
             return;
         }
 
-        const customerInput = form.querySelector('.customer-search-combobox');
-        if (!customerInput) {
+        if (this.customerSearchController) {
+            this.customerSearchController.ensureSelection(form);
             return;
         }
 
-        const event = new Event('change');
-        customerInput.dispatchEvent(event);
+        const customerInput = form.querySelector('.customer-search-combobox');
+        if (customerInput instanceof HTMLInputElement) {
+            customerInput.dispatchEvent(new Event('change'));
+        }
     }
 
     parseJsonSafely(text) {

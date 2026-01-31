@@ -1,0 +1,343 @@
+'use strict';
+
+(function () {
+    const globalObject = typeof window !== 'undefined' ? window : globalThis;
+    const documentObject = globalObject.document;
+    if (!documentObject) {
+        return;
+    }
+
+    const existingUtils = globalObject.lexBridgeUtils || {};
+
+    const DEFAULT_SELECTOR = '.customer-search-combobox';
+    const DEFAULT_HIDDEN_NAME = 'customer_id';
+    const DEFAULT_DATALIST_OPTION = '<option value="">Alle Kunden</option>';
+
+
+
+    function extractCustomerNumber(value) {
+        if (typeof value !== 'string') {
+            return '';
+        }
+
+        const prefix = value.split('-')[0]?.trim() || '';
+        return /^\d+$/.test(prefix) ? prefix : '';
+    }
+
+    function normaliseString(value) {
+        if (value === null || value === undefined) {
+            return '';
+        }
+        return String(value).trim();
+    }
+
+    class CustomerSearchController {
+        constructor(options = {}) {
+            this.inputSelector = options.inputSelector || DEFAULT_SELECTOR;
+            this.formSelector = options.formSelector || null;
+            this.hiddenFieldName = options.hiddenFieldName || DEFAULT_HIDDEN_NAME;
+            this.debounceMs = typeof options.debounceMs === 'number' ? options.debounceMs : 250;
+            this.requestHeaders = options.requestHeaders || {};
+
+            this.timerMap = new WeakMap();
+            this.attached = false;
+
+            this.boundHandleInput = this.handleInput.bind(this);
+            this.boundHandleChange = this.handleChange.bind(this);
+        }
+
+        attach() {
+            if (this.attached) {
+                return;
+            }
+
+            documentObject.addEventListener('input', this.boundHandleInput, true);
+            documentObject.addEventListener('change', this.boundHandleChange, true);
+            this.attached = true;
+        }
+
+        detach() {
+            if (!this.attached) {
+                return;
+            }
+
+            documentObject.removeEventListener('input', this.boundHandleInput, true);
+            documentObject.removeEventListener('change', this.boundHandleChange, true);
+            this.attached = false;
+        }
+
+        ensureSelection(formOrInput) {
+            if (!formOrInput) {
+                return;
+            }
+
+            let inputElement = null;
+            if (formOrInput instanceof HTMLInputElement) {
+                inputElement = formOrInput;
+            } else if (formOrInput instanceof HTMLFormElement) {
+                inputElement = formOrInput.querySelector(this.inputSelector);
+            }
+
+            if (inputElement instanceof HTMLInputElement) {
+                const datalist = this.getDatalist(inputElement);
+                this.syncSelection(inputElement, datalist);
+            }
+        }
+
+        handleInput(event) {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement)) {
+                return;
+            }
+
+            if (!target.matches(this.inputSelector)) {
+                return;
+            }
+
+            const datalist = this.getDatalist(target);
+            if (!datalist) {
+                return;
+            }
+
+            const query = target.value.trim();
+            if (query === '') {
+                datalist.innerHTML = DEFAULT_DATALIST_OPTION;
+                this.syncSelection(target, datalist);
+                this.clearTimer(target);
+                return;
+            }
+
+            this.syncSelection(target, datalist);
+            this.scheduleFetch(target, datalist, query);
+        }
+
+        handleChange(event) {
+            const target = event.target;
+            if (!(target instanceof HTMLInputElement)) {
+                return;
+            }
+
+            if (!target.matches(this.inputSelector)) {
+                return;
+            }
+
+            const datalist = this.getDatalist(target);
+            if (!datalist) {
+                return;
+            }
+
+            this.syncSelection(target, datalist);
+        }
+
+        scheduleFetch(input, datalist, query) {
+            const existingTimer = this.timerMap.get(input);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+            }
+
+            const timer = setTimeout(async () => {
+                try {
+                    const customers = await this.fetchCustomers(query);
+                    this.populateOptions(datalist, customers);
+                } catch (error) {
+                    console.error('Customer search fetch failed:', error);
+                } finally {
+                    this.timerMap.delete(input);
+                    this.syncSelection(input, datalist);
+                }
+            }, this.debounceMs);
+
+            this.timerMap.set(input, timer);
+        }
+
+        clearTimer(input) {
+            const existingTimer = this.timerMap.get(input);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+                this.timerMap.delete(input);
+            }
+        }
+
+        async fetchCustomers(query) {
+            const url = globalObject.LexBridge.resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`);
+            const response = await fetch(url, {
+                headers: this.requestHeaders
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            const text = await response.text();
+            const trimmed = text.trim();
+            if (trimmed === '') {
+                return [];
+            }
+
+            try {
+                const data = JSON.parse(trimmed);
+                return Array.isArray(data) ? data : [];
+            } catch (error) {
+                console.error('Customer search parse error:', error, trimmed);
+                return [];
+            }
+        }
+
+        populateOptions(datalist, customers) {
+            datalist.innerHTML = DEFAULT_DATALIST_OPTION;
+            if (!Array.isArray(customers) || customers.length === 0) {
+                return;
+            }
+
+            const seenLabels = new Set();
+            customers.forEach((customer) => {
+                const number = normaliseString(customer.customer_number ?? customer.customerNumber);
+                const name = normaliseString(customer.company_name ?? customer.companyName);
+                const id = normaliseString(customer.id);
+
+                const labelParts = [];
+                if (number) {
+                    labelParts.push(number);
+                }
+                if (name) {
+                    labelParts.push(name);
+                }
+                const label = labelParts.join(' - ') || number || name;
+                const resolvedLabel = label || '';
+
+                if (seenLabels.has(`${number}|${resolvedLabel}`)) {
+                    return;
+                }
+                seenLabels.add(`${number}|${resolvedLabel}`);
+
+                const option = documentObject.createElement('option');
+                option.value = resolvedLabel;
+
+                if (id) {
+                    option.dataset.customerId = id;
+                    option.setAttribute('data-customer-id', id);
+                }
+
+                if (number) {
+                    option.dataset.customerNumber = number;
+                    option.setAttribute('data-customer-number', number);
+                }
+
+                const key = number || id;
+                if (key) {
+                    option.dataset.customerKey = key;
+                    option.setAttribute('data-customer-key', key);
+                }
+
+                datalist.appendChild(option);
+            });
+        }
+
+        syncSelection(input, datalist) {
+            if (!(input instanceof HTMLInputElement)) {
+                return;
+            }
+
+            const form = this.resolveForm(input);
+            if (!form) {
+                return;
+            }
+
+            const hidden = form.querySelector(`input[type="hidden"][name="${this.hiddenFieldName}"]`);
+            if (!(hidden instanceof HTMLInputElement)) {
+                return;
+            }
+
+            hidden.value = '';
+            if (!datalist) {
+                return;
+            }
+
+            const value = input.value.trim();
+            if (value === '') {
+                return;
+            }
+
+            const options = datalist instanceof HTMLDataListElement && datalist.options
+                ? Array.from(datalist.options)
+                : Array.from(datalist.children);
+            const lowerValue = value.toLowerCase();
+            const numericValue = extractCustomerNumber(value);
+            let matchedKey = '';
+
+            for (const optionElement of options) {
+                if (!(optionElement instanceof HTMLOptionElement)) {
+                    continue;
+                }
+
+                const optionValue = (optionElement.value || optionElement.textContent || '').trim();
+                if (optionValue === '') {
+                    continue;
+                }
+
+                const optionLower = optionValue.toLowerCase();
+                const optionNumber = optionElement.dataset.customerNumber || optionElement.getAttribute('data-customer-number') || '';
+                const optionKey = optionElement.dataset.customerKey || optionElement.getAttribute('data-customer-key') || optionNumber || optionElement.dataset.customerId || optionElement.getAttribute('data-customer-id') || '';
+                const labelNumber = extractCustomerNumber(optionValue);
+
+                if (optionKey === '') {
+                    continue;
+                }
+
+                const labelMatches = optionValue === value || optionLower === lowerValue;
+                const numberMatches = optionNumber !== '' && (optionNumber === value || optionNumber === numericValue);
+                const prefixMatches = labelNumber !== '' && (labelNumber === numericValue || labelNumber === value || lowerValue.startsWith(labelNumber.toLowerCase()));
+
+                if (labelMatches || numberMatches || prefixMatches) {
+                    matchedKey = optionKey;
+                    break;
+                }
+            }
+
+            if (!matchedKey && numericValue) {
+                matchedKey = numericValue;
+            }
+
+            if (matchedKey) {
+                hidden.value = matchedKey;
+            }
+        }
+
+        resolveForm(input) {
+            if (!(input instanceof HTMLInputElement)) {
+                return null;
+            }
+
+            if (this.formSelector) {
+                const form = input.closest(this.formSelector);
+                if (form instanceof HTMLFormElement) {
+                    return form;
+                }
+            }
+
+            const form = input.form;
+            return form instanceof HTMLFormElement ? form : null;
+        }
+
+        getDatalist(input) {
+            if (!(input instanceof HTMLInputElement)) {
+                return null;
+            }
+
+            const listId = input.getAttribute('list');
+            if (!listId) {
+                return null;
+            }
+
+            return documentObject.getElementById(listId);
+        }
+    }
+
+    globalObject.lexBridgeUtils = Object.assign({}, existingUtils, {
+        createCustomerSearchController: function createCustomerSearchController(options) {
+            return new CustomerSearchController(options);
+        },
+        CustomerSearchController
+    });
+})();
