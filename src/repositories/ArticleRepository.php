@@ -34,98 +34,35 @@ final class ArticleRepository
 
         $driver = (string) $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-        if ($driver === 'mysql') {
-            $sql = <<<SQL
+        // Use a derived table join for latest price per article for better performance
+        $sql = <<<SQL
+            SELECT
+                a.id,
+                a.article_number,
+                a.name,
+                p.net_amount,
+                p.gross_amount,
+                p.tax_rate_percentage,
+                p.currency,
+                p.valid_from,
+                p.valid_until
+            FROM {$articleTable} a
+            LEFT JOIN (
                 SELECT
-                    a.id,
-                    a.article_number,
-                    a.name,
-                    lp.net_amount,
-                    lp.gross_amount,
-                    lp.tax_rate_percentage,
-                    lp.currency,
-                    lp.valid_from,
-                    lp.valid_until
-                FROM {$articleTable} a
-                LEFT JOIN LATERAL (
+                    pr1.*
+                FROM {$priceTable} pr1
+                INNER JOIN (
                     SELECT
-                        pr.net_amount,
-                        pr.gross_amount,
-                        pr.tax_rate_percentage,
-                        pr.currency,
-                        pr.valid_from,
-                        pr.valid_until
-                    FROM {$priceTable} pr
-                    WHERE pr.article_id = a.id
-                        AND pr.valid_from <= CURRENT_DATE
-                        AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                    ORDER BY pr.valid_from DESC, pr.id DESC
-                    LIMIT 1
-                ) AS lp ON TRUE
-            SQL;
-        } else {
-            $sql = <<<SQL
-                SELECT
-                    a.id,
-                    a.article_number,
-                    a.name,
-                    (
-                        SELECT pr.net_amount
-                        FROM {$priceTable} pr
-                        WHERE pr.article_id = a.id
-                            AND pr.valid_from <= CURRENT_DATE
-                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                        ORDER BY pr.valid_from DESC, pr.id DESC
-                        LIMIT 1
-                    ) AS net_amount,
-                    (
-                        SELECT pr.gross_amount
-                        FROM {$priceTable} pr
-                        WHERE pr.article_id = a.id
-                            AND pr.valid_from <= CURRENT_DATE
-                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                        ORDER BY pr.valid_from DESC, pr.id DESC
-                        LIMIT 1
-                    ) AS gross_amount,
-                    (
-                        SELECT pr.tax_rate_percentage
-                        FROM {$priceTable} pr
-                        WHERE pr.article_id = a.id
-                            AND pr.valid_from <= CURRENT_DATE
-                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                        ORDER BY pr.valid_from DESC, pr.id DESC
-                        LIMIT 1
-                    ) AS tax_rate_percentage,
-                    (
-                        SELECT pr.currency
-                        FROM {$priceTable} pr
-                        WHERE pr.article_id = a.id
-                            AND pr.valid_from <= CURRENT_DATE
-                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                        ORDER BY pr.valid_from DESC, pr.id DESC
-                        LIMIT 1
-                    ) AS currency,
-                    (
-                        SELECT pr.valid_from
-                        FROM {$priceTable} pr
-                        WHERE pr.article_id = a.id
-                            AND pr.valid_from <= CURRENT_DATE
-                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                        ORDER BY pr.valid_from DESC, pr.id DESC
-                        LIMIT 1
-                    ) AS valid_from,
-                    (
-                        SELECT pr.valid_until
-                        FROM {$priceTable} pr
-                        WHERE pr.article_id = a.id
-                            AND pr.valid_from <= CURRENT_DATE
-                            AND (pr.valid_until IS NULL OR pr.valid_until >= CURRENT_DATE)
-                        ORDER BY pr.valid_from DESC, pr.id DESC
-                        LIMIT 1
-                    ) AS valid_until
-                FROM {$articleTable} a
-            SQL;
-        }
+                        article_id,
+                        MAX(valid_from) AS max_valid_from
+                    FROM {$priceTable}
+                    WHERE valid_from <= CURRENT_DATE
+                    GROUP BY article_id
+                ) pr2 ON pr1.article_id = pr2.article_id AND pr1.valid_from = pr2.max_valid_from
+                WHERE pr1.valid_from <= CURRENT_DATE
+                  AND (pr1.valid_until IS NULL OR pr1.valid_until >= CURRENT_DATE)
+            ) p ON a.id = p.article_id
+        SQL;
 
         $hasQuery = $query !== null && $query !== '';
         
