@@ -83,31 +83,6 @@
     outline: none;
 }
 
-
-.line-items-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-    background-color: #fff;
-}
-
-.line-items-table th {
-    background-color: #4CAF50;
-    color: #fff;
-    padding: 12px;
-    text-align: left;
-    font-weight: bold;
-}
-
-.line-items-table td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-}
-
-.line-items-table tr:hover {
-    background-color: #f5f5f5;
-}
-
 .line-items-total {
     margin-top: 0.5rem;
     font-size: 0.9rem;
@@ -165,21 +140,6 @@
     min-height: 120px;
     overflow: auto;
     scrollbar-gutter: stable;
-}
-
-.orders-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-.orders-table th,
-.orders-table td {
-    padding: 10px;
-    border-bottom: 1px solid #e0e0e0;
-}
-
-.orders-table tbody tr:hover {
-    background-color: #f5f5f5;
 }
 
 .orders-total {
@@ -430,54 +390,13 @@ body {
 
 /* Toast styles moved to js/components/toast-notifier.css */
 
-/* Containers */
+/* Specific view containers */
 .contacts-container {
     margin-top: 20px;
     background-color: #f5f5f5;
     padding: 15px;
     border-radius: 4px;
     border: 1px solid #ddd;
-}
-
-.status {
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 4px;
-}
-
-.status.success {
-    background-color: #e8f5e9;
-    color: #388e3c;
-}
-
-.status.error {
-    background-color: #ffebee;
-    color: #d32f2f;
-}
-
-/* Tables */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 15px;
-    background-color: #fff;
-}
-
-table th {
-    background-color: #4CAF50;
-    color: white;
-    padding: 12px;
-    text-align: left;
-    font-weight: bold;
-}
-
-table td {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-}
-
-table tr:hover {
-    background-color: #f5f5f5;
 }
 
 /* Invoice View Styles */
@@ -585,4 +504,318 @@ pre {
 
 .btn-icon-only.spinning {
     animation: spin 1s linear infinite;
+}
+
+/* ============================================
+   SCROLLABLE TABLE CONTAINERS - FIXED HEIGHT
+   ============================================ */
+
+/* Main tab content wrapper - fixed to viewport */
+.tab-content {
+    height: calc(100vh - 180px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+/* Line items has nested structure */
+.line-items-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100%;
+    width: 100% !important;
+    overflow: hidden;
+    gap: 0 !important;
+}
+
+.line-items-container > div {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    flex: 1;
+}
+
+/* Orders and Invoices containers */
+.orders-container,
+.invoices-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 250px);
+    width: 100%;
+    min-height: 300px;
+    overflow: hidden;
+}
+
+/* Keep action bars/toolbars fixed at top */
+.line-items-actions-bar,
+.orders-toolbar-container {
+    flex-shrink: 0;
+    margin-bottom: 0.5rem;
+}
+
+/* Scrollable list wrapper */
+.line-items-list,
+.orders-list {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    width: 100%;
+}
+
+/* Tables with sticky headers and scrollable body */
+.line-items-table,
+.orders-table,
+.invoices-container table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Sticky table headers - stays visible during scroll */
+.line-items-table thead,
+.orders-table thead,
+.invoices-container thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #4CAF50;
+    display: block;
+    width: 100%;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+}
+
+.line-items-table thead::-webkit-scrollbar,
+.orders-table thead::-webkit-scrollbar,
+.invoices-container thead::-webkit-scrollbar {
+    width: 17px; /* Match scrollbar width */
+    height: 0;
+    background: transparent;
+}
+
+.line-items-table thead::-webkit-scrollbar-thumb,
+.orders-table thead::-webkit-scrollbar-thumb,
+.invoices-container thead::-webkit-scrollbar-thumb {
+    background: transparent;
+}
+
+.line-items-table thead tr,
+.orders-table thead tr,
+.invoices-container thead tr {
+    display: flex;
+    width: 100%;
+}
+
+.line-items-table thead th,
+.orders-table thead th,
+.invoices-container thead th {
+    flex: 1;
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    color: white;
+    border-bottom: 2px solid #45a049;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Specific column widths for line-items table */
+.line-items-table thead th:nth-child(1),
+.line-items-table tbody td:nth-child(1) {
+    flex: 0 0 50px; /* Checkbox */
+}
+
+.line-items-table thead th:nth-child(2),
+.line-items-table tbody td:nth-child(2) {
+    flex: 0 0 70px; /* Pos. */
+}
+
+.line-items-table thead th:nth-child(3),
+.line-items-table tbody td:nth-child(3) {
+    flex: 3; /* Bezeichnung - wider */
+    min-width: 150px;
+}
+
+.line-items-table thead th:nth-child(4),
+.line-items-table tbody td:nth-child(4) {
+    flex: 1; /* Menge */
+    min-width: 80px;
+}
+
+.line-items-table thead th:nth-child(5),
+.line-items-table tbody td:nth-child(5),
+.line-items-table thead th:nth-child(6),
+.line-items-table tbody td:nth-child(6) {
+    flex: 1; /* Netto, Brutto */
+    min-width: 100px;
+}
+
+.line-items-table thead th:nth-child(7),
+.line-items-table tbody td:nth-child(7) {
+    flex: 1; /* Steuer % */
+    min-width: 90px;
+}
+
+.line-items-table thead th:nth-child(8),
+.line-items-table tbody td:nth-child(8),
+.line-items-table thead th:nth-child(9),
+.line-items-table tbody td:nth-child(9) {
+    flex: 1; /* Erstellt am, Uhrzeit */
+    min-width: 110px;
+}
+
+/* Specific column widths for orders table */
+.orders-table thead th:nth-child(1),
+.orders-table tbody td:nth-child(1) {
+    flex: 0 0 50px; /* Checkbox */
+}
+
+.orders-table thead th:nth-child(2),
+.orders-table tbody td:nth-child(2),
+.orders-table thead th:nth-child(3),
+.orders-table tbody td:nth-child(3) {
+    flex: 1; /* Kunde, Lex Kunden-Nr. */
+    min-width: 100px;
+}
+
+.orders-table thead th:nth-child(4),
+.orders-table tbody td:nth-child(4) {
+    flex: 0 0 60px; /* KW */
+}
+
+.orders-table thead th:nth-child(5),
+.orders-table tbody td:nth-child(5),
+.orders-table thead th:nth-child(6),
+.orders-table tbody td:nth-child(6),
+.orders-table thead th:nth-child(7),
+.orders-table tbody td:nth-child(7),
+.orders-table thead th:nth-child(8),
+.orders-table tbody td:nth-child(8),
+.orders-table thead th:nth-child(9),
+.orders-table tbody td:nth-child(9) {
+    flex: 0 0 60px; /* Mo, Di, Mi, Do, Fr */
+}
+
+.orders-table thead th:nth-child(10),
+.orders-table tbody td:nth-child(10) {
+    flex: 1; /* Bestelldatum */
+    min-width: 110px;
+}
+
+.orders-table thead th:nth-child(11),
+.orders-table tbody td:nth-child(11) {
+    flex: 1; /* Artikel-Nr. */
+    min-width: 100px;
+}
+
+.orders-table thead th:nth-child(12),
+.orders-table tbody td:nth-child(12) {
+    flex: 0 0 90px; /* Verarbeitet */
+    text-align: center;
+}
+
+/* Scrollable table body */
+.line-items-table tbody,
+.orders-table tbody,
+.invoices-container tbody {
+    display: block;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    flex: 1;
+    width: 100%;
+    scrollbar-gutter: stable;
+}
+
+/* Table rows maintain layout */
+.line-items-table tbody tr,
+.orders-table tbody tr,
+.invoices-container tbody tr {
+    display: flex;
+    width: 100%;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Empty state rows - single cell spans full width */
+.line-items-table tbody tr.line-items-empty-row,
+.orders-table tbody tr.orders-empty-row,
+.invoices-container tbody tr.invoices-empty-row {
+    display: block;
+    width: 100%;
+}
+
+.line-items-table tbody tr.line-items-empty-row td,
+.orders-table tbody tr.orders-empty-row td,
+.invoices-container tbody tr.invoices-empty-row td {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #666;
+    background: #f8f9fa;
+}
+
+.line-items-table tbody tr:hover,
+.orders-table tbody tr:hover,
+.invoices-container tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+.line-items-table tbody td,
+.orders-table tbody td,
+.invoices-container tbody td {
+    flex: 1;
+    padding: 10px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+    color: #333;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+
+/* Total labels fixed at bottom */
+.line-items-total,
+.orders-total,
+.invoices-container > p {
+    flex-shrink: 0;
+    padding: 8px 0;
+    margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-height: 600px) {
+    .tab-content {
+        height: calc(100vh - 150px);
+    }
+    
+    .orders-container,
+    .invoices-container {
+        height: calc(100vh - 200px);
+        min-height: 250px;
+    }
+}
+
+@media (max-height: 400px) {
+    .tab-content {
+        height: calc(100vh - 120px);
+    }
+    
+    .orders-container,
+    .invoices-container {
+        height: calc(100vh - 150px);
+        min-height: 200px;
+    }
 }

@@ -275,7 +275,7 @@
 
             container.setAttribute('aria-busy', 'true');
             const tableBody = container.querySelector('.orders-table-body');
-            const columnCount = 13;
+            const columnCount = 12;
 
             if (tableBody instanceof HTMLElement) {
                 tableBody.innerHTML = `
@@ -348,7 +348,7 @@
             const tableBody = container.querySelector('.orders-table-body');
             const selectAllCheckbox = container.querySelector(`.${OrdersPage.CLASS_NAMES.ordersSelectAll}`);
             const totalLabel = container.querySelector('.orders-total');
-            const columnCount = 13;
+            const columnCount = 12;
 
             if (!(tableBody instanceof HTMLElement)) {
                 console.warn('Orders table body not found.');
@@ -383,7 +383,6 @@
 
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.customer_id))}</td>`);
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.lex_customer_number))}</td>`);
-                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.order_year))}</td>`);
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.order_week))}</td>`);
 
                 const quantities = order.quantities || {};
@@ -479,8 +478,8 @@
                 }
 
                 const parts = trimmed.split(/[T\s]/);
-                if (parts.length >= 2) {
-                    return `${parts[0]} ${parts[1].substring(0, 8)}`;
+                if (parts.length >= 1) {
+                    return parts[0];
                 }
 
                 return trimmed;

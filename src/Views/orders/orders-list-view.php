@@ -15,22 +15,21 @@
                 <tr>
                     <th><input type="checkbox" class="orders-select-all"></th>
                     <th>Kunde</th>
-                    <th>Lex Kunden-Nr.</th>
-                    <th>Jahr</th>
-                    <th>KW</th>
-                    <th>Mo</th>
-                    <th>Di</th>
-                    <th>Mi</th>
-                    <th>Do</th>
-                    <th>Fr</th>
-                    <th>Bestelldatum</th>
-                    <th>Artikel-Nr.</th>
-                    <th>Verarbeitet</th>
+                    <th title="Lexware Kunden-Nr.">Lex-Nr.</th>
+                    <th title="Kalenderwoche">KW</th>
+                    <th title="Montag">Mo.</th>
+                    <th title="Dienstag">Di.</th>
+                    <th title="Mittwoch">Mi.</th>
+                    <th title="Donnerstag">Do.</th>
+                    <th title="Freitag">Fr.</th>
+                    <th title="Bestelldatum">Bestel.dat</th>
+                    <th title="Lexware Artikelnummer">Artikel-Nr.</th>
+                    <th title="Verarbeitet">Verarbt.</th>
                 </tr>
             </thead>
             <tbody class="orders-table-body">
                 <tr class="orders-empty-row">
-                    <td colspan="13" style="text-align: center;">Keine Bestellungen vorhanden.</td>
+                    <td colspan="12" style="text-align: center;">Keine Bestellungen vorhanden.</td>
                 </tr>
             </tbody>
         </table>
