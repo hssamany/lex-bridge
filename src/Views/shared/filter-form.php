@@ -63,8 +63,8 @@ $containerClass = $containerClass ?? '';
         </div>
         <div class="filter-group-col filter-btn-group">
             <label style="visibility:hidden">Filtern</label>
-            <button type="submit" class="btn btn-primary filter-submit-btn" title="Filtern" aria-label="Filtern">
-                <span class="btn-icon" aria-hidden="true">🔍</span>
+            <button type="submit" class="btn btn-primary filter-submit-btn" title="Filter Senden" aria-label="Filter Senden">
+                <span class="btn-icon" aria-hidden="true">⌕</span>
             </button>
         </div>
     </form>

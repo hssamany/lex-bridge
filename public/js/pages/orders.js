@@ -39,6 +39,8 @@
         init() {
             this.setupCustomerSearchController();
             this.attachFormHandler();
+            // Initialize empty toolbar so button is always visible
+            this.renderOrdersList([]);
         }
 
         attachFormHandler() {
