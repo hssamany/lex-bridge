@@ -182,7 +182,8 @@ class InvoicesPage {
                         type="button" 
                         class="btn btn-action transfer-btn" 
                         data-invoice-id="${invoice.id}"
-                        title="Transfer to Lexware">
+                        title="Transfer to Lexware"
+                        style="padding: 2px 8px; line-height: 1;">
                         ▶
                     </button>
                 </td>

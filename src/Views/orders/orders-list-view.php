@@ -25,11 +25,12 @@
                     <th>Fr</th>
                     <th>Bestelldatum</th>
                     <th>Artikel-Nr.</th>
+                    <th>Verarbeitet</th>
                 </tr>
             </thead>
             <tbody class="orders-table-body">
                 <tr class="orders-empty-row">
-                    <td colspan="12" style="text-align: center;">Keine Bestellungen vorhanden.</td>
+                    <td colspan="13" style="text-align: center;">Keine Bestellungen vorhanden.</td>
                 </tr>
             </tbody>
         </table>

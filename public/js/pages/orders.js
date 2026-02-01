@@ -275,7 +275,7 @@
 
             container.setAttribute('aria-busy', 'true');
             const tableBody = container.querySelector('.orders-table-body');
-            const columnCount = 12;
+            const columnCount = 13;
 
             if (tableBody instanceof HTMLElement) {
                 tableBody.innerHTML = `
@@ -348,7 +348,7 @@
             const tableBody = container.querySelector('.orders-table-body');
             const selectAllCheckbox = container.querySelector(`.${OrdersPage.CLASS_NAMES.ordersSelectAll}`);
             const totalLabel = container.querySelector('.orders-total');
-            const columnCount = 12;
+            const columnCount = 13;
 
             if (!(tableBody instanceof HTMLElement)) {
                 console.warn('Orders table body not found.');
@@ -393,6 +393,7 @@
 
                 positionCells.push(`<td>${this.escapeHtml(this.formatDateTime(order.geaendert_am))}</td>`);
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.article_number))}</td>`);
+                positionCells.push(`<td style="text-align:center;"><input type="checkbox" ${order.verarbeitet ? 'checked' : ''} disabled></td>`);
 
                 return `<tr data-order-id="${orderIdEscaped}">${positionCells.join('')}</tr>`;
             }).join('');
