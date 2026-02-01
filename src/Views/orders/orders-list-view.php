@@ -1,6 +1,15 @@
 <div class="orders-container">
     <div class="orders-list" aria-live="polite" aria-busy="false">
-        <div class="orders-toolbar-container"></div>
+        <div class="orders-toolbar-container">
+            <!-- Toolbar will be rendered here by JavaScript -->
+            <div class="orders-toolbar line-items-toolbar">
+                <div class="line-items-toolbar-left">
+                    <button type="button" class="btn btn-primary line-items-toolbar-btn orders-generate-button" disabled>
+                        Positionen Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>
+                    </button>
+                </div>
+            </div>
+        </div>
         <table class="orders-table">
             <thead>
                 <tr>

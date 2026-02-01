@@ -2,26 +2,26 @@
 
 (function () {
 
-    const SELECTORS = {
-        filterForm: 'form[name="get-bestellg"]',
-        customerSearchInput: '.customer-search-combobox',
-        ordersContainer: '.orders-list',
-        submitButton: 'button[type="submit"]'
-    };
-
-    const CLASS_NAMES = {
-        orderSelectCheckbox: 'order-select-checkbox',
-        ordersSelectAll: 'orders-select-all',
-        ordersToolbar: 'orders-toolbar line-items-toolbar',
-        toolbarLeft: 'line-items-toolbar-left',
-        toolbarButton: 'btn btn-primary line-items-toolbar-btn',
-        loading: 'orders-loading',
-        error: 'orders-error',
-        empty: 'orders-empty',
-        ordersTable: 'orders-table'
-    };
-
     class OrdersPage {
+        static SELECTORS = {
+            filterForm: 'form[name="get-bestellg"]',
+            customerSearchInput: '.customer-search-combobox',
+            ordersContainer: '.orders-list',
+            submitButton: 'button[type="submit"]'
+        };
+
+        static CLASS_NAMES = {
+            orderSelectCheckbox: 'order-select-checkbox',
+            ordersSelectAll: 'orders-select-all',
+            ordersToolbar: 'orders-toolbar line-items-toolbar',
+            toolbarLeft: 'line-items-toolbar-left',
+            toolbarButton: 'btn btn-primary line-items-toolbar-btn',
+            loading: 'orders-loading',
+            error: 'orders-error',
+            empty: 'orders-empty',
+            ordersTable: 'orders-table'
+        };
+
         constructor(lexBridge) 
         {
             this.lexBridge = lexBridge;
@@ -39,12 +39,12 @@
         init() {
             this.setupCustomerSearchController();
             this.attachFormHandler();
-            // Initialize empty toolbar so button is always visible
-            this.renderOrdersList([]);
+            this.setupGenerateButton();
+            this.registerSelectAllHandler();
         }
 
         attachFormHandler() {
-            const form = document.querySelector(SELECTORS.filterForm);
+            const form = document.querySelector(OrdersPage.SELECTORS.filterForm);
             if (!form) {
                 console.warn('Orders filter form not found');
                 return;
@@ -54,6 +54,55 @@
                 event.preventDefault();
                 event.stopPropagation();
                 await this.processFilterForm(form);
+            });
+        }
+
+        setupGenerateButton() {
+            const button = document.querySelector('.orders-generate-button');
+            if (!button) {
+                console.warn('Orders generate button not found');
+                return;
+            }
+
+            this.ordersGenerateButton = button;
+            
+            button.addEventListener('click', () => {
+                this.bulkGenerateSelectedOrders(button);
+            });
+        }
+
+        registerSelectAllHandler() {
+            // Use event delegation on document for select-all checkbox
+            document.addEventListener('change', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) {
+                    return;
+                }
+
+                // Handle select-all checkbox
+                if (target.classList.contains(OrdersPage.CLASS_NAMES.ordersSelectAll)) {
+                    const checkboxes = document.querySelectorAll(`.${OrdersPage.CLASS_NAMES.orderSelectCheckbox}`);
+                    checkboxes.forEach((checkbox) => {
+                        checkbox.checked = target.checked;
+                    });
+                    this.updateGenerateButtonState();
+                    return;
+                }
+
+                // Handle individual order checkboxes
+                if (target.classList.contains(OrdersPage.CLASS_NAMES.orderSelectCheckbox)) {
+                    const selectAllCheckbox = document.querySelector(`.${OrdersPage.CLASS_NAMES.ordersSelectAll}`);
+                    if (selectAllCheckbox instanceof HTMLInputElement) {
+                        if (!target.checked) {
+                            selectAllCheckbox.checked = false;
+                        } else {
+                            const allCheckboxes = document.querySelectorAll(`.${OrdersPage.CLASS_NAMES.orderSelectCheckbox}`);
+                            const checkedCheckboxes = document.querySelectorAll(`.${OrdersPage.CLASS_NAMES.orderSelectCheckbox}:checked`);
+                            selectAllCheckbox.checked = allCheckboxes.length > 0 && checkedCheckboxes.length === allCheckboxes.length;
+                        }
+                    }
+                    this.updateGenerateButtonState();
+                }
             });
         }
 
@@ -73,7 +122,7 @@
 
         getSelectedOrderIds() 
         {
-            const selector = `.${CLASS_NAMES.orderSelectCheckbox}:checked`;
+            const selector = `.${OrdersPage.CLASS_NAMES.orderSelectCheckbox}:checked`;
             return Array.from(document.querySelectorAll(selector))
                 .map((element) => {
                     if (!(element instanceof HTMLInputElement)) {
@@ -102,7 +151,7 @@
                 return this.ordersContainer;
             }
 
-            this.ordersContainer = document.querySelector(SELECTORS.ordersContainer);
+            this.ordersContainer = document.querySelector(OrdersPage.SELECTORS.ordersContainer);
             
             return this.ordersContainer;
         }
@@ -214,7 +263,7 @@
             }
 
             this.lastQueryString = params.toString();
-            const submitButton = form.querySelector(SELECTORS.submitButton);
+            const submitButton = form.querySelector(OrdersPage.SELECTORS.submitButton);
             await this.fetchOrders(params, submitButton instanceof HTMLButtonElement ? submitButton : null);
         }
 
@@ -225,42 +274,17 @@
             }
 
             container.setAttribute('aria-busy', 'true');
-            const toolbarHost = container.querySelector('.orders-toolbar-container');
-            const table = container.querySelector(`.${CLASS_NAMES.ordersTable}`);
-            const tableBody = table ? table.querySelector('.orders-table-body') : null;
-            const selectAllCheckbox = table ? table.querySelector(`.${CLASS_NAMES.ordersSelectAll}`) : null;
-            const totalLabel = container.querySelector('.orders-total');
-            const columnCount = table ? table.querySelectorAll('thead th').length : 12;
-
-            if (this.ordersChangeHandler) {
-                container.removeEventListener('change', this.ordersChangeHandler);
-                this.ordersChangeHandler = null;
-            }
-
-            if (toolbarHost instanceof HTMLElement) {
-                toolbarHost.innerHTML = '';
-            }
-
-            this.ordersGenerateButton = null;
+            const tableBody = container.querySelector('.orders-table-body');
+            const columnCount = 12;
 
             if (tableBody instanceof HTMLElement) {
                 tableBody.innerHTML = `
                     <tr>
                         <td colspan="${columnCount}" style="text-align:center;">
-                            <span class="${CLASS_NAMES.loading}">Lade Bestellungen...</span>
+                            <span class="${OrdersPage.CLASS_NAMES.loading}">Lade Bestellungen...</span>
                         </td>
                     </tr>
                 `;
-            }
-
-            if (selectAllCheckbox instanceof HTMLInputElement) {
-                selectAllCheckbox.checked = false;
-                selectAllCheckbox.disabled = true;
-                selectAllCheckbox.indeterminate = false;
-            }
-
-            if (totalLabel instanceof HTMLElement) {
-                totalLabel.textContent = 'Gesammt: 0';
             }
 
             let originalButtonLabel = null;
@@ -279,7 +303,7 @@
                     throw new Error(data?.error || 'Unbekannter Fehler beim Laden der Bestellungen.');
                 }
 
-                this.renderOrdersList(Array.isArray(data.orders) ? data.orders : []);
+                this.updateOrdersList(Array.isArray(data.orders) ? data.orders : []);
                 this.notify('Bestellungen aktualisiert.', 'success');
 
             } catch (error) {
@@ -289,12 +313,13 @@
                     tableBody.innerHTML = `
                         <tr>
                             <td colspan="${columnCount}" style="text-align:center;">
-                                <span class="${CLASS_NAMES.error}">Fehler beim Laden der Bestellungen.</span>
+                                <span class="${OrdersPage.CLASS_NAMES.error}">Fehler beim Laden der Bestellungen.</span>
                             </td>
                         </tr>
                     `;
                 }
 
+                const totalLabel = container.querySelector('.orders-total');
                 if (totalLabel instanceof HTMLElement) {
                     totalLabel.textContent = 'Gesammt: 0';
                 }
@@ -312,7 +337,7 @@
             }
         }
 
-        renderOrdersList(orders) 
+        updateOrdersList(orders) 
         {
             const container = this.getOrdersContainer();
 
@@ -320,50 +345,19 @@
                 return;
             }
 
-            if (this.ordersChangeHandler) {
-                container.removeEventListener('change', this.ordersChangeHandler);
-                this.ordersChangeHandler = null;
-            }
-
-            const toolbarHost = container.querySelector('.orders-toolbar-container');
-            const table = container.querySelector(`.${CLASS_NAMES.ordersTable}`);
-            const tableBody = table ? table.querySelector('.orders-table-body') : null;
-            const selectAllCheckbox = table ? table.querySelector(`.${CLASS_NAMES.ordersSelectAll}`) : null;
+            const tableBody = container.querySelector('.orders-table-body');
+            const selectAllCheckbox = container.querySelector(`.${OrdersPage.CLASS_NAMES.ordersSelectAll}`);
             const totalLabel = container.querySelector('.orders-total');
-            const columnCount = table ? table.querySelectorAll('thead th').length : 12;
+            const columnCount = 12;
 
-            if (!(toolbarHost instanceof HTMLElement) || !(tableBody instanceof HTMLElement)) {
-                console.warn('Orders table structure not found.');
+            if (!(tableBody instanceof HTMLElement)) {
+                console.warn('Orders table body not found.');
                 return;
             }
 
-            toolbarHost.innerHTML = '';
-
-            const toolbar = document.createElement('div');
-            toolbar.className = CLASS_NAMES.ordersToolbar;
-
-            const leftGroup = document.createElement('div');
-            leftGroup.className = CLASS_NAMES.toolbarLeft;
-
-            const generateBtn = document.createElement('button');
-            generateBtn.type = 'button';
-            generateBtn.className = CLASS_NAMES.toolbarButton;
-            generateBtn.innerHTML = 'Positionen Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
-            generateBtn.disabled = true;
-            
-            generateBtn.addEventListener('click', () => {
-                this.bulkGenerateSelectedOrders(generateBtn);
-            });
-
-            leftGroup.appendChild(generateBtn);
-            toolbar.appendChild(leftGroup);
-            toolbarHost.appendChild(toolbar);
-
-            this.ordersGenerateButton = generateBtn;
-
             if (!orders.length) {
                 tableBody.innerHTML = `
-                    <tr class="${CLASS_NAMES.empty}">
+                    <tr class="${OrdersPage.CLASS_NAMES.empty}">
                         <td colspan="${columnCount}" style="text-align:center;">Keine Bestellungen gefunden.</td>
                     </tr>
                 `;
@@ -384,7 +378,7 @@
                 const orderIdValue = this.safeText(order.order_id);
                 const orderIdEscaped = this.escapeHtml(orderIdValue);
                 positionCells.push(`
-                    <td><input type="checkbox" class="${CLASS_NAMES.orderSelectCheckbox}" data-order-id="${orderIdEscaped}" value="${orderIdEscaped}"></td>
+                    <td><input type="checkbox" class="${OrdersPage.CLASS_NAMES.orderSelectCheckbox}" data-order-id="${orderIdEscaped}" value="${orderIdEscaped}"></td>
                 `);
 
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.customer_id))}</td>`);
@@ -415,36 +409,6 @@
                 totalLabel.textContent = `Gesammt: ${orders.length}`;
             }
 
-            this.ordersChangeHandler = (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLInputElement)) {
-                    return;
-                }
-
-                if (target.classList.contains(CLASS_NAMES.ordersSelectAll)) {
-                    const checkboxes = table.querySelectorAll(`.${CLASS_NAMES.orderSelectCheckbox}`);
-                    checkboxes.forEach((checkboxElement) => {
-                        checkboxElement.checked = target.checked;
-                    });
-                    this.updateGenerateButtonState();
-                    return;
-                }
-
-                if (target.classList.contains(CLASS_NAMES.orderSelectCheckbox)) {
-                    if (selectAllCheckbox instanceof HTMLInputElement) {
-                        if (!target.checked) {
-                            selectAllCheckbox.checked = false;
-                        } else {
-                            const allCheckboxes = table.querySelectorAll(`.${CLASS_NAMES.orderSelectCheckbox}`);
-                            const checkedCheckboxes = table.querySelectorAll(`.${CLASS_NAMES.orderSelectCheckbox}:checked`);
-                            selectAllCheckbox.checked = allCheckboxes.length > 0 && checkedCheckboxes.length === allCheckboxes.length;
-                        }
-                    }
-                    this.updateGenerateButtonState();
-                }
-            };
-
-            container.addEventListener('change', this.ordersChangeHandler);
             this.updateGenerateButtonState();
         }
 
@@ -467,7 +431,7 @@
                 return;
             }
 
-            const input = form.querySelector(SELECTORS.customerSearchInput);
+            const input = form.querySelector(OrdersPage.SELECTORS.customerSearchInput);
             if (input instanceof HTMLInputElement) {
                 input.dispatchEvent(new Event('change'));
             }

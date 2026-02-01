@@ -1,41 +1,33 @@
 'use strict';
 
 (function () {
-    const globalObject = typeof window !== 'undefined' ? window : globalThis;
-    const documentObject = globalObject.document;
-    if (!documentObject) {
-        return;
-    }
 
-    const existingUtils = globalObject.lexBridgeUtils || {};
+    class CustomerSearchController 
+    {
+        static DEFAULT_SELECTOR = '.customer-search-combobox';
+        static DEFAULT_HIDDEN_NAME = 'customer_id';
+        static DEFAULT_DATALIST_OPTION = '<option value="">Alle Kunden</option>';
 
-    const DEFAULT_SELECTOR = '.customer-search-combobox';
-    const DEFAULT_HIDDEN_NAME = 'customer_id';
-    const DEFAULT_DATALIST_OPTION = '<option value="">Alle Kunden</option>';
+        static extractCustomerNumber(value) {
+            if (typeof value !== 'string') {
+                return '';
+            }
 
-
-
-    function extractCustomerNumber(value) {
-        if (typeof value !== 'string') {
-            return '';
+            const prefix = value.split('-')[0]?.trim() || '';
+            return /^\d+$/.test(prefix) ? prefix : '';
         }
 
-        const prefix = value.split('-')[0]?.trim() || '';
-        return /^\d+$/.test(prefix) ? prefix : '';
-    }
-
-    function normaliseString(value) {
-        if (value === null || value === undefined) {
-            return '';
+        static normaliseString(value) {
+            if (value === null || value === undefined) {
+                return '';
+            }
+            return String(value).trim();
         }
-        return String(value).trim();
-    }
 
-    class CustomerSearchController {
         constructor(options = {}) {
-            this.inputSelector = options.inputSelector || DEFAULT_SELECTOR;
+            this.inputSelector = options.inputSelector || CustomerSearchController.DEFAULT_SELECTOR;
             this.formSelector = options.formSelector || null;
-            this.hiddenFieldName = options.hiddenFieldName || DEFAULT_HIDDEN_NAME;
+            this.hiddenFieldName = options.hiddenFieldName || CustomerSearchController.DEFAULT_HIDDEN_NAME;
             this.debounceMs = typeof options.debounceMs === 'number' ? options.debounceMs : 250;
             this.requestHeaders = options.requestHeaders || {};
 
@@ -51,8 +43,8 @@
                 return;
             }
 
-            documentObject.addEventListener('input', this.boundHandleInput, true);
-            documentObject.addEventListener('change', this.boundHandleChange, true);
+            document.addEventListener('input', this.boundHandleInput, true);
+            document.addEventListener('change', this.boundHandleChange, true);
             this.attached = true;
         }
 
@@ -61,8 +53,8 @@
                 return;
             }
 
-            documentObject.removeEventListener('input', this.boundHandleInput, true);
-            documentObject.removeEventListener('change', this.boundHandleChange, true);
+            document.removeEventListener('input', this.boundHandleInput, true);
+            document.removeEventListener('change', this.boundHandleChange, true);
             this.attached = false;
         }
 
@@ -101,7 +93,7 @@
 
             const query = target.value.trim();
             if (query === '') {
-                datalist.innerHTML = DEFAULT_DATALIST_OPTION;
+                datalist.innerHTML = CustomerSearchController.DEFAULT_DATALIST_OPTION;
                 this.syncSelection(target, datalist);
                 this.clearTimer(target);
                 return;
@@ -159,7 +151,7 @@
         }
 
         async fetchCustomers(query) {
-            const url = globalObject.LexBridge.resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`);
+            const url = window.LexBridge.resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`);
             const response = await fetch(url, {
                 headers: this.requestHeaders
             });
@@ -185,16 +177,16 @@
         }
 
         populateOptions(datalist, customers) {
-            datalist.innerHTML = DEFAULT_DATALIST_OPTION;
+            datalist.innerHTML = CustomerSearchController.DEFAULT_DATALIST_OPTION;
             if (!Array.isArray(customers) || customers.length === 0) {
                 return;
             }
 
             const seenLabels = new Set();
             customers.forEach((customer) => {
-                const number = normaliseString(customer.customer_number ?? customer.customerNumber);
-                const name = normaliseString(customer.company_name ?? customer.companyName);
-                const id = normaliseString(customer.id);
+                const number = CustomerSearchController.normaliseString(customer.customer_number ?? customer.customerNumber);
+                const name = CustomerSearchController.normaliseString(customer.company_name ?? customer.companyName);
+                const id = CustomerSearchController.normaliseString(customer.id);
 
                 const labelParts = [];
                 if (number) {
@@ -211,7 +203,7 @@
                 }
                 seenLabels.add(`${number}|${resolvedLabel}`);
 
-                const option = documentObject.createElement('option');
+                const option = document.createElement('option');
                 option.value = resolvedLabel;
 
                 if (id) {
@@ -263,7 +255,7 @@
                 ? Array.from(datalist.options)
                 : Array.from(datalist.children);
             const lowerValue = value.toLowerCase();
-            const numericValue = extractCustomerNumber(value);
+            const numericValue = CustomerSearchController.extractCustomerNumber(value);
             let matchedKey = '';
 
             for (const optionElement of options) {
@@ -279,7 +271,7 @@
                 const optionLower = optionValue.toLowerCase();
                 const optionNumber = optionElement.dataset.customerNumber || optionElement.getAttribute('data-customer-number') || '';
                 const optionKey = optionElement.dataset.customerKey || optionElement.getAttribute('data-customer-key') || optionNumber || optionElement.dataset.customerId || optionElement.getAttribute('data-customer-id') || '';
-                const labelNumber = extractCustomerNumber(optionValue);
+                const labelNumber = CustomerSearchController.extractCustomerNumber(optionValue);
 
                 if (optionKey === '') {
                     continue;
@@ -330,14 +322,33 @@
                 return null;
             }
 
-            return documentObject.getElementById(listId);
+            return document.getElementById(listId);
         }
     }
 
-    globalObject.lexBridgeUtils = Object.assign({}, existingUtils, {
-        createCustomerSearchController: function createCustomerSearchController(options) {
-            return new CustomerSearchController(options);
-        },
-        CustomerSearchController
-    });
+    if (!window.lexBridgeUtils) {
+        window.lexBridgeUtils = {};
+    }
+
+    window.lexBridgeUtils.createCustomerSearchController = function createCustomerSearchController(options) {
+        // Always return or create a single global instance
+        if (!window.lexBridge) {
+            window.lexBridge = {};
+        }
+
+        // If global controller exists, return it (singleton pattern)
+        if (window.lexBridge.customerSearchController) {
+            return window.lexBridge.customerSearchController;
+        }
+
+        // Create, attach, and store new controller
+        const controller = new CustomerSearchController(options);
+        controller.attach();
+        window.lexBridge.customerSearchController = controller;
+        
+        return controller;
+    };
+
+    window.lexBridgeUtils.CustomerSearchController = CustomerSearchController;
+
 })();

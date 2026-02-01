@@ -3,7 +3,8 @@ class LineItemsPage {
     static handlerSetup = false;
     static activeInstance = null;
 
-    constructor(lexBridge) {
+    constructor(lexBridge) 
+    {
         this.lexBridge = lexBridge;
         this.filterForm = null;
         this.sendInvoiceButton = null;
@@ -39,32 +40,22 @@ class LineItemsPage {
         }
 
         this.filterForm.addEventListener('submit', async (event) => {
+
             event.preventDefault();
             event.stopPropagation();
             await this.handleFilterSubmit(this.filterForm);
         });
     }
 
-    setupCustomerSearchController() {
-        const globalController = window.lexBridge?.customerSearchController;
-        if (globalController) {
-            this.customerSearchController = globalController;
-            return;
-        }
-
+    setupCustomerSearchController() 
+    {
         if (!window.lexBridgeUtils || typeof window.lexBridgeUtils.createCustomerSearchController !== 'function') {
             return;
         }
-
-        const controller = window.lexBridgeUtils.createCustomerSearchController({
+        
+        this.customerSearchController = window.lexBridgeUtils.createCustomerSearchController({
             hiddenFieldName: 'customer_id'
         });
-        controller.attach();
-        if (!window.lexBridge) {
-            window.lexBridge = {};
-        }
-        window.lexBridge.customerSearchController = controller;
-        this.customerSearchController = controller;
     }
 
 
