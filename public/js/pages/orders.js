@@ -48,26 +48,16 @@
             }
         }
 
-        setupCustomerSearchController() {
-            const globalController = window.lexBridge?.customerSearchController;
-            if (globalController) {
-                this.customerSearchController = globalController;
-                return;
-            }
-
+        setupCustomerSearchController() 
+        {
             if (!window.lexBridgeUtils || typeof window.lexBridgeUtils.createCustomerSearchController !== 'function') {
                 return;
             }
-
-            const controller = window.lexBridgeUtils.createCustomerSearchController({
+            
+            this.customerSearchController = window
+            .lexBridgeUtils.createCustomerSearchController({
                 hiddenFieldName: 'customer_id'
             });
-            controller.attach();
-            if (!window.lexBridge) {
-                window.lexBridge = {};
-            }
-            window.lexBridge.customerSearchController = controller;
-            this.customerSearchController = controller;
         }
 
 
@@ -97,12 +87,14 @@
             this.ordersGenerateButton.disabled = selectedCount === 0;
         }
 
-        getOrdersContainer() {
+        getOrdersContainer() 
+        {
             if (this.ordersContainer && document.body.contains(this.ordersContainer)) {
                 return this.ordersContainer;
             }
 
             this.ordersContainer = document.querySelector(SELECTORS.ordersContainer);
+            
             return this.ordersContainer;
         }
 
@@ -114,10 +106,11 @@
 
             const originalMarkup = button.innerHTML;
             button.disabled = true;
+            
             if (loadingMarkup) {
                 button.innerHTML = loadingMarkup;
             }
-
+            
             try {
                 return await callback();
             } finally {
@@ -126,15 +119,19 @@
             }
         }
 
-        async requestJson(url, options = {}, contextLabel = 'Anfrage fehlgeschlagen') {
+        async requestJson(url, options = {}, contextLabel = 'Anfrage fehlgeschlagen') 
+        {
             const response = await fetch(url, options);
-            if (!response.ok) {
+
+            if (!response.ok) 
+            {
                 const errorText = await response.text();
                 throw new Error(`${contextLabel} (${response.status}): ${errorText}`);
             }
 
             const raw = await response.text();
             const payload = raw.trim();
+
             if (payload === '') {
                 return {};
             }
@@ -146,8 +143,10 @@
             }
         }
 
-        async bulkGenerateSelectedOrders(button) {
+        async bulkGenerateSelectedOrders(button) 
+        {
             const orderIds = this.getSelectedOrderIds();
+
             if (!orderIds.length) {
                 this.notify('Bitte wählen Sie mindestens eine Bestellung aus.', 'warning');
                 return;
@@ -170,6 +169,7 @@
                     const generated = data.generatedCount ?? data.generated ?? 0;
                     this.notify(`Es wurden ${generated} Positionen erstellt.`, 'success');
                     await this.reloadOrders();
+
                 } catch (error) {
                     console.error('Bulk generate line items error:', error);
                     const message = error instanceof Error && error.message ? error.message : 'Fehler beim Erstellen der Positionen.';
@@ -178,11 +178,14 @@
             });
         }
 
-        async processFilterForm(form) {
+        async processFilterForm(form) 
+        {
             this.ensureCustomerSelection(form);
 
             const fromInput = form.querySelector('input[name="geaendertAm_from"]');
-            if (fromInput && fromInput.value.trim() === '') {
+            
+            if (fromInput && fromInput.value.trim() === '') 
+            {
                 this.notify('Bitte geben Sie ein "Von"-Datum an.', 'warning');
                 fromInput.focus();
                 return;
@@ -252,22 +255,27 @@
             }
 
             let originalButtonLabel = null;
+
             if (submitButton) {
                 originalButtonLabel = submitButton.innerHTML;
                 submitButton.disabled = true;
                 submitButton.innerHTML = '<span class="btn-icon spinning">↻</span> Filtern...';
             }
 
-            try {
+            try 
+            {
                 const data = await this.requestJson(`${LexBridge.resolveApiUrl('orders')}?${params.toString()}`, {}, 'Orders request failed');
+                
                 if (!data?.isSuccess) {
                     throw new Error(data?.error || 'Unbekannter Fehler beim Laden der Bestellungen.');
                 }
 
                 this.renderOrdersList(Array.isArray(data.orders) ? data.orders : []);
                 this.notify('Bestellungen aktualisiert.', 'success');
+
             } catch (error) {
                 console.error('Orders filter error:', error);
+
                 if (tableBody instanceof HTMLElement) {
                     tableBody.innerHTML = `
                         <tr>
@@ -277,12 +285,17 @@
                         </tr>
                     `;
                 }
+
                 if (totalLabel instanceof HTMLElement) {
                     totalLabel.textContent = 'Gesammt: 0';
                 }
+
                 this.notify('Fehler beim Laden der Bestellungen.', 'error');
+
             } finally {
+
                 container.setAttribute('aria-busy', 'false');
+
                 if (submitButton && originalButtonLabel !== null) {
                     submitButton.disabled = false;
                     submitButton.innerHTML = originalButtonLabel;
@@ -290,8 +303,10 @@
             }
         }
 
-        renderOrdersList(orders) {
+        renderOrdersList(orders) 
+        {
             const container = this.getOrdersContainer();
+
             if (!container) {
                 return;
             }
@@ -300,6 +315,7 @@
                 container.removeEventListener('change', this.ordersChangeHandler);
                 this.ordersChangeHandler = null;
             }
+
             const toolbarHost = container.querySelector('.orders-toolbar-container');
             const table = container.querySelector(`.${CLASS_NAMES.ordersTable}`);
             const tableBody = table ? table.querySelector('.orders-table-body') : null;
@@ -325,6 +341,7 @@
             generateBtn.className = CLASS_NAMES.toolbarButton;
             generateBtn.innerHTML = 'Positionen Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>';
             generateBtn.disabled = true;
+            
             generateBtn.addEventListener('click', () => {
                 this.bulkGenerateSelectedOrders(generateBtn);
             });
