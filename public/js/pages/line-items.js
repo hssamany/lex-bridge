@@ -1,10 +1,5 @@
-// public/js/pages/line-items.js
-// Uses the shared customer search utility for the Line-Items tab
-
-
-
-
 class LineItemsPage {
+
     static handlerSetup = false;
     static activeInstance = null;
 
@@ -18,20 +13,12 @@ class LineItemsPage {
         this.setupCustomerSearchController();
 
         if (!LineItemsPage.handlerSetup) {
-            // Use centralized form interceptor utility
-            if (window.lexBridgeUtils && typeof window.lexBridgeUtils.registerAjaxFormHandler === 'function') {
-                window.lexBridgeUtils.registerAjaxFormHandler('form[name="get-line-items"]', async (form, event) => {
-                    const instance = LineItemsPage.activeInstance;
-                    if (instance) {
-                        await instance.handleFilterSubmit(form);
-                    }
-                });
-            }
             this.registerSelectAllHandler();
             LineItemsPage.handlerSetup = true;
         }
 
         LineItemsPage.activeInstance = this;
+        window.lexBridge.LineItemsPageInstance = this;
         this.initialize();
     }
 
@@ -43,6 +30,19 @@ class LineItemsPage {
         this.setupFilterFormDirect();
         this.setupSendInvoiceButton();
         this.setupSyncArticlesButton();
+    }
+
+    setupFilterFormDirect() {
+        if (!this.filterForm) {
+            console.warn('Line-items filter form not found');
+            return;
+        }
+
+        this.filterForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            await this.handleFilterSubmit(this.filterForm);
+        });
     }
 
     setupCustomerSearchController() {

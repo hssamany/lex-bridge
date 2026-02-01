@@ -205,9 +205,9 @@ class TabManager {
     createTabContent(tabData) {
         const template = document.getElementById('tab-content-template');
         const content = template.content.cloneNode(true).querySelector('.tab-content');
-        
+
         content.id = tabData.id;
-        
+
         // If content is a string, set innerHTML
         if (typeof tabData.content === 'string') {
             content.innerHTML = tabData.content;
@@ -220,7 +220,7 @@ class TabManager {
         else if (tabData.content instanceof HTMLElement) {
             content.appendChild(tabData.content);
         }
-        
+
         return content;
     }
     

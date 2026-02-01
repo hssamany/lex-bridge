@@ -1,6 +1,7 @@
-'use strict';
+"use strict";
 
 (function () {
+
     const SELECTORS = {
         filterForm: 'form[name="get-bestellg"]',
         customerSearchInput: '.customer-search-combobox',
@@ -27,25 +28,31 @@
             this.lastQueryString = '';
             this.ordersContainer = null;
 
-            this.onSubmitDelegate = this.handleSubmitEvent.bind(this);
             this.ordersChangeHandler = null;
             this.ordersGenerateButton = null;
             this.customerSearchController = null;
 
+            window.lexBridge.OrdersPageInstance = this;
             this.init();
         }
 
         init() {
             this.setupCustomerSearchController();
-            // Use centralized form interceptor utility for filter form
-            if (window.lexBridgeUtils && typeof window.lexBridgeUtils.registerAjaxFormHandler === 'function') {
-                window.lexBridgeUtils.registerAjaxFormHandler(
-                    SELECTORS.filterForm,
-                    async (form, event) => {
-                        await this.processFilterForm(form);
-                    }
-                );
+            this.attachFormHandler();
+        }
+
+        attachFormHandler() {
+            const form = document.querySelector(SELECTORS.filterForm);
+            if (!form) {
+                console.warn('Orders filter form not found');
+                return;
             }
+
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                await this.processFilterForm(form);
+            });
         }
 
         setupCustomerSearchController() 
@@ -530,4 +537,6 @@
     }
 
     window.lexBridge.OrdersPage = OrdersPage;
+    window.lexBridge.OrdersPageInstance = null;
+
 })();

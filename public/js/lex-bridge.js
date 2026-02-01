@@ -358,11 +358,8 @@ class LexBridge {
                 this.contactsPage.setupRefreshButtonDirect();
             } else if (tabName === 'rechn' && this.invoicesPage) {
                 this.invoicesPage.setupRefreshButtonDirect();
-            } else if (tabName === 'bestellg' && this.ordersPage) {
-                this.ordersPage.setupFilterFormDirect();
-            } else if (tabName === 'posn' && this.lineItemsPage) {
-                this.lineItemsPage.setupFilterFormDirect();
             }
+            // Note: Orders and Line-Items pages now handle their own form events via direct listeners in init()
         }, 100);
     }
     

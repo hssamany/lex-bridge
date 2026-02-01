@@ -1,0 +1,71 @@
+<?php
+/**
+ * Reusable filter form component
+ * 
+ * @param string $formName - Form name attribute
+ * @param string $dateFromId - ID for "Von" date input
+ * @param string $dateFromName - Name for "Von" date input
+ * @param string $dateToId - ID for "Bis" date input
+ * @param string $dateToName - Name for "Bis" date input
+ * @param string $customerSearchId - ID for customer search input
+ * @param string $datalistId - ID for customer datalist
+ * @param bool $dateFromRequired - Whether "Von" field is required
+ * @param string $containerClass - Additional container class
+ */
+
+$formName = $formName ?? 'filter-form';
+$dateFromId = $dateFromId ?? 'date_from';
+$dateFromName = $dateFromName ?? 'date_from';
+$dateToId = $dateToId ?? 'date_to';
+$dateToName = $dateToName ?? 'date_to';
+$customerSearchId = $customerSearchId ?? 'customer_search';
+$datalistId = $datalistId ?? 'customer-options';
+$dateFromRequired = $dateFromRequired ?? false;
+$containerClass = $containerClass ?? '';
+?>
+<div class="<?= htmlspecialchars($containerClass) ?>">
+    <form name="<?= htmlspecialchars($formName) ?>" class="line-items-filter-form inline-form">
+        <div class="filter-group-col">
+            <label for="<?= htmlspecialchars($dateFromId) ?>">Von:</label>
+            <input 
+                type="date" 
+                id="<?= htmlspecialchars($dateFromId) ?>" 
+                name="<?= htmlspecialchars($dateFromName) ?>" 
+                class="input-date" 
+                placeholder="TT.mm.jjjj"
+                <?= $dateFromRequired ? 'required' : '' ?>
+            >
+        </div>
+        <div class="filter-group-col">
+            <label for="<?= htmlspecialchars($dateToId) ?>">Bis:</label>
+            <input 
+                type="date" 
+                id="<?= htmlspecialchars($dateToId) ?>" 
+                name="<?= htmlspecialchars($dateToName) ?>" 
+                class="input-date" 
+                placeholder="TT.mm.jjjj"
+            >
+        </div>
+        <div class="filter-group-col">
+            <label for="<?= htmlspecialchars($customerSearchId) ?>">KundenNr:</label>
+            <input 
+                id="<?= htmlspecialchars($customerSearchId) ?>" 
+                name="customer_search" 
+                class="customer-search-combobox" 
+                list="<?= htmlspecialchars($datalistId) ?>" 
+                autocomplete="off" 
+                placeholder="KundenNr oder Firma..."
+            >
+            <input type="hidden" name="customer_id" value="">
+            <datalist id="<?= htmlspecialchars($datalistId) ?>">
+                <option value="">Alle Kunden</option>
+            </datalist>
+        </div>
+        <div class="filter-group-col filter-btn-group">
+            <label style="visibility:hidden">Filtern</label>
+            <button type="submit" class="btn btn-primary filter-submit-btn" title="Filtern" aria-label="Filtern">
+                <span class="btn-icon" aria-hidden="true">🔍</span>
+            </button>
+        </div>
+    </form>
+</div>
