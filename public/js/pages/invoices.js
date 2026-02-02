@@ -30,10 +30,24 @@ class InvoicesPage {
      */
     async loadInvoicesOnTabActivation() {
         console.log('InvoicesPage: loading invoices on tab activation');
-        // Wait a tick for the tab to be fully rendered
-        setTimeout(async () => {
-            await this.loadInvoices(0, false);
-        }, 100);
+        // Wait for the button to be available in the DOM
+        const waitForButton = () => {
+            return new Promise((resolve) => {
+                const checkButton = () => {
+                    const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
+                    if (button) {
+                        console.log('Button found, proceeding with invoice load');
+                        resolve();
+                    } else {
+                        setTimeout(checkButton, 50);
+                    }
+                };
+                checkButton();
+            });
+        };
+        
+        await waitForButton();
+        await this.loadInvoices(0, false);
     }
     
     /**
@@ -48,7 +62,10 @@ class InvoicesPage {
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                await this.processFilterForm(e.target);
+                
+                // Get the submit button from the form
+                const button = e.target.querySelector('button[type="submit"]');
+                await this.processFilterForm(e.target, button);
                 return false;
             }
 
@@ -65,49 +82,23 @@ class InvoicesPage {
                 const form = e.target.closest('form[name="get-invoices"]');
                 if (form) {
                     console.log('Status changed, triggering invoice filter');
-                    await this.processFilterForm(form);
+                    const button = form.querySelector('button[type="submit"]');
+                    await this.processFilterForm(form, button);
                 }
             }
         }, true);
     }
     
     /**
-     * Setup refresh button directly on the form element (called after tab is visible)
-     */
-    setupRefreshButtonDirect() 
-    {
-        const refreshForm = document.querySelector('form[name="get-invoices"]');
-        
-        if (refreshForm) {
-
-            // Remove the action attribute to prevent navigation
-            refreshForm.removeAttribute('action');
-            refreshForm.setAttribute('data-original-action', '?action=get-invoices');
-            const button = refreshForm.querySelector('button[type="submit"]');
-                        
-            if (button && !button.dataset.ajaxHandlerAttached) {
-
-                button.dataset.ajaxHandlerAttached = 'true';
-                button.type = 'button';
-                button.addEventListener('click', async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    await this.loadInvoices(0, true);
-                });
-            }
-        }
-    }
-    
-    /**
      * Load invoices via AJAX
      */
-    async loadInvoices(page = 0, isUserAction = false) {
+    async loadInvoices(page = 0, isUserAction = false, button = null) {
 
-        const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
-        
+        // Use provided button or try to find it
         if (!button) {
-            console.warn('Refresh button not found, loading without UI feedback');
+            button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
         }
+        
         const originalText = button?.innerHTML;
         
         try {
@@ -272,7 +263,7 @@ class InvoicesPage {
     /**
      * Process filter form submission
      */
-    async processFilterForm(form) {
+    async processFilterForm(form, button = null) {
         // Build query parameters from form data
         const params = new URLSearchParams();
         const formData = new FormData(form);
@@ -290,17 +281,16 @@ class InvoicesPage {
         }
 
         // Load invoices with filter parameters
-        await this.loadInvoicesWithParams(params);
+        await this.loadInvoicesWithParams(params, button);
     }
     
     /**
      * Load invoices with filter parameters
      */
-    async loadInvoicesWithParams(params) {
-        const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
-        
+    async loadInvoicesWithParams(params, button = null) {
+        // Use provided button or try to find it
         if (!button) {
-            console.warn('Submit button not found, loading without UI feedback');
+            button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
         }
         
         const originalText = button?.innerHTML;

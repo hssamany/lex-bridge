@@ -272,12 +272,12 @@ final class ApiKernel {
                 $filters['status'] = $_GET['status'];
             }
             
-            if (!empty($_GET['geaendertAm_from'])) {
-                $filters['from_date'] = $_GET['geaendertAm_from'];
+            if (!empty($_GET['voucher_date_from'])) {
+                $filters['from_date'] = $_GET['voucher_date_from'];
             }
             
-            if (!empty($_GET['geaendertAm_to'])) {
-                $filters['to_date'] = $_GET['geaendertAm_to'];
+            if (!empty($_GET['voucher_date_to'])) {
+                $filters['to_date'] = $_GET['voucher_date_to'];
             }
             
             return $controller->getInvoices($filters);

@@ -246,6 +246,7 @@ input[list]::-webkit-calendar-picker-indicator {
     flex-wrap: nowrap;
     gap: 1.2rem;
     align-items: flex-end;
+    justify-content: flex-start;
     margin-bottom: 1.5rem;
 }
 
@@ -282,6 +283,12 @@ input[list]::-webkit-calendar-picker-indicator {
     border-color: #4CAF50;
     outline: none;
 }
+
+/* Invoice table spacing */
+.invoice-table {
+    margin-top: 1.5rem;
+}
+
 /* Global Styles */
 body {
     font-family: Arial, sans-serif;

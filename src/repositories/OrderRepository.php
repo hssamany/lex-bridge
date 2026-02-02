@@ -79,12 +79,12 @@ class OrderRepository
         }
 
         $conditions = [
-            'o.GeaendertAm >= :changed_from',
-            'o.GeaendertAm <= :changed_to',
+            'STR_TO_DATE(o.GeaendertAm, "%d.%m.%Y") >= :changed_from',
+            'STR_TO_DATE(o.GeaendertAm, "%d.%m.%Y") <= :changed_to',
         ];
         $params = [
-            ':changed_from' => $changedFrom->format('Y-m-d H:i:s'),
-            ':changed_to' => $changedTo->format('Y-m-d H:i:s'),
+            ':changed_from' => $changedFrom->format('Y-m-d'),
+            ':changed_to' => $changedTo->format('Y-m-d'),
         ];
 
         $customerReference = $filters['customer_id'] ?? null;
