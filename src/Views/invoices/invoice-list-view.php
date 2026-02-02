@@ -36,7 +36,7 @@
                 <?php endforeach; ?>
             </tbody>
         </table>
-        <p><strong>Total:</strong> <?= count($invoicesData['invoices']) ?> invoices</p>
+        <p><strong>Gesammt:</strong> <?= count($invoicesData['invoices']) ?> Rechnungen</p>
     </div>
 
 <?php else: ?>

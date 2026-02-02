@@ -62,5 +62,5 @@
             <?php endforeach; ?>
         </tbody>
     </table>
-    <p><strong>Total:</strong> <?= count($contacts); ?> contacts</p>
+    <p><strong>Gesammt:</strong> <?= count($contacts); ?> Kontakte</p>
 </div>
