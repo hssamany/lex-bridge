@@ -16,6 +16,7 @@ class InvoicesPage {
         // Event delegation will be set up globally
         if (!InvoicesPage.handlerSetup) {
             this.setupRefreshButton();
+            this.setupStatusDropdown();
             InvoicesPage.handlerSetup = true;
         }
 
@@ -55,6 +56,22 @@ class InvoicesPage {
     }
     
     /**
+     * Setup status dropdown to auto-submit form on change
+     */
+    setupStatusDropdown() {
+        // Use event delegation to catch status changes
+        document.addEventListener('change', async (e) => {
+            if (e.target.matches('select[name="status"]')) {
+                const form = e.target.closest('form[name="get-invoices"]');
+                if (form) {
+                    console.log('Status changed, triggering invoice filter');
+                    await this.processFilterForm(form);
+                }
+            }
+        }, true);
+    }
+    
+    /**
      * Setup refresh button directly on the form element (called after tab is visible)
      */
     setupRefreshButtonDirect() 
@@ -89,15 +106,16 @@ class InvoicesPage {
         const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
         
         if (!button) {
-            console.error('Refresh button not found');
-            return;
+            console.warn('Refresh button not found, loading without UI feedback');
         }
-        const originalText = button.innerHTML;
+        const originalText = button?.innerHTML;
         
         try {
             
-            button.disabled = true;
-            button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
+            }
             const response = await fetch(LexBridge.resolveApiUrl(`invoices?page=${page}`));
             const data = await response.json();
             
@@ -125,8 +143,10 @@ class InvoicesPage {
                 );
             }
         } finally {
-            button.disabled = false;
-            button.innerHTML = originalText;
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
         }
     }
     
@@ -280,15 +300,16 @@ class InvoicesPage {
         const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
         
         if (!button) {
-            console.error('Submit button not found');
-            return;
+            console.warn('Submit button not found, loading without UI feedback');
         }
         
-        const originalText = button.innerHTML;
+        const originalText = button?.innerHTML;
         
         try {
-            button.disabled = true;
-            button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
+            }
             
             const queryString = params.toString();
             const url = LexBridge.resolveApiUrl(`invoices${queryString ? '?' + queryString : ''}`);
@@ -312,8 +333,10 @@ class InvoicesPage {
                 'error'
             );
         } finally {
-            button.disabled = false;
-            button.innerHTML = originalText;
+            if (button) {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
         }
     }
     

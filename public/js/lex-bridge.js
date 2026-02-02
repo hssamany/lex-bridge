@@ -474,6 +474,7 @@ class LexBridge {
 }
 
 // Export to global scope
+window.LexBridge = LexBridge;
 window.LexBridgeClass = LexBridge;
 window.lexBridge = new LexBridge();
 window.lexBridge.init && window.lexBridge.init();

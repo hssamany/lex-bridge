@@ -103,7 +103,7 @@ class CustomerRepository
               FROM {$this->customerTable} AS c
               LEFT JOIN {$this->customerArticleTable} AS ca ON ca.customer_id = c.id
               LEFT JOIN {$this->articleTable} AS a ON a.id = ca.article_id
-             ORDER BY c.company_name ASC
+             ORDER BY c.kundenNummer ASC
         SQL;
 
         $stmt = $this->db->query($sql);

@@ -816,3 +816,106 @@ pre {
 }
 
 /* Responsive adjustments - flex handles this automatically now */
+
+/* Contacts table - reuse existing table patterns with scrollable body */
+.contacts-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.contact-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.contact-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.contact-table thead th {
+    padding: 12px 8px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    background-color: #f8f9fa;
+}
+
+.contact-table tbody {
+    display: block;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.contact-table thead,
+.contact-table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.contact-table tbody tr {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.contact-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.contact-table td {
+    padding: 10px 8px;
+}
+
+/* Column widths for contacts table */
+.contact-table th:nth-child(1),
+.contact-table td:nth-child(1) {
+    width: 30%; /* Kunden Name */
+}
+
+.contact-table th:nth-child(2),
+.contact-table td:nth-child(2) {
+    width: 15%; /* Kunden Nr. */
+}
+
+.contact-table th:nth-child(3),
+.contact-table td:nth-child(3) {
+    width: 15%; /* Lex Kunden Nr. */
+}
+
+.contact-table th:nth-child(4),
+.contact-table td:nth-child(4) {
+    width: 40%; /* Artikel */
+}
+
+/* Contact article editor styling */
+.contact-article-editor {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.contact-article-input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+.contact-article-clear {
+    padding: 4px 8px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.contact-article-clear:hover {
+    background: #c82333;
+}
