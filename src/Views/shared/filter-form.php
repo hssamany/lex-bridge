@@ -21,6 +21,7 @@ $dateToName = $dateToName ?? 'date_to';
 $customerSearchId = $customerSearchId ?? 'customer_search';
 $datalistId = $datalistId ?? 'customer-options';
 $dateFromRequired = $dateFromRequired ?? false;
+$dateFromDefault = $dateFromDefault ?? ''; // Default value for Von field
 $containerClass = $containerClass ?? '';
 $includeStatus = $includeStatus ?? false;
 $statusFieldId = $statusFieldId ?? 'status';
@@ -36,6 +37,7 @@ $statusFieldName = $statusFieldName ?? 'status';
                 name="<?= htmlspecialchars($dateFromName) ?>" 
                 class="input-date" 
                 placeholder="TT.mm.jjjj"
+                value="<?= htmlspecialchars($dateFromDefault) ?>"
                 <?= $dateFromRequired ? 'required' : '' ?>
             >
         </div>

@@ -8,5 +8,6 @@ $customerSearchId = 'orders_customer_search';
 $datalistId = 'orders-customer-options';
 $dateFromRequired = true;
 $containerClass = 'orders-filter-container';
+$dateFromDefault = date('Y-m-d', strtotime('first day of last month')); // Set to first day of last month
 
 require __DIR__ . '/../shared/filter-form.php';

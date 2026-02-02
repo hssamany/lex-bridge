@@ -29,6 +29,7 @@
             this.ordersContainer = null;
             this.allOrders = []; // Store all fetched orders
             this.showProcessed = false; // Default: hide processed orders
+            this.hasLoadedOnce = false; // Track if orders have been loaded
 
             this.ordersChangeHandler = null;
             this.ordersGenerateButton = null;
@@ -44,6 +45,7 @@
             this.setupGenerateButton();
             this.setupProcessedFilterCheckbox();
             this.registerSelectAllHandler();
+            this.autoLoadOrdersOnFirstOpen();
         }
 
         attachFormHandler() {
@@ -97,6 +99,20 @@
                 : this.allOrders.filter(order => !order.verarbeitet);
             
             this.updateOrdersList(filteredOrders);
+        }
+
+        async autoLoadOrdersOnFirstOpen() {
+            // Auto-load orders if this is the first time and list is empty
+            if (!this.hasLoadedOnce && this.allOrders.length === 0) {
+                console.log('OrdersPage: Auto-loading orders on first open');
+                setTimeout(async () => {
+                    const form = document.querySelector(OrdersPage.SELECTORS.filterForm);
+                    if (form) {
+                        await this.processFilterForm(form);
+                        this.hasLoadedOnce = true;
+                    }
+                }, 100);
+            }
         }
 
         registerSelectAllHandler() {
