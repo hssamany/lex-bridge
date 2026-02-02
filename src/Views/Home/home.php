@@ -73,6 +73,7 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
     <script src="public/js/modules/line-item-persistence.js"></script>
     <script src="public/js/modules/article-search-controller.js"></script>
     <script src="public/js/pages/home.js"></script>
+    <!-- <script src="public/js/pages/contacts.js"></script> -->
     <script src="public/js/pages/invoices.js"></script>
     <script src="public/js/pages/line-items.js"></script>
     <script src="public/js/pages/orders.js"></script>

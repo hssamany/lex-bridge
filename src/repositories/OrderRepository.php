@@ -79,12 +79,12 @@ class OrderRepository
         }
 
         $conditions = [
-            'STR_TO_DATE(o.GeaendertAm, "%d.%m.%Y") >= :changed_from',
-            'STR_TO_DATE(o.GeaendertAm, "%d.%m.%Y") <= :changed_to',
+            'o.GeaendertAm >= :changed_from',
+            'o.GeaendertAm <= :changed_to',
         ];
         $params = [
-            ':changed_from' => $changedFrom->format('Y-m-d'),
-            ':changed_to' => $changedTo->format('Y-m-d'),
+            ':changed_from' => $changedFrom->format('Y-m-d H:i:s'),
+            ':changed_to' => $changedTo->format('Y-m-d H:i:s'),
         ];
 
         $customerReference = $filters['customer_id'] ?? null;
@@ -97,6 +97,14 @@ class OrderRepository
         $verarbeitetSelect = $this->supportsProcessedFlag() 
             ? 'COALESCE(o.verarbeitet, 0) AS verarbeitet' 
             : '0 AS verarbeitet';
+
+        // First, let's check if there are ANY orders in the table
+        $countSql = "SELECT COUNT(*) as total, MIN(o.GeaendertAm) as min_date, MAX(o.GeaendertAm) as max_date FROM {$this->ordersTable} o";
+        $countStmt = $this->db->query($countSql);
+        $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
+        error_log("OrderRepository: Total orders in table: " . ($countResult['total'] ?? 0));
+        error_log("OrderRepository: Date range in table: " . ($countResult['min_date'] ?? 'NULL') . " to " . ($countResult['max_date'] ?? 'NULL'));
+        error_log("OrderRepository: Filtering from: " . $changedFrom->format('Y-m-d') . " to: " . $changedTo->format('Y-m-d'));
 
         $sql = "SELECT
                     o.Id AS order_id,
@@ -139,6 +147,10 @@ class OrderRepository
         $stmt->execute();
 
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("OrderRepository: SQL executed: " . $sql);
+        error_log("OrderRepository: Params: " . json_encode($params));
+        error_log("OrderRepository: Found " . count($orders) . " orders");
 
         return $orders ?: [];
     }
