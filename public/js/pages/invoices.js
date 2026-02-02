@@ -20,25 +20,18 @@ class InvoicesPage {
         }
 
         this.setupTransferButtons();
-        // Auto-load invoices on page load if empty
-        this.autoLoadIfEmpty();
+        // Auto-load invoices when tab is activated
+        this.loadInvoicesOnTabActivation();
     }
     
     /**
-     * Auto-load invoices if the list is empty
+     * Load invoices when tab is activated
      */
-    async autoLoadIfEmpty() {
-        console.log('InvoicesPage: checking if should auto-load');
+    async loadInvoicesOnTabActivation() {
+        console.log('InvoicesPage: loading invoices on tab activation');
         // Wait a tick for the tab to be fully rendered
         setTimeout(async () => {
-
-            const tbody = document.querySelector('.invoices-container tbody');
-            
-            if (tbody && tbody.children.length === 0) {
-                console.log('Auto-loading invoices...');
-                await this.loadInvoices(0, false);
-            }
-
+            await this.loadInvoices(0, false);
         }, 100);
     }
     

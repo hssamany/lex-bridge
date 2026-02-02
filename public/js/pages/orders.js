@@ -27,6 +27,8 @@
             this.lexBridge = lexBridge;
             this.lastQueryString = '';
             this.ordersContainer = null;
+            this.allOrders = []; // Store all fetched orders
+            this.showProcessed = false; // Default: hide processed orders
 
             this.ordersChangeHandler = null;
             this.ordersGenerateButton = null;
@@ -40,6 +42,7 @@
             this.setupCustomerSearchController();
             this.attachFormHandler();
             this.setupGenerateButton();
+            this.setupProcessedFilterCheckbox();
             this.registerSelectAllHandler();
         }
 
@@ -69,6 +72,31 @@
             button.addEventListener('click', () => {
                 this.bulkGenerateSelectedOrders(button);
             });
+        }
+
+        setupProcessedFilterCheckbox() {
+            const checkbox = document.querySelector('.orders-filter-processed');
+            if (!checkbox) {
+                console.warn('Orders filter processed checkbox not found');
+                return;
+            }
+
+            // Set default state (unchecked = hide processed)
+            checkbox.checked = this.showProcessed;
+
+            checkbox.addEventListener('change', (event) => {
+                this.showProcessed = event.target.checked;
+                this.applyProcessedFilter();
+            });
+        }
+
+        applyProcessedFilter() {
+            // Filter orders based on showProcessed flag
+            const filteredOrders = this.showProcessed 
+                ? this.allOrders 
+                : this.allOrders.filter(order => !order.verarbeitet);
+            
+            this.updateOrdersList(filteredOrders);
         }
 
         registerSelectAllHandler() {
@@ -303,7 +331,9 @@
                     throw new Error(data?.error || 'Unbekannter Fehler beim Laden der Bestellungen.');
                 }
 
-                this.updateOrdersList(Array.isArray(data.orders) ? data.orders : []);
+                // Store all orders and apply filter
+                this.allOrders = Array.isArray(data.orders) ? data.orders : [];
+                this.applyProcessedFilter();
                 this.notify('Bestellungen aktualisiert.', 'success');
 
             } catch (error) {

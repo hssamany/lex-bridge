@@ -139,20 +139,24 @@ final class ApiKernel {
             $filters = [];
 
             $changedFromRaw = isset($_GET['geaendertAm_from']) ? trim((string) $_GET['geaendertAm_from']) : '';
+            
             if ($changedFromRaw === '') {
                 return [
                     'isSuccess' => false,
                     'error' => 'geaendertAm_from is required',
                 ];
             }
+
             $filters['geaendertAm_from'] = $changedFromRaw;
 
             $changedToRaw = isset($_GET['geaendertAm_to']) ? trim((string) $_GET['geaendertAm_to']) : '';
+            
             if ($changedToRaw !== '') {
                 $filters['geaendertAm_to'] = $changedToRaw;
             }
 
             $customerIdRaw = $_GET['customer_id'] ?? null;
+            
             if ($customerIdRaw !== null && $customerIdRaw !== '') {
                 $customerId = filter_var($customerIdRaw, FILTER_VALIDATE_INT, [
                     'options' => ['min_range' => 1],
@@ -283,11 +287,13 @@ final class ApiKernel {
     private function postInvoiceCreateRouteRegistration(): void
     {
         $this->router->post('/invoices', function() {
+            
             $controller = ControllerFactory::makeInvoiceController($this->httpClient);
             $data = json_decode(file_get_contents('php://input'), true);
             $customerId = $data['customer_id'] ?? null;
             $currency = $data['currency'] ?? null;
             $lineItems = $data['line_items'] ?? [];
+
             if (!$customerId || empty($lineItems)) {
                 return [
                     'isSuccess' => false,

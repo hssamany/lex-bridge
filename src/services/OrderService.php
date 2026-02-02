@@ -142,6 +142,7 @@ final class OrderService
             'article_id' => isset($order['article_id']) && $order['article_id'] !== null ? (int) $order['article_id'] : null,
             'article_number' => $order['article_number'] ?? null,
             'geaendert_am' => $order['GeaendertAm'] ?? null,
+            'verarbeitet' => isset($order['verarbeitet']) ? (bool) (int) $order['verarbeitet'] : false,
             'quantities' => [
                 'Mo' => $mapQuantity($order['Mo'] ?? null),
                 'Di' => $mapQuantity($order['Di'] ?? null),

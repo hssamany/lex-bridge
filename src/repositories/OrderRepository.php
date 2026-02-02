@@ -93,6 +93,11 @@ class OrderRepository
             $params[':customer_id'] = (int) $customerReference;
         }
 
+        // Check if verarbeitet column exists
+        $verarbeitetSelect = $this->supportsProcessedFlag() 
+            ? 'COALESCE(o.verarbeitet, 0) AS verarbeitet' 
+            : '0 AS verarbeitet';
+
         $sql = "SELECT
                     o.Id AS order_id,
                     o.Kunde AS customer_id,
@@ -107,7 +112,8 @@ class OrderRepository
                     a.article_number,
                     o.GeaendertAm,
                     c.kundenNummer AS customer_number,
-                    c.lex_customer_number
+                    c.lex_customer_number,
+                    {$verarbeitetSelect}
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
                     ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
