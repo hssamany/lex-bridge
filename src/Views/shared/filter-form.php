@@ -22,6 +22,9 @@ $customerSearchId = $customerSearchId ?? 'customer_search';
 $datalistId = $datalistId ?? 'customer-options';
 $dateFromRequired = $dateFromRequired ?? false;
 $containerClass = $containerClass ?? '';
+$includeStatus = $includeStatus ?? false;
+$statusFieldId = $statusFieldId ?? 'status';
+$statusFieldName = $statusFieldName ?? 'status';
 ?>
 <div class="<?= htmlspecialchars($containerClass) ?>">
     <form name="<?= htmlspecialchars($formName) ?>" class="line-items-filter-form inline-form">
@@ -61,6 +64,23 @@ $containerClass = $containerClass ?? '';
                 <option value="">Alle Kunden</option>
             </datalist>
         </div>
+        <?php if ($includeStatus): ?>
+        <div class="filter-group-col">
+            <label for="<?= htmlspecialchars($statusFieldId) ?>">Status:</label>
+            <select 
+                id="<?= htmlspecialchars($statusFieldId) ?>" 
+                name="<?= htmlspecialchars($statusFieldName) ?>" 
+                class="input-select"
+            >
+                <option value="">Alle Status</option>
+                <option value="draft">Draft</option>
+                <option value="pending">Pending</option>
+                <option value="transmitting">Transmitting</option>
+                <option value="transmitted">Transmitted</option>
+                <option value="failed">Failed</option>
+            </select>
+        </div>
+        <?php endif; ?>
         <div class="filter-group-col filter-btn-group">
             <label style="visibility:hidden">Filtern</label>
             <button type="submit" class="btn btn-primary filter-submit-btn" title="Filter Senden" aria-label="Filter Senden">

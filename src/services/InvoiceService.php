@@ -26,12 +26,13 @@ final class InvoiceService {
     }
     
     /**
-     * Get all invoices
+     * Get all invoices with optional filters
+     * @param array $filters Optional filters (customer_id, status, from_date, to_date)
      * @return Invoice[]
      */
-    public function getInvoices(): array
+    public function getInvoices(array $filters = []): array
     {
-        return $this->invoiceRepository->findAll();
+        return $this->invoiceRepository->findAll($filters);
     }
     
     /**

@@ -110,4 +110,9 @@ final class HomeView
     {
         include __DIR__ . '/../orders/orders-filter-form.php';
     }
+
+    public function renderInvoicesFilter(): void
+    {
+        include __DIR__ . '/../invoices/invoices-filter-form.php';
+    }
 }

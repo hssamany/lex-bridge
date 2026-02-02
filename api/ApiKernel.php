@@ -260,7 +260,27 @@ final class ApiKernel {
     {
         $this->router -> get('/invoices', function() {
             $controller = ControllerFactory::makeInvoiceController($this->httpClient);
-            return $controller->getInvoices();
+            
+            // Build filters from query parameters
+            $filters = [];
+            
+            if (!empty($_GET['customer_id'])) {
+                $filters['contact_id'] = (int) $_GET['customer_id'];
+            }
+            
+            if (!empty($_GET['status'])) {
+                $filters['status'] = $_GET['status'];
+            }
+            
+            if (!empty($_GET['geaendertAm_from'])) {
+                $filters['from_date'] = $_GET['geaendertAm_from'];
+            }
+            
+            if (!empty($_GET['geaendertAm_to'])) {
+                $filters['to_date'] = $_GET['geaendertAm_to'];
+            }
+            
+            return $controller->getInvoices($filters);
         });
     }
 
@@ -287,7 +307,7 @@ final class ApiKernel {
     private function postInvoiceCreateRouteRegistration(): void
     {
         $this->router->post('/invoices', function() {
-            
+
             $controller = ControllerFactory::makeInvoiceController($this->httpClient);
             $data = json_decode(file_get_contents('php://input'), true);
             $customerId = $data['customer_id'] ?? null;

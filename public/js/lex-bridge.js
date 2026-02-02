@@ -174,12 +174,7 @@ class LexBridge {
             {
                 id: 'rechn',
                 label: 'Rechn',
-                content: invoicesContent,
-                action: {
-                    name: 'get-rechn',
-                    icon: '↻',
-                    label: 'Rechnungen aktualisieren'
-                }
+                content: invoicesContent
             },
             {
                 id: 'bestellg',

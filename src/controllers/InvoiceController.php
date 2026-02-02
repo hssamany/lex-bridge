@@ -20,13 +20,14 @@ final class InvoiceController
     }
     
     /**
-     * Get all invoices
+     * Get all invoices with optional filters
      * 
+     * @param array $filters Optional filters (customer_id, status, from_date, to_date)
      * @return array Formatted invoices list response data
      */
-    public function getInvoices(): array
+    public function getInvoices(array $filters = []): array
     {
-        $invoices = $this->invoiceService->getInvoices();
+        $invoices = $this->invoiceService->getInvoices($filters);
         
         return [
             'success' => true,

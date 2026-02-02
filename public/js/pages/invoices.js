@@ -42,12 +42,12 @@ class InvoicesPage {
         // Use event delegation on document to catch form submit even if form is added later
         document.addEventListener('submit', async (e) => {
 
-            if (e.target.matches('form[name="get-rechn"]')) {
-                console.log('Invoices form submit intercepted - loading via AJAX');
+            if (e.target.matches('form[name="get-invoices"]')) {
+                console.log('Invoices filter form submit intercepted - loading via AJAX');
                 e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
-                await this.loadInvoices(0, true);
+                await this.processFilterForm(e.target);
                 return false;
             }
 
@@ -59,13 +59,13 @@ class InvoicesPage {
      */
     setupRefreshButtonDirect() 
     {
-        const refreshForm = document.querySelector('form[name="get-rechn"]');
+        const refreshForm = document.querySelector('form[name="get-invoices"]');
         
         if (refreshForm) {
 
             // Remove the action attribute to prevent navigation
             refreshForm.removeAttribute('action');
-            refreshForm.setAttribute('data-original-action', '?action=get-rechn');
+            refreshForm.setAttribute('data-original-action', '?action=get-invoices');
             const button = refreshForm.querySelector('button[type="submit"]');
                         
             if (button && !button.dataset.ajaxHandlerAttached) {
@@ -86,7 +86,7 @@ class InvoicesPage {
      */
     async loadInvoices(page = 0, isUserAction = false) {
 
-        const button = document.querySelector('form[name="get-rechn"] button');
+        const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
         
         if (!button) {
             console.error('Refresh button not found');
@@ -244,6 +244,74 @@ class InvoicesPage {
                 'Error transferring invoice: ' + error.message,
                 'error'
             );
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    }
+    
+    /**
+     * Process filter form submission
+     */
+    async processFilterForm(form) {
+        // Build query parameters from form data
+        const params = new URLSearchParams();
+        const formData = new FormData(form);
+
+        for (const [key, value] of formData.entries()) {
+            // Skip the customer search field (it's just for autocomplete UI)
+            if (key === 'customer_search') {
+                continue;
+            }
+
+            // Only add non-empty values
+            if (typeof value === 'string' && value.trim() !== '') {
+                params.append(key, value.trim());
+            }
+        }
+
+        // Load invoices with filter parameters
+        await this.loadInvoicesWithParams(params);
+    }
+    
+    /**
+     * Load invoices with filter parameters
+     */
+    async loadInvoicesWithParams(params) {
+        const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
+        
+        if (!button) {
+            console.error('Submit button not found');
+            return;
+        }
+        
+        const originalText = button.innerHTML;
+        
+        try {
+            button.disabled = true;
+            button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
+            
+            const queryString = params.toString();
+            const url = LexBridge.resolveApiUrl(`invoices${queryString ? '?' + queryString : ''}`);
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data && data.invoices) {
+                this.updateInvoiceList(data.invoices);
+                this.lexBridge.toastNotifier.show(
+                    `Loaded ${data.invoices.length} invoices`,
+                    'success'
+                );
+            } else {
+                throw new Error('Failed to load invoices');
+            }
+
+        } catch (error) {
+            console.error('Error loading invoices:', error);
+            this.lexBridge.toastNotifier.show(
+                'Error loading invoices: ' + error.message,
+                'error'
+            );
+        } finally {
             button.disabled = false;
             button.innerHTML = originalText;
         }

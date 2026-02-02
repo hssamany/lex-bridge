@@ -45,6 +45,9 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
         <template id="orders-filter-template">
             <?php $homeView->renderOrdersFilter(); ?>
         </template>
+        <template id="invoices-filter-template">
+            <?php $homeView->renderInvoicesFilter(); ?>
+        </template>
     </div>
     
     <!-- Toast Notification Container -->

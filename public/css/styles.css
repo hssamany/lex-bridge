@@ -264,6 +264,7 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .line-items-filter-form .input-date,
+.line-items-filter-form .input-select,
 .line-items-filter-form .customer-search-select {
     padding: 0.45rem 0.7rem;
     border: 1px solid #ccc;
@@ -276,6 +277,7 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .line-items-filter-form .input-date:focus,
+.line-items-filter-form .input-select:focus,
 .line-items-filter-form .customer-search-select:focus {
     border-color: #4CAF50;
     outline: none;
@@ -561,7 +563,8 @@ pre {
 
 /* Keep action bars/toolbars fixed at top */
 .line-items-actions-bar,
-.orders-toolbar-container {
+.orders-toolbar-container,
+.invoices-toolbar-container {
     flex-shrink: 0;
     margin-bottom: 0.5rem;
 }
