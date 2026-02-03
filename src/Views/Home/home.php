@@ -19,8 +19,7 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
         </div>
         
         <!-- Tab Manager will be inserted here -->
-        <div 
-            id="tab-manager-container" 
+        <div id="tab-manager-container" 
             <?php echo $homeView->renderOperationStatusAttribute(); ?>
         >
         </div>
@@ -33,18 +32,23 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
         <template id="invoices-tab-content">
             <?php $homeView->renderInvoicesTabContent(); ?>
         </template>
+
         <template id="line-items-tab-content">
             <?php $homeView->renderLineItemsTabContent(); ?>
         </template>
+
         <template id="line-items-filter-template">
             <?php $homeView->renderLineItemsFilter(); ?>
         </template>
+
         <template id="orders-tab-content">
             <?php $homeView->renderOrdersTabContent(); ?>
         </template>
+
         <template id="orders-filter-template">
             <?php $homeView->renderOrdersFilter(); ?>
         </template>
+        
         <template id="invoices-filter-template">
             <?php $homeView->renderInvoicesFilter(); ?>
         </template>

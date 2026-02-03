@@ -10,6 +10,9 @@ class LineItemsPage {
         this.sendInvoiceButton = null;
         this.syncArticlesButton = null;
         this.customerSearchController = null;
+        this.cachedLineItems = []; // Store all fetched line items
+        this.lineItemsMap = new Map(); // Fast lookup map for filtering
+        this.showInvoiced = true; // Default: show all items
 
         this.setupCustomerSearchController();
 
@@ -31,6 +34,7 @@ class LineItemsPage {
         this.setupFilterFormDirect();
         this.setupSendInvoiceButton();
         this.setupSyncArticlesButton();
+        this.setupInvoicedFilterCheckbox();
     }
 
     setupFilterFormDirect() {
@@ -73,9 +77,14 @@ class LineItemsPage {
             }
 
             if (target.classList.contains('line-items-select-all')) {
-                const checkboxes = document.querySelectorAll('.line-item-select-checkbox');
-                checkboxes.forEach((checkbox) => {
-                    checkbox.checked = target.checked;
+                const visibleRows = Array.from(document.querySelectorAll('.line-items-table-body tr'))
+                    .filter(row => row.style.display !== 'none');
+                
+                visibleRows.forEach((row) => {
+                    const checkbox = row.querySelector('.line-item-select-checkbox');
+                    if (checkbox) {
+                        checkbox.checked = target.checked;
+                    }
                 });
                 instance.updateSendInvoiceButtonState();
                 return;
@@ -115,6 +124,95 @@ class LineItemsPage {
         });
     }
 
+    setupInvoicedFilterCheckbox() {
+        const checkbox = document.querySelector('.line-items-filter-invoiced');
+        if (!checkbox) {
+            console.warn('Line items filter invoiced checkbox not found');
+            return;
+        }
+
+        // Set default state (checked = show all items including invoiced)
+        checkbox.checked = this.showInvoiced;
+
+        checkbox.addEventListener('change', (event) => {
+            this.showInvoiced = event.target.checked;
+            this.applyInvoicedFilter();
+        });
+    }
+
+    applyInvoicedFilter() {
+        if (!Array.isArray(this.cachedLineItems) || this.cachedLineItems.length === 0) {
+            return;
+        }
+
+        const tableBody = document.querySelector('.line-items-table-body');
+        if (!tableBody) {
+            console.warn('Line items table body not found for filtering');
+            return;
+        }
+
+        const rows = tableBody.querySelectorAll('tr:not(.line-items-empty-row)');
+        let visibleCount = 0;
+        
+        rows.forEach((row) => {
+            const checkboxInRow = row.querySelector('.line-item-select-checkbox');
+            if (!checkboxInRow) {
+                return;
+            }
+
+            const lineItemId = checkboxInRow.dataset.lineItemId;
+            // Use Map for O(1) lookup instead of O(n) find
+            const lineItem = this.lineItemsMap.get(lineItemId);
+            
+            if (!lineItem) {
+                // If line item not found in cache, hide the row to be safe
+                row.style.display = 'none';
+                if (checkboxInRow.checked) {
+                    checkboxInRow.checked = false;
+                }
+                return;
+            }
+
+            const hasInvoice = lineItem.invoice_id != null && lineItem.invoice_id !== '';
+            
+            if (this.showInvoiced) {
+                // Show all items when checkbox is checked
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                // Hide items that have been invoiced when checkbox is unchecked
+                if (hasInvoice) {
+                    row.style.display = 'none';
+                    // Uncheck hidden items
+                    if (checkboxInRow.checked) {
+                        checkboxInRow.checked = false;
+                    }
+                } else {
+                    row.style.display = '';
+                    visibleCount++;
+                }
+            }
+        });
+
+        // Update total label to reflect visible items
+        const totalLabel = document.querySelector('.line-items-total');
+        if (totalLabel) {
+            const totalText = this.showInvoiced 
+                ? `Gesammt: ${this.cachedLineItems.length}`
+                : `Gesammt: ${visibleCount} von ${this.cachedLineItems.length}`;
+            totalLabel.textContent = totalText;
+        }
+
+        // Update select-all checkbox state
+        const selectAll = document.querySelector('.line-items-select-all');
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
+
+        this.updateSendInvoiceButtonState();
+    }
+
     async handleFilterSubmit(form) {
         this.ensureCustomerSelection(form);
 
@@ -131,6 +229,7 @@ class LineItemsPage {
             const data = await this.fetchLineItems(params);
             this.updateLineItemsList(data);
             this.updateSendInvoiceButtonState();
+            this.applyInvoicedFilter();
             this.showToast('Line items aktualisiert', 'success');
         } catch (error) {
             console.error('Line items filter error:', error);
@@ -205,6 +304,9 @@ class LineItemsPage {
         }
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
+        this.cachedLineItems = items; // Cache for filtering
+        // Create a Map for fast lookups during filtering
+        this.lineItemsMap = new Map(items.map(item => [String(item.id), item]));
         const columnCount = container.querySelectorAll('thead th').length || 9;
 
         if (items.length === 0) {
@@ -390,7 +492,15 @@ class LineItemsPage {
             return;
         }
 
-        const anyChecked = document.querySelector('.line-item-select-checkbox:checked');
+        // Only consider visible checkboxes
+        const visibleRows = Array.from(document.querySelectorAll('.line-items-table-body tr'))
+            .filter(row => row.style.display !== 'none');
+        
+        const anyChecked = visibleRows.some(row => {
+            const checkbox = row.querySelector('.line-item-select-checkbox:checked');
+            return checkbox !== null;
+        });
+        
         this.sendInvoiceButton.disabled = !anyChecked;
     }
 

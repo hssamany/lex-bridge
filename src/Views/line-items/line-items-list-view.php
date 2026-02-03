@@ -9,6 +9,10 @@
                 <span class="btn-icon" aria-hidden="true">↻</span>
                 <span>Artikeln synchronisieren</span>
             </button>
+            <label style="margin-left: auto; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem;">
+                <input type="checkbox" class="line-items-filter-invoiced" style="cursor: pointer;">
+                <span>In Rechnung gestellte anzeigen</span>
+            </label>
         </div>
         <div class="line-items-list" aria-live="polite">
             <table class="line-items-table">
