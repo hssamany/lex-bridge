@@ -37,4 +37,13 @@ final class OrderController
     {
         return $this->service->generateLineItemsFromOrders($orderIds);
     }
+
+    /**
+     * @param array<int, mixed> $orderIds
+     * @return array<string, mixed>
+     */
+    public function generateInvoicesFromOrders(array $orderIds): array
+    {
+        return $this->service->generateInvoicesFromOrders($orderIds);
+    }
 }

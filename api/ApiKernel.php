@@ -32,6 +32,7 @@ final class ApiKernel {
         $this->postInvoiceCreateRouteRegistration();
         $this->getOrdersRouteRegistration();
         $this->postOrdersGenerateRouteRegistration();
+        $this->postOrdersGenerateInvoicesRouteRegistration();
         // Customer search route for AJAX dropdown
         
     }
@@ -201,6 +202,39 @@ final class ApiKernel {
             }
 
             return $controller->generateLineItemsForOrders($orderIds);
+        });
+    }
+
+    private function postOrdersGenerateInvoicesRouteRegistration(): void
+    {
+        $this->router->post('/orders/generate-invoices', function () {
+            $controller = ControllerFactory::makeOrderController();
+
+            $payload = json_decode(file_get_contents('php://input'), true);
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+
+            $orderIds = [];
+
+            if (isset($payload['order_ids']) && is_array($payload['order_ids'])) {
+                $orderIds = $payload['order_ids'];
+            } elseif (array_key_exists('order_id', $payload)) {
+                $orderIds[] = $payload['order_id'];
+            } elseif (isset($_POST['order_ids']) && is_array($_POST['order_ids'])) {
+                $orderIds = $_POST['order_ids'];
+            } elseif (isset($_POST['order_id'])) {
+                $orderIds[] = $_POST['order_id'];
+            }
+
+            if (!$orderIds) {
+                return [
+                    'isSuccess' => false,
+                    'error' => 'At least one order_id must be provided.',
+                ];
+            }
+
+            return $controller->generateInvoicesFromOrders($orderIds);
         });
     }
     

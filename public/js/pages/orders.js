@@ -43,6 +43,7 @@
             this.setupCustomerSearchController();
             this.attachFormHandler();
             this.setupGenerateButton();
+            this.setupGenerateInvoicesButton();
             this.setupProcessedFilterCheckbox();
             this.registerSelectAllHandler();
             this.autoLoadOrdersOnFirstOpen();
@@ -73,6 +74,20 @@
             
             button.addEventListener('click', () => {
                 this.bulkGenerateSelectedOrders(button);
+            });
+        }
+
+        setupGenerateInvoicesButton() {
+            const button = document.querySelector('.orders-generate-invoices-button');
+            if (!button) {
+                console.warn('Orders generate invoices button not found');
+                return;
+            }
+
+            this.ordersGenerateInvoicesButton = button;
+            
+            button.addEventListener('click', () => {
+                this.bulkGenerateInvoicesFromOrders(button);
             });
         }
 
@@ -181,12 +196,15 @@
 
         updateGenerateButtonState() 
         {
-            if (!this.ordersGenerateButton) {
-                return;
-            }
-
             const selectedCount = this.getSelectedOrderIds().length;
-            this.ordersGenerateButton.disabled = selectedCount === 0;
+            
+            if (this.ordersGenerateButton) {
+                this.ordersGenerateButton.disabled = selectedCount === 0;
+            }
+            
+            if (this.ordersGenerateInvoicesButton) {
+                this.ordersGenerateInvoicesButton.disabled = selectedCount === 0;
+            }
         }
 
         getOrdersContainer() 
@@ -275,6 +293,53 @@
                 } catch (error) {
                     console.error('Bulk generate line items error:', error);
                     const message = error instanceof Error && error.message ? error.message : 'Fehler beim Erstellen der Positionen.';
+                    this.notify(message, 'error');
+                }
+            });
+        }
+
+        async bulkGenerateInvoicesFromOrders(button) 
+        {
+            const orderIds = this.getSelectedOrderIds();
+
+            if (!orderIds.length) {
+                this.notify('Bitte wählen Sie mindestens eine Bestellung aus.', 'warning');
+                return;
+            }
+
+            await this.withButtonLoading(button, '<span class="btn-icon spinning">↻</span> Erstelle Rechnungen...', async () => {
+                try {
+                    const data = await this.requestJson(LexBridge.resolveApiUrl('orders/generate-invoices'), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ order_ids: orderIds })
+                    }, 'Rechnungserstellung fehlgeschlagen');
+
+                    if (!data?.isSuccess) {
+                        throw new Error(data?.error || 'Erstellung der Rechnungen fehlgeschlagen.');
+                    }
+
+                    const lineItemsGenerated = data.lineItemsGenerated ?? 0;
+                    const invoicesCreated = data.invoicesCreated ?? 0;
+                    
+                    // Build success message with details
+                    let message = `${lineItemsGenerated} Positionen und ${invoicesCreated} Rechnung(en) erstellt.`;
+                    
+                    // Display warnings if any
+                    if (data.warnings && Array.isArray(data.warnings) && data.warnings.length > 0) {
+                        console.warn('Invoice generation warnings:', data.warnings);
+                        const warningCount = data.warnings.length;
+                        message += ` (${warningCount} Warnung${warningCount > 1 ? 'en' : ''} - siehe Konsole)`;
+                    }
+                    
+                    this.notify(message, 'success');
+                    await this.reloadOrders();
+
+                } catch (error) {
+                    console.error('Bulk generate invoices error:', error);
+                    const message = error instanceof Error && error.message ? error.message : 'Fehler beim Erstellen der Rechnungen.';
                     this.notify(message, 'error');
                 }
             });

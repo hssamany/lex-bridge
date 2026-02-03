@@ -125,6 +125,52 @@ final class OrderService
     }
 
     /**
+     * Generate line items from orders and immediately create invoices per customer
+     * @param array<int, mixed> $orderIds
+     * @return array<string, mixed>
+     */
+    public function generateInvoicesFromOrders(array $orderIds): array
+    {
+        $normalized = [];
+
+        foreach ($orderIds as $candidate) {
+            if ($candidate === null || $candidate === '') {
+                continue;
+            }
+
+            $validated = filter_var($candidate, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 1],
+            ]);
+
+            if ($validated !== false && $validated !== null) {
+                $normalized[] = (int) $validated;
+            }
+        }
+
+        $normalized = array_values(array_unique($normalized));
+
+        if (!$normalized) {
+            return [
+                'isSuccess' => false,
+                'error' => 'At least one valid order_id is required.',
+            ];
+        }
+
+        try {
+            $result = $this->repository->generateInvoicesFromOrders([
+                'order_ids' => $normalized,
+            ]);
+        } catch (Throwable $exception) {
+            return [
+                'isSuccess' => false,
+                'error' => 'Rechnungserstellung fehlgeschlagen: ' . $exception->getMessage(),
+            ];
+        }
+
+        return array_merge(['isSuccess' => true], $result);
+    }
+
+    /**
      * @param array<string, mixed> $order
      * @return array<string, mixed>
      */

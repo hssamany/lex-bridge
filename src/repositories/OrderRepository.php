@@ -849,4 +849,218 @@ class OrderRepository
             return $this->supportsProcessedFlag;
         }
     }
+
+    /**
+     * Generate invoices directly from orders:
+     * 1. Generate line items from orders grouped by customer
+     * 2. Persist line items to invoice_line_items table
+     * 3. Create invoices for each customer using stored procedure
+     *
+     * @param array<string, mixed> $filters
+     * @return array{lineItemsGenerated: int, invoicesCreated: int, customers: array<int, int>, error?: string}
+     */
+    public function generateInvoicesFromOrders(array $filters = []): array
+    {
+        try {
+            // Start transaction for atomic operation
+            $this->db->beginTransaction();
+            
+            try {
+                // Step 1: Generate line items from orders (reuses existing logic)
+                $lineItemsByCustomer = $this->generateInvoiceLineItemsFromOrders($filters);
+                
+                if (empty($lineItemsByCustomer)) {
+                    $this->db->rollBack();
+                    return [
+                        'lineItemsGenerated' => 0,
+                        'invoicesCreated' => 0,
+                        'customers' => [],
+                    ];
+                }
+
+                // Step 2: Batch fetch customer numbers upfront for efficiency
+                $customerIds = array_keys($lineItemsByCustomer);
+                $customerNumbers = $this->fetchCustomerNumbersBatch($customerIds);
+
+                // Step 3: Persist line items for each customer
+                $totalLineItems = 0;
+                $customersProcessed = [];
+                $warnings = [];
+                
+                foreach ($lineItemsByCustomer as $customerId => $customerLineItems) {
+                    if (!is_array($customerLineItems) || empty($customerLineItems)) {
+                        continue;
+                    }
+
+                    if (!isset($customerNumbers[$customerId])) {
+                        $warnings[] = "Customer ID {$customerId} not found in database";
+                        continue;
+                    }
+                    
+                    $result = $this->persistLineItemsForCustomer(
+                        $customerId,
+                        $customerNumbers[$customerId],
+                        $customerLineItems
+                    );
+                    
+                    $totalLineItems += $result['persisted'];
+                    
+                    if ($result['persisted'] > 0) {
+                        $customersProcessed[] = (int)$customerId;
+                    }
+                    
+                    if (!empty($result['errors'])) {
+                        $warnings = array_merge($warnings, $result['errors']);
+                    }
+                }
+
+                if ($totalLineItems === 0) {
+                    $this->db->rollBack();
+                    return [
+                        'lineItemsGenerated' => 0,
+                        'invoicesCreated' => 0,
+                        'customers' => [],
+                        'warnings' => $warnings,
+                    ];
+                }
+
+                // Step 4: Create invoices for pending line items using stored procedure
+                $invoiceRepository = new InvoiceRepository();
+                $voucherDate = $filters['voucher_date'] ?? null;
+                
+                $invoiceResult = $invoiceRepository->createInvoicesForPendingLineItemsViaStoredProc($voucherDate);
+                
+                $invoicesCreated = is_array($invoiceResult['createdInvoices'] ?? null) 
+                    ? count($invoiceResult['createdInvoices']) 
+                    : 0;
+
+                // Commit transaction if everything succeeded
+                $this->db->commit();
+
+                $response = [
+                    'lineItemsGenerated' => $totalLineItems,
+                    'invoicesCreated' => $invoicesCreated,
+                    'customers' => $customersProcessed,
+                    'invoices' => $invoiceResult['createdInvoices'] ?? [],
+                ];
+                
+                if (!empty($warnings)) {
+                    $response['warnings'] = $warnings;
+                }
+                
+                return $response;
+                
+            } catch (\Throwable $e) {
+                // Rollback on any error during transaction
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                throw $e;
+            }
+
+        } catch (\Throwable $exception) {
+            return [
+                'lineItemsGenerated' => 0,
+                'invoicesCreated' => 0,
+                'customers' => [],
+                'error' => $exception->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Fetch customer numbers in batch for efficiency
+     *
+     * @param array<int> $customerIds
+     * @return array<int, string> Map of customer ID to customer number
+     */
+    private function fetchCustomerNumbersBatch(array $customerIds): array
+    {
+        if (empty($customerIds)) {
+            return [];
+        }
+
+        $customerTable = lexbridge_table('customer');
+        $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
+        
+        $stmt = $this->db->prepare(
+            "SELECT id, customer_number FROM {$customerTable} WHERE id IN ({$placeholders})"
+        );
+        $stmt->execute($customerIds);
+        
+        $customerNumbers = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $customerNumbers[$row['id']] = $row['customer_number'];
+        }
+        
+        return $customerNumbers;
+    }
+
+    /**
+     * Persist line items for a single customer
+     *
+     * @param int $customerId
+     * @param string $customerNumber
+     * @param array<int, array<string, mixed>> $lineItems
+     * @return array{persisted: int, errors: array<string>}
+     */
+    private function persistLineItemsForCustomer(int $customerId, string $customerNumber, array $lineItems): array
+    {
+        if (empty($lineItems)) {
+            return ['persisted' => 0, 'errors' => []];
+        }
+
+        $lineItemTable = lexbridge_table('invoice_line_items');
+        $persistedCount = 0;
+        $errors = [];
+
+        foreach ($lineItems as $index => $item) {
+            try {
+                // Use Invoice model's UUID generation for consistency
+                $lineItemId = Invoice::generateUuid();
+
+                $sql = "INSERT INTO {$lineItemTable} (
+                    id, customer_number, article_id, article_number, name, description,
+                    quantity, unit_name, currency, net_amount, gross_amount,
+                    tax_rate_percentage, line_total_net, line_total_gross,
+                    delivery_date, line_order, order_id, created_at
+                ) VALUES (
+                    :id, :customer_number, :article_id, :article_number, :name, :description,
+                    :quantity, :unit_name, :currency, :net_amount, :gross_amount,
+                    :tax_rate_percentage, :line_total_net, :line_total_gross,
+                    :delivery_date, :line_order, :order_id, NOW()
+                )";
+
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([
+                    ':id' => $lineItemId,
+                    ':customer_number' => $customerNumber,
+                    ':article_id' => $item['article_id'] ?? null,
+                    ':article_number' => $item['article_number'] ?? null,
+                    ':name' => $item['name'] ?? null,
+                    ':description' => $item['description'] ?? null,
+                    ':quantity' => $item['quantity'] ?? null,
+                    ':unit_name' => $item['unit_name'] ?? null,
+                    ':currency' => $item['currency'] ?? 'EUR',
+                    ':net_amount' => $item['net_amount'] ?? null,
+                    ':gross_amount' => $item['gross_amount'] ?? null,
+                    ':tax_rate_percentage' => $item['tax_rate_percentage'] ?? null,
+                    ':line_total_net' => $item['line_total_net'] ?? null,
+                    ':line_total_gross' => $item['line_total_gross'] ?? null,
+                    ':delivery_date' => $item['delivery_date'] ?? null,
+                    ':line_order' => $item['line_order'] ?? null,
+                    ':order_id' => $item['order_id'] ?? null,
+                ]);
+
+                $persistedCount++;
+            } catch (\Throwable $e) {
+                // Collect errors for reporting instead of just logging
+                $articleInfo = $item['article_number'] ?? $item['name'] ?? "item #{$index}";
+                $errors[] = "Failed to persist {$articleInfo} for customer {$customerId}: " . $e->getMessage();
+                error_log(end($errors));
+            }
+        }
+
+        return ['persisted' => $persistedCount, 'errors' => $errors];
+    }
 }
