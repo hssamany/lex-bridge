@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Luxullus\LexBridge;
 
 use Exception;
+use Luxullus\LexBridge\Constants\HttpStatus;
 use Luxullus\LexBridge\Views\Home\HomeView;
 
 /**
