@@ -39,7 +39,7 @@ class InvoiceRepository
         $sql = "SELECT 
                     i.*,
                     c.lex_contact_id,
-                    c.company_name
+                    c.Name AS company_name
                 FROM {$this->invoiceTable} i
                 LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id
                 WHERE i.id = :id
@@ -78,7 +78,7 @@ class InvoiceRepository
                     i.transmitted_at,
                     i.contact_id,
                     i.transmission_attempts,
-                    c.company_name,
+                    c.Name AS company_name,
                     (SELECT COUNT(*) FROM {$this->lineItemTable} li WHERE li.invoice_id = i.id) as item_count
                 FROM {$this->invoiceTable} i
                 LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id";
@@ -238,7 +238,7 @@ class InvoiceRepository
                 li.currency,
                 c.id AS customer_id
             FROM {$this->lineItemTable} li
-            LEFT JOIN {$this->customerTable} c ON c.kundenNummer = li.customer_number
+            LEFT JOIN {$this->customerTable} c ON c.Nummer = li.customer_number
             WHERE (li.invoice_id IS NULL OR li.invoice_id = '')
             ORDER BY li.customer_number ASC, li.created_at ASC, li.id ASC";
 

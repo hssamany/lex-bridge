@@ -2,7 +2,7 @@
 CREATE TABLE
     IF NOT EXISTS `invoices` (
         `id` CHAR(36) NOT NULL PRIMARY KEY,
-        `contact_id` INT NOT NULL,
+        `contact_id` INT (10) UNSIGNED NOT NULL,
         `voucher_date` DATE NOT NULL,
         `archived` BOOLEAN NOT NULL DEFAULT FALSE,
         `title` VARCHAR(255) NOT NULL DEFAULT 'Rechnung',

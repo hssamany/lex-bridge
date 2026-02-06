@@ -24,6 +24,12 @@ final class ApiRouter
     {
         $method = $_SERVER['REQUEST_METHOD'];
         
+        error_log(sprintf(
+            '[Router] handle(): %s %s',
+            $method ?? 'UNKNOWN',
+            $_SERVER['REQUEST_URI'] ?? '/'
+        ));
+
         // Try PATH_INFO first (from rewrite), then parse URI
         if (!empty($_SERVER['PATH_INFO'])) {
             $path = $_SERVER['PATH_INFO'];
@@ -44,6 +50,12 @@ final class ApiRouter
 
             if (strncmp($uri, '/api', 4) === 0) {
                 $uri = substr($uri, 4) ?: '/';
+
+                error_log(sprintf(
+                '[Router] handle() Api req: %s %s',
+                $method ?? 'UNKNOWN',
+                $_SERVER['REQUEST_URI'] ?? '/'
+                ));
             }
 
             $path = $uri;

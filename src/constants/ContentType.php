@@ -15,4 +15,9 @@ final class ContentType
     public const FORM_DATA = 'application/x-www-form-urlencoded';
     public const MULTIPART = 'multipart/form-data';
     public const TEXT = 'text/plain';
+
+    private function __construct()
+    {
+        // Prevent instantiation
+    }
 }

@@ -15,9 +15,13 @@ final class ApiKernel {
 
     public function __construct()
     {
+        error_log('[ApiKernel] Constructor started');
+        
         $this->httpClient = new HttpClient(API_KEY, API_BASE_URL);
         $this->router = new ApiRouter();
 
+        error_log('[ApiKernel] Registering routes...');
+        
         $this->getInvoicesRouteRegistration();
         $this->postInvoiceRouteRegistration();
         $this->postInvoiceCreateRouteRegistration();
@@ -29,12 +33,12 @@ final class ApiKernel {
         $this->postArticlesSyncRouteRegistration();
         $this->getLineItemsRouteRegistration();
         $this->postLineItemUpdateRouteRegistration();
-        $this->postInvoiceCreateRouteRegistration();
+        // Note: postInvoiceCreateRouteRegistration already called above - removed duplicate
         $this->getOrdersRouteRegistration();
         $this->postOrdersGenerateRouteRegistration();
         $this->postOrdersGenerateInvoicesRouteRegistration();
-        // Customer search route for AJAX dropdown
         
+        error_log('[ApiKernel] All routes registered successfully');
     }
 
     private function getCustomersSearchRouteRegistration(): void
@@ -360,6 +364,24 @@ final class ApiKernel {
 
     public function handle(): void
     {
-        $this->router->handle();
+        error_log(sprintf(
+            '[ApiKernel] handle() called - Method: %s, URI: %s, Query: %s',
+            $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
+            $_SERVER['REQUEST_URI'] ?? '/',
+            $_SERVER['QUERY_STRING'] ?? 'none'
+        ));
+        
+        try {
+            $this->router->handle();
+            error_log('[ApiKernel] Request handled successfully');
+        } catch (\Throwable $e) {
+            error_log(sprintf(
+                '[ApiKernel] Exception during routing: %s (File: %s:%d)',
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine()
+            ));
+            throw $e;
+        }
     }
 }

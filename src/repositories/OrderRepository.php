@@ -119,12 +119,12 @@ class OrderRepository
                     ca.article_id,
                     a.article_number,
                     o.GeaendertAm,
-                    c.kundenNummer AS customer_number,
+                    c.Nummer AS customer_number,
                     c.lex_customer_number,
                     {$verarbeitetSelect}
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
-                    ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
+                    ON CAST(c.Nummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
                 LEFT JOIN {$this->customerArticleTable} ca
                     ON ca.customer_id = c.id
                 LEFT JOIN {$this->articleTable} a
@@ -257,8 +257,8 @@ class OrderRepository
                     a.article_number
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
-                    ON CAST(c.kundenNummer AS UNSIGNED) = o.Kunde
-                LEFT JOIN {$this->customerArticleTable} ca
+                    ON CAST(c.Nummer AS UNSIGNED) = o.Kunde
+                LEFT JOIN {$this->customerTable} ca
                     ON ca.customer_id = c.id
                 LEFT JOIN {$this->articleTable} a
                     ON a.id = ca.article_id

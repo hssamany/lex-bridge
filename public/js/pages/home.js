@@ -93,10 +93,37 @@
         async loadContacts(page = 0) 
         {
             try {
-
                 const contactUrl = LexBridge.resolveApiUrl(`contacts?page=${page}`);                
                 const response = await fetch(contactUrl);
-                const data = await response.json();
+                
+                // Check content type
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text.substring(0, 500));
+                    throw new Error('Server returned invalid response format. Response: ' + text.substring(0, 200));
+                }
+                
+                // Get response text first
+                const text = await response.text();
+                if (!text || text.trim() === '') {
+                    throw new Error('Server returned empty response. Check database connection and table configuration.');
+                }
+                
+                // Parse JSON
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    console.error('Response text:', text.substring(0, 500));
+                    throw new Error('Invalid JSON from server: ' + text.substring(0, 200));
+                }
+
+                // Check for error in response
+                if (!data.isSuccess && data.error) {
+                    throw new Error(data.error);
+                }
 
                 const contacts = Array.isArray(data.contacts) ? data.contacts : [];
                 this.updateContactList({ contacts });
@@ -104,12 +131,14 @@
                 return contacts;
 
             } catch (error) {
-
                 console.error('Error loading contacts:', error);
                 this.lexBridge.toastNotifier.show(
                     'Error loading contacts: ' + error.message,
                     'error'
                 );
+                
+                // Show empty state
+                this.updateContactList({ contacts: [] });
                 
                 return [];
             }

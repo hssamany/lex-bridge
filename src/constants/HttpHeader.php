@@ -14,4 +14,9 @@ final class HttpHeader
     public const AUTHORIZATION = 'Authorization';
     public const USER_AGENT = 'User-Agent';
     public const CACHE_CONTROL = 'Cache-Control';
+    
+    private function __construct()
+    {
+        // Prevent instantiation
+    }
 }

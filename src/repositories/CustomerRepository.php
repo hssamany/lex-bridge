@@ -35,16 +35,16 @@ class CustomerRepository
     {
         $query = $query ?? '';
 
-        $sql = "SELECT id, kundenNummer AS customer_number, company_name FROM {$this->customerTable}";
+        $sql = "SELECT id, Nummer AS customer_number, Name AS company_name FROM {$this->customerTable}";
         $params = [];
 
         if ($query !== '') {
-            $sql .= " WHERE kundenNummer LIKE :customerNumber OR company_name LIKE :companyName";
+            $sql .= " WHERE Nummer LIKE :customerNumber OR Name LIKE :companyName";
             $params[':customerNumber'] = $query . '%';
             $params[':companyName'] = $query . '%';
         }
 
-        $sql .= " ORDER BY kundenNummer ASC LIMIT 20";
+        $sql .= " ORDER BY Nummer ASC LIMIT 20";
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
@@ -71,7 +71,7 @@ class CustomerRepository
             UPDATE {$this->customerTable}
             SET lex_contact_id = :lex_contact_id,
                 lex_customer_number = :lex_customer_number
-            WHERE company_name = :company_name
+            WHERE Name = :company_name
         SQL;
 
         $stmt = $this->db->prepare($sql);
@@ -93,9 +93,10 @@ class CustomerRepository
     public function getCustomerContacts(): array
     {
         $sql = <<<SQL
-            SELECT c.company_name,
+            SELECT c.Name AS company_name,
                    c.id AS customer_id,
-                   c.kundenNummer AS customer_number,
+                   c.Nummer AS customer_number,
+                   c.lex_contact_id,
                    c.lex_customer_number,
                    ca.article_id,
                    a.article_number,
@@ -103,7 +104,7 @@ class CustomerRepository
               FROM {$this->customerTable} AS c
               LEFT JOIN {$this->customerArticleTable} AS ca ON ca.customer_id = c.id
               LEFT JOIN {$this->articleTable} AS a ON a.id = ca.article_id
-             ORDER BY c.kundenNummer ASC
+             ORDER BY c.Nummer ASC
         SQL;
 
         $stmt = $this->db->query($sql);
@@ -121,6 +122,7 @@ class CustomerRepository
                 'customerId' => isset($row['customer_id']) ? (int) $row['customer_id'] : null,
                 'companyName' => $row['company_name'] ?? '',
                 'customerNumber' => $row['customer_number'] ?? '',
+                'lexContactId' => $row['lex_contact_id'] ?? '',
                 'lexCustomerNumber' => $row['lex_customer_number'] ?? '',
                 'articleId' => isset($row['article_id']) ? (int) $row['article_id'] : null,
                 'articleLabel' => $articleLabel
@@ -178,18 +180,18 @@ class CustomerRepository
 
         $contactData = [
             'id' => $row['lex_contact_id'],
-            'organizationId' => $row['organization_id'],
-            'version' => (int) $row['version'],
+            'organizationId' => $row['organization_id'] ?? null,
+            'version' => isset($row['version']) ? (int) $row['version'] : 0,
             'roles' => [
                 'customer' => [
                     'number' => (int) $row['lex_customer_number']
                 ]
             ],
             'company' => [
-                'name' => $row['company_name'],
-                'allowTaxFreeInvoices' => (bool) $row['allow_tax_free_invoices']
+                'name' => $row['Name'],
+                'allowTaxFreeInvoices' => isset($row['allow_tax_free_invoices']) ? (bool) $row['allow_tax_free_invoices'] : false
             ],
-            'archived' => (bool) $row['archived']
+            'archived' => isset($row['archived']) ? (bool) $row['archived'] : false
         ];
 
         return new Contact($contactData);

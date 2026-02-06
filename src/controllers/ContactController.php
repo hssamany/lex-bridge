@@ -21,19 +21,63 @@ final class ContactController
     /**
      * Retrieve and display contacts
      * 
-     * @param int $page Page number
      * @return array Formatted contact data
      */
     public function getContacts(): array
     {
-        $contacts = $this->contactService->listContacts();
+        try {
+            $contacts = $this->contactService->listContacts();
 
-        return [
-            'statusCode' => 200,
-            'isSuccess' => true,
-            'error' => null,
-            'contacts' => $contacts
-        ];
+            return [
+                'statusCode' => 200,
+                'isSuccess' => true,
+                'error' => null,
+                'contacts' => $contacts
+            ];
+        } catch (\PDOException $e) {
+            $errorDetails = sprintf(
+                'Database error: %s (Code: %s, File: %s:%d)',
+                $e->getMessage(),
+                $e->getCode(),
+                basename($e->getFile()),
+                $e->getLine()
+            );
+            error_log('ContactController::getContacts PDOException: ' . $errorDetails);
+            return [
+                'statusCode' => 500,
+                'isSuccess' => false,
+                'error' => $errorDetails,
+                'contacts' => []
+            ];
+        } catch (\Exception $e) {
+            $errorDetails = sprintf(
+                'Error: %s (File: %s:%d)',
+                $e->getMessage(),
+                basename($e->getFile()),
+                $e->getLine()
+            );
+            error_log('ContactController::getContacts Exception: ' . $errorDetails);
+            return [
+                'statusCode' => 500,
+                'isSuccess' => false,
+                'error' => $errorDetails,
+                'contacts' => []
+            ];
+        } catch (\Throwable $e) {
+            $errorDetails = sprintf(
+                'Fatal error: %s (File: %s:%d)',
+                $e->getMessage(),
+                basename($e->getFile()),
+                $e->getLine()
+            );
+            error_log('ContactController::getContacts Throwable: ' . $errorDetails);
+            return [
+                'statusCode' => 500,
+                'isSuccess' => false,
+                'error' => $errorDetails,
+                'contacts' => []
+            ];
+        }
     }
 
     public function syncContacts(int $page = 0): array

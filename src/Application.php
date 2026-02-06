@@ -18,6 +18,11 @@ final class Application
      */
     public function run(): void
     {
+        error_log(sprintf(
+            '[Application] Starting - action: %s',
+            $_GET['action'] ?? 'home'
+        ));
+        
         $action = $_GET['action'] ?? 'home';
         
         try {
@@ -25,7 +30,15 @@ final class Application
                 'home', '' => $this->displayHome(),
                 default => $this->handle404()
             };
+            
+            error_log('[Application] Completed successfully');
         } catch (Exception $e) {
+            error_log(sprintf(
+                '[Application] Exception caught: %s (File: %s:%d)',
+                $e->getMessage(),
+                $e->getFile(),
+                $e->getLine()
+            ));
             $this->handleError($e);
         }
     }
@@ -35,6 +48,11 @@ final class Application
      */
     private function displayHome(): void
     {
+         error_log(sprintf(
+            '[Application] displayHome(): %s',
+            $_GET['action'] ?? 'home'
+        ));
+
         $status = $_GET['status'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['error']);

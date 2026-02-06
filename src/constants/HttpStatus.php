@@ -27,4 +27,9 @@ final class HttpStatus
     public const INTERNAL_SERVER_ERROR = 500;
     public const BAD_GATEWAY = 502;
     public const SERVICE_UNAVAILABLE = 503;
+
+     private function __construct()
+    {
+        // Prevent instantiation
+    }
 }

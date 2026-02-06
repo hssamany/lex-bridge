@@ -33,8 +33,8 @@ class LineItemRepository
     {
         $sql = "SELECT 
                 li.id,
-                c.kundenNummer AS customer_number,
-                    c.company_name,
+                c.Nummer AS customer_number,
+                    c.Name AS company_name,
                     c.id AS customer_id,
                     li.invoice_id,
                     li.order_id,

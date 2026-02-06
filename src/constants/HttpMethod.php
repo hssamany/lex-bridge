@@ -16,4 +16,9 @@ final class HttpMethod
     public const DELETE = 'DELETE';
     public const HEAD = 'HEAD';
     public const OPTIONS = 'OPTIONS';
+
+     private function __construct()
+    {
+        // Prevent instantiation
+    }
 }
