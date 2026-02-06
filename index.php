@@ -16,11 +16,6 @@ $isApiRequest = (strpos($requestUri, '/api/') === 0 || strpos($requestUri, '/api
 
 if ($isApiRequest) {
     // Handle API requests
-    error_log('API LOADED.2');
-    file_put_contents(__DIR__ . '/logs/api-trace.txt', date('Y-m-d H:i:s') . " - API START\n", FILE_APPEND);
-    
-    error_log('[API Entry] ' . ($_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN') . ' ' . $requestUri);
-    
     header(HttpHeader::CONTENT_TYPE . ': ' . ContentType::JSON);
     
     try {
@@ -49,8 +44,6 @@ if ($isApiRequest) {
         
         $kernel = new ApiKernel();
         $kernel->handle();
-        
-        error_log(sprintf('[API Success] %s %s completed', $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN', $requestUri));
         
     } catch (\PDOException $e) {
         error_log(sprintf(
@@ -90,13 +83,6 @@ if ($isApiRequest) {
     }
 } else {
     // Handle regular application requests
-    error_log(sprintf(
-        '[Main Entry] %s %s - IP: %s',
-        $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
-        $requestUri,
-        $_SERVER['REMOTE_ADDR'] ?? 'unknown'
-    ));
-    
     $app = new Application();
     $app->run();
 }
