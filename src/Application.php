@@ -19,10 +19,7 @@ final class Application
      */
     public function run(): void
     {
-        error_log(sprintf(
-            '[Application] Starting - action: %s',
-            $_GET['action'] ?? 'home'
-        ));
+        Logger::log('Application', 'Starting - action: %s', $_GET['action'] ?? 'home');
         
         $action = $_GET['action'] ?? 'home';
         
@@ -32,14 +29,9 @@ final class Application
                 default => $this->handle404()
             };
             
-            error_log('[Application] Completed successfully');
+            Logger::info('Completed successfully', 'Application');
         } catch (Exception $e) {
-            error_log(sprintf(
-                '[Application] Exception caught: %s (File: %s:%d)',
-                $e->getMessage(),
-                $e->getFile(),
-                $e->getLine()
-            ));
+            Logger::exception($e, 'Application');
             $this->handleError($e);
         }
     }
@@ -49,10 +41,7 @@ final class Application
      */
     private function displayHome(): void
     {
-         error_log(sprintf(
-            '[Application] displayHome(): %s',
-            $_GET['action'] ?? 'home'
-        ));
+        Logger::log('Application', 'displayHome() - action: %s', $_GET['action'] ?? 'home');
 
         $status = $_GET['status'] ?? null;
         $error = $_SESSION['error'] ?? null;
@@ -106,7 +95,7 @@ final class Application
      */
     private function handleError(Exception $e): void
     {
-        error_log('Application Error: ' . $e->getMessage());
+        Logger::exception($e, 'Application Error');
         $_SESSION['error'] = 'An error occurred. Please try again.';
         $this->displayHome();
     }

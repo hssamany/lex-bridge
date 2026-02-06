@@ -9,7 +9,7 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 
 // Create logs directory if it doesn't exist
-$logsDir = __DIR__ . '/logs';
+$logsDir = __DIR__ . '/Logs';
 if (!is_dir($logsDir)) {
     @mkdir($logsDir, 0755, true);
 }
@@ -22,13 +22,6 @@ $errorLogPath = $logsDir . '/php-error.log';
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/config.php';
 
-// Write a startup log entry to verify logging is working
-error_log(sprintf(
-    '[Bootstrap] Application started - PHP %s, SAPI: %s, error_log: %s',
-    PHP_VERSION,
-    php_sapi_name(),
-    ini_get('error_log') ?: 'default'
-));
 
 // Start session ONLY for main web app, not API
 // API should be stateless

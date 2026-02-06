@@ -9,6 +9,7 @@ use Luxullus\LexBridge\Api\ApiKernel;
 use Luxullus\LexBridge\Application;
 use Luxullus\LexBridge\Constants\HttpHeader;
 use Luxullus\LexBridge\Constants\ContentType;
+use Luxullus\LexBridge\Logger;
 
 // Determine if this is an API request
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
@@ -46,16 +47,7 @@ if ($isApiRequest) {
         $kernel->handle();
         
     } catch (\PDOException $e) {
-        error_log(sprintf(
-            '[API Error - Database] %s %s - Error: %s (Code: %s, File: %s:%d)\nStack trace:\n%s',
-            $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
-            $requestUri,
-            $e->getMessage(),
-            $e->getCode(),
-            $e->getFile(),
-            $e->getLine(),
-            $e->getTraceAsString()
-        ));
+        Logger::exception($e, 'API Database Error');
         
         http_response_code(500);
         echo json_encode([
@@ -64,15 +56,7 @@ if ($isApiRequest) {
             'error' => 'A database error occurred. Please try again later.'
         ]);
     } catch (\Throwable $e) {
-        error_log(sprintf(
-            '[API Error - Fatal] %s %s - Error: %s (File: %s:%d)\nStack trace:\n%s',
-            $_SERVER['REQUEST_METHOD'] ?? 'UNKNOWN',
-            $requestUri,
-            $e->getMessage(),
-            $e->getFile(),
-            $e->getLine(),
-            $e->getTraceAsString()
-        ));
+        Logger::exception($e, 'API Fatal Error');
         
         http_response_code(500);
         echo json_encode([

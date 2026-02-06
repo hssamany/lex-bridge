@@ -23,12 +23,6 @@ final class ApiRouter
     public function handle(): void
     {
         $method = $_SERVER['REQUEST_METHOD'];
-        
-        error_log(sprintf(
-            '[Router] handle(): %s %s',
-            $method ?? 'UNKNOWN',
-            $_SERVER['REQUEST_URI'] ?? '/'
-        ));
 
         // Try PATH_INFO first (from rewrite), then parse URI
         if (!empty($_SERVER['PATH_INFO'])) {
@@ -50,12 +44,6 @@ final class ApiRouter
 
             if (strncmp($uri, '/api', 4) === 0) {
                 $uri = substr($uri, 4) ?: '/';
-
-                error_log(sprintf(
-                '[Router] handle() Api req: %s %s',
-                $method ?? 'UNKNOWN',
-                $_SERVER['REQUEST_URI'] ?? '/'
-                ));
             }
 
             $path = $uri;
@@ -86,7 +74,7 @@ final class ApiRouter
             $result = call_user_func($this->routes[$method][$path]);
             $this->jsonResponse($result);
         } catch (Exception $e) {
-            error_log('API Error: ' . $e->getMessage());
+            Logger::exception($e, 'API Error');
             $this->jsonResponse(['error' => $e->getMessage()], 500);
         }
     }

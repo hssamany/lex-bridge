@@ -1,9 +1,0 @@
-# Prevent directory listing
-Options -Indexes
-
-RewriteEngine On
-
-# Route all non-existent files to index.php in this directory
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
