@@ -7,7 +7,7 @@ namespace Tests\Services;
 use Luxullus\LexBridge\Database\Database;
 use Luxullus\LexBridge\Http\HttpClient;
 use Luxullus\LexBridge\Http\HttpResponse;
-use Luxullus\LexBridge\Services\ContactService;
+use Luxullus\LexBridge\Services\CustomerService;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -183,7 +183,7 @@ final class ContactServiceTest extends TestCase
         $property->setValue(null, null);
     }
 
-    private function createServiceWithResponse(HttpResponse $response, ?array &$pageCalls = null): ContactService
+    private function createServiceWithResponse(HttpResponse $response, ?array &$pageCalls = null): CustomerService
     {
         $client = new HttpClient('test-api-key', 'https://api.example.test');
         $pageCalls ??= [];
@@ -193,6 +193,6 @@ final class ContactServiceTest extends TestCase
             return $response;
         };
 
-        return new ContactService($client, null, $fetcher);
+        return new CustomerService($client, null, $fetcher);
     }
 }

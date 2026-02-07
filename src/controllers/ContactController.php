@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace Luxullus\LexBridge\Controllers;
 
 use Luxullus\LexBridge\Logger;
-use Luxullus\LexBridge\Services\ContactService;
+use Luxullus\LexBridge\Services\CustomerService;
 
 /**
  * Controller class to handle contact-related requests
  */
 final class ContactController
 {
-    private ContactService $contactService;
+    private CustomerService $customerService;
     
-    public function __construct(ContactService $contactService)
+    public function __construct(CustomerService $customerService)
     {
-        $this->contactService = $contactService;
+        $this->customerService = $customerService;
     }    
     
     /**
@@ -27,7 +27,7 @@ final class ContactController
     public function getContacts(): array
     {
         try {
-            $contacts = $this->contactService->listContacts();
+            $contacts = $this->customerService->listContacts();
 
             return [
                 'statusCode' => 200,
@@ -64,7 +64,7 @@ final class ContactController
 
     public function syncContacts(int $page = 0): array
     {
-        $result = $this->contactService->syncContacts($page);
+        $result = $this->customerService->syncContacts($page);
         $response = $result['response'];
         $contacts = $result['contacts'];
         $hasContacts = !empty($contacts);
@@ -114,6 +114,6 @@ final class ContactController
             }
         }
 
-        return $this->contactService->updateCustomerArticle($customerId, $articleId);
+        return $this->customerService->updateCustomerArticle($customerId, $articleId);
     }
 }
