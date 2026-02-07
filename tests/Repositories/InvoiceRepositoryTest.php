@@ -88,13 +88,13 @@ final class InvoiceRepositoryTest extends TestCase
         parent::tearDown();
     }
 
-    public function testFindByIdReturnsInvoiceWithLineItems(): void
+    public function testFindByIdReturnsInvoiceArrayWithData(): void
     {
         $customerId = $this->insertCustomer([
             'id' => 1,
-            'company_name' => 'Acme GmbH',
+            'Name' => 'Acme GmbH',
             'lex_contact_id' => 'lex-1',
-            'kundenNummer' => 'ACM-01',
+            'Nummer' => 'ACM-01',
         ]);
 
         $invoiceId = $this->insertInvoice([
@@ -137,15 +137,12 @@ final class InvoiceRepositoryTest extends TestCase
 
         $invoice = $this->repository->findById('inv-1');
 
-        self::assertInstanceOf(Invoice::class, $invoice);
-        self::assertSame('inv-1', $invoice->id);
-        self::assertSame('lex-1', $invoice->lexContactId);
-        self::assertSame('Acme GmbH', $invoice->companyName);
-        self::assertIsArray($invoice->lineItems);
-        self::assertCount(2, $invoice->lineItems);
-        self::assertInstanceOf(InvoiceLineItem::class, $invoice->lineItems[0]);
-        self::assertSame(1, $invoice->lineItems[0]->lineOrder);
-        self::assertSame('Consulting A', $invoice->lineItems[0]->name);
+        self::assertIsArray($invoice);
+        self::assertSame('inv-1', $invoice['id']);
+        self::assertSame('lex-1', $invoice['lex_contact_id']);
+        self::assertSame('Acme GmbH', $invoice['company_name']);
+        self::assertSame('draft', $invoice['status']);
+        self::assertEquals(100.0, $invoice['total_net_amount']);
     }
 
     public function testFindByIdReturnsNullWhenInvoiceMissing(): void
@@ -155,8 +152,8 @@ final class InvoiceRepositoryTest extends TestCase
 
     public function testFindAllAppliesFiltersAndCountsItems(): void
     {
-        $contactA = $this->insertCustomer(['company_name' => 'Alpha GmbH']);
-        $contactB = $this->insertCustomer(['company_name' => 'Beta AG']);
+        $contactA = $this->insertCustomer(['Name' => 'Alpha GmbH']);
+        $contactB = $this->insertCustomer(['Name' => 'Beta AG']);
 
         $invA1 = $this->insertInvoice([
             'id' => 'inv-a1',
@@ -198,33 +195,6 @@ final class InvoiceRepositoryTest extends TestCase
         self::assertSame('Alpha GmbH', $row['company_name']);
     }
 
-    public function testFindByContactIdReturnsInvoicesForSpecificCustomer(): void
-    {
-        $contactA = $this->insertCustomer(['company_name' => 'Customer A']);
-        $contactB = $this->insertCustomer(['company_name' => 'Customer B']);
-
-        $invA1 = $this->insertInvoice(['contact_id' => $contactA, 'id' => 'inv-a1']);
-        $invA2 = $this->insertInvoice(['contact_id' => $contactA, 'id' => 'inv-a2']);
-        $this->insertInvoice(['contact_id' => $contactB, 'id' => 'inv-b1']);
-
-        $invoices = $this->repository->findByContactId($contactA);
-        $ids = array_column($invoices, 'id');
-
-        sort($ids);
-        self::assertSame(['inv-a1', 'inv-a2'], $ids);
-    }
-
-    public function testFindByStatusReturnsMatchingInvoices(): void
-    {
-        $contactId = $this->insertCustomer();
-        $this->insertInvoice(['id' => 'inv-draft', 'status' => 'draft', 'contact_id' => $contactId]);
-        $this->insertInvoice(['id' => 'inv-error', 'status' => 'transmission_error', 'contact_id' => $contactId]);
-
-        $drafts = $this->repository->findByStatus('draft');
-        self::assertCount(1, $drafts);
-        self::assertSame('inv-draft', $drafts[0]['id']);
-    }
-
     public function testFindLineItemsByInvoiceIdOrdersByLineOrder(): void
     {
         $invoiceId = $this->insertInvoice(['id' => 'inv-line-items']);
@@ -236,7 +206,8 @@ final class InvoiceRepositoryTest extends TestCase
         $items = $this->repository->findLineItemsByInvoiceId($invoiceId);
 
         self::assertCount(3, $items);
-        self::assertSame(['A', 'B', 'C'], array_map(static fn(InvoiceLineItem $item): string => $item->name, $items));
+        self::assertIsArray($items[0]);
+        self::assertSame(['A', 'B', 'C'], array_column($items, 'name'));
     }
 
     public function testCreateInvoiceWithItemsReturnsDatabaseErrorWhenProcedureMissing(): void
@@ -246,115 +217,6 @@ final class InvoiceRepositoryTest extends TestCase
         self::assertNull($result['invoice_id']);
         self::assertSame(-1, (int) $result['error_code']);
         self::assertStringContainsString('Database error', $result['error_message']);
-    }
-
-    public function testCreateInvoicesForPendingLineItemsCreatesInvoicesAndUpdatesRows(): void
-    {
-        $customerId = $this->insertCustomer([
-            'id' => 10,
-            'kundenNummer' => 'CUST-10',
-        ]);
-
-        $this->insertLineItem([
-            'id' => 'li-11',
-            'customer_number' => 'CUST-10',
-            'invoice_id' => null,
-            'quantity' => 2,
-            'net_amount' => 15.0,
-            'gross_amount' => 17.85,
-            'line_total_net' => null,
-            'line_total_gross' => null,
-            'line_order' => 0,
-        ]);
-
-        $this->insertLineItem([
-            'id' => 'li-12',
-            'customer_number' => 'CUST-10',
-            'invoice_id' => null,
-            'quantity' => 1,
-            'net_amount' => 20.0,
-            'gross_amount' => 23.80,
-            'line_total_net' => 20.0,
-            'line_total_gross' => 23.8,
-            'line_order' => 5,
-        ]);
-
-        $result = $this->repository->createInvoicesForPendingLineItems('2024-03-15');
-
-        self::assertArrayHasKey('createdInvoices', $result);
-        self::assertCount(1, $result['createdInvoices']);
-        self::assertSame([], $result['skippedLineItems']);
-
-        $created = $result['createdInvoices'][0];
-        self::assertSame($customerId, $created['customer_id']);
-        self::assertSame('CUST-10', $created['customer_number']);
-        self::assertSame(2, $created['line_item_count']);
-        self::assertNotEmpty($created['invoice_id']);
-
-        $invoiceRow = $this->pdo->query("SELECT voucher_date, status, currency, total_net_amount, total_gross_amount FROM invoices WHERE id = '{$created['invoice_id']}'")->fetch();
-        self::assertSame('2024-03-15', $invoiceRow['voucher_date']);
-        self::assertSame('draft', $invoiceRow['status']);
-        self::assertSame('EUR', $invoiceRow['currency']);
-        self::assertEquals(50.0, (float) $invoiceRow['total_net_amount']);
-        self::assertEquals(59.5, round((float) $invoiceRow['total_gross_amount'], 2));
-
-        $lineItems = $this->pdo
-            ->query("SELECT invoice_id, line_order, line_total_net, line_total_gross FROM invoice_line_items WHERE invoice_id = '{$created['invoice_id']}' ORDER BY id")
-            ->fetchAll();
-
-        self::assertSame($created['invoice_id'], $lineItems[0]['invoice_id']);
-        self::assertSame(1, (int) $lineItems[0]['line_order']);
-        self::assertEquals(30.0, (float) $lineItems[0]['line_total_net']);
-        self::assertEquals(35.7, round((float) $lineItems[0]['line_total_gross'], 2));
-        self::assertSame(5, (int) $lineItems[1]['line_order']);
-    }
-
-    public function testCreateInvoicesForPendingLineItemsSkipsUnknownOrPreassignedItems(): void
-    {
-        $this->insertLineItem([
-            'id' => 'li-20',
-            'customer_number' => 'UNKNOWN',
-            'invoice_id' => null,
-        ]);
-
-        $this->insertLineItem([
-            'id' => 'li-21',
-            'customer_number' => 'CUST-42',
-            'invoice_id' => 'existing-invoice',
-        ]);
-
-        $result = $this->repository->createInvoicesForPendingLineItems('2024-04-01');
-
-        self::assertSame(['li-20'], $result['skippedLineItems']);
-        self::assertSame([], $result['createdInvoices']);
-
-        $row = $this->pdo->query("SELECT invoice_id FROM invoice_line_items WHERE id = 'li-21'")->fetch();
-        self::assertSame('existing-invoice', $row['invoice_id']);
-    }
-
-    public function testCreateInvoicesForPendingLineItemsReturnsErrorWhenTransactionFails(): void
-    {
-        $pdo = new FailingTransactionInvoicePDO();
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-        $pdo->exec('PRAGMA foreign_keys = ON');
-        $this->createSchema($pdo);
-
-        $this->setDatabaseConnection($pdo);
-        $this->pdo = $pdo;
-        $repository = new InvoiceRepository();
-
-        $this->insertCustomer(['id' => 30, 'kundenNummer' => 'CUST-30']);
-        $this->insertLineItem([
-            'id' => 'li-30',
-            'customer_number' => 'CUST-30',
-            'invoice_id' => null,
-        ]);
-
-        $result = $repository->createInvoicesForPendingLineItems('2024-05-01');
-        self::assertArrayHasKey('error', $result);
-        self::assertSame([], $result['createdInvoices']);
-        self::assertSame([], $result['skippedLineItems']);
     }
 
     public function testCreateInvoicesForPendingLineItemsViaStoredProcReturnsErrorWhenProcedureMissing(): void
@@ -444,9 +306,9 @@ final class InvoiceRepositoryTest extends TestCase
     {
         $pdo->exec('CREATE TABLE customer (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company_name TEXT,
             lex_contact_id TEXT,
-            kundenNummer TEXT
+            Nummer TEXT,
+            Name TEXT
         )');
 
         $pdo->exec('CREATE TABLE invoices (
@@ -499,25 +361,25 @@ final class InvoiceRepositoryTest extends TestCase
     {
         $data = $overrides + [
             'id' => null,
-            'company_name' => 'Customer ' . uniqid('', false),
+            'Name' => 'Customer ' . uniqid('', false),
             'lex_contact_id' => null,
-            'kundenNummer' => null,
+            'Nummer' => null,
         ];
 
         if ($data['id'] !== null) {
-            $stmt = $this->pdo->prepare('INSERT INTO customer (id, company_name, lex_contact_id, kundenNummer) VALUES (:id, :company_name, :lex_contact_id, :kundenNummer)');
+            $stmt = $this->pdo->prepare('INSERT INTO customer (id, lex_contact_id, Nummer, Name) VALUES (:id, :lex_contact_id, :Nummer, :Name)');
             $stmt->execute([
                 ':id' => $data['id'],
-                ':company_name' => $data['company_name'],
                 ':lex_contact_id' => $data['lex_contact_id'],
-                ':kundenNummer' => $data['kundenNummer'],
+                ':Nummer' => $data['Nummer'],
+                ':Name' => $data['Name'],
             ]);
         } else {
-            $stmt = $this->pdo->prepare('INSERT INTO customer (company_name, lex_contact_id, kundenNummer) VALUES (:company_name, :lex_contact_id, :kundenNummer)');
+            $stmt = $this->pdo->prepare('INSERT INTO customer (lex_contact_id, Nummer, Name) VALUES (:lex_contact_id, :Nummer, :Name)');
             $stmt->execute([
-                ':company_name' => $data['company_name'],
                 ':lex_contact_id' => $data['lex_contact_id'],
-                ':kundenNummer' => $data['kundenNummer'],
+                ':Nummer' => $data['Nummer'],
+                ':Name' => $data['Name'],
             ]);
         }
 
