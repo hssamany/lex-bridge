@@ -12,22 +12,12 @@ use RuntimeException;
 use Luxullus\LexBridge\Database\Database;
 use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Services\LineItemCalculator;
+use Luxullus\LexBridge\Services\OrderDateCalculator;
+use Luxullus\LexBridge\Services\OrderLineItemBuilder;
+use Luxullus\LexBridge\Services\OrderDomainConstants;
 
 class OrderRepository
 {
-    /**
-     * ISO weekday names mapped to day offsets used when expanding a calendar week.
-     */
-    private const WEEKDAY_OFFSETS = [
-        'Mo' => 0,
-        'Di' => 1,
-        'Mi' => 2,
-        'Do' => 3,
-        'Fr' => 4,
-    ];
-
-    private const MIN_QUANTITY_THRESHOLD = 0.0001;
-
     private PDO $db;
     private string $priceTable;
     private string $ordersTable;
@@ -35,10 +25,15 @@ class OrderRepository
     private string $customerTable;
     private string $customerArticleTable;
     private LineItemCalculator $calculator;
+    private OrderDateCalculator $dateCalculator;
+    private OrderLineItemBuilder $lineItemBuilder;
     private ?bool $supportsProcessedFlag = null;
 
-    public function __construct(?LineItemCalculator $calculator = null)
-    {
+    public function __construct(
+        ?LineItemCalculator $calculator = null,
+        ?OrderDateCalculator $dateCalculator = null,
+        ?OrderLineItemBuilder $lineItemBuilder = null
+    ) {
         $this->db = Database::getConnection();
         $this->ordersTable = \lexbridge_table('orders');
         $this->articleTable = \lexbridge_table('articles');
@@ -46,6 +41,8 @@ class OrderRepository
         $this->customerArticleTable = \lexbridge_table('customers_article');
         $this->customerTable = \lexbridge_table('customer');
         $this->calculator = $calculator ?? new LineItemCalculator();
+        $this->dateCalculator = $dateCalculator ?? new OrderDateCalculator();
+        $this->lineItemBuilder = $lineItemBuilder ?? new OrderLineItemBuilder($this->calculator);
     }
 
     /**
@@ -259,7 +256,7 @@ class OrderRepository
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
                     ON CAST(c.Nummer AS UNSIGNED) = o.Kunde
-                LEFT JOIN {$this->customerTable} ca
+                LEFT JOIN {$this->customerArticleTable} ca
                     ON ca.customer_id = c.id
                 LEFT JOIN {$this->articleTable} a
                     ON a.id = ca.article_id
@@ -315,40 +312,30 @@ class OrderRepository
             $year = (int) ($row['order_year'] ?? 0);
             $week = (int) ($row['order_week'] ?? 0);
 
-            if ($year <= 0 || $week <= 0) {
-                continue;
-            }
+            // Extract weekday quantities from order row
+            $weekdayQuantities = $this->dateCalculator->extractWeekdayQuantities($row);
 
+            // Calculate delivery dates for this week with filters applied
             try {
-                // monday start for the ISO week
-                $weekStart = (new DateTimeImmutable())->setISODate($year, $week, 1);
+                $deliveryDates = $this->dateCalculator->calculateDeliveryDatesForWeek(
+                    $year,
+                    $week,
+                    $weekdayQuantities,
+                    $deliveryFrom,
+                    $deliveryTo
+                );
             } catch (\Exception $e) {
                 continue;
             }
 
-            foreach (self::WEEKDAY_OFFSETS as $column => $offset) {
+            foreach ($deliveryDates as $weekdayCode => $dateInfo) {
+                $deliveryDate = $dateInfo['date'];
+                $quantity = $dateInfo['quantity'];
 
-                $quantity = $row[$column] ?? null;
+                $quantityValue = $this->calculator->normalizeQuantity($quantity);
 
-                if ($quantity === null) {
+                if (abs($quantityValue) < OrderDomainConstants::MIN_QUANTITY_THRESHOLD) {
                     continue;
-                }
-
-                $quantityValue = $this->calculator->normalizeQuantity((float) $quantity);
-
-                if (abs($quantityValue) < self::MIN_QUANTITY_THRESHOLD) {
-                    continue;
-                }
-
-                // derive the specific delivery date within the week
-                $deliveryDate = $weekStart->modify('+' . $offset . ' day');
-
-                if ($deliveryFrom !== null && $deliveryDate < $deliveryFrom) {
-                    continue;
-                }
-
-                if ($deliveryTo !== null && $deliveryDate > $deliveryTo) {
-                    break; // remaining days in the week would also exceed upper bound
                 }
 
                 $orderId = (int) $row['order_id'];
@@ -413,7 +400,7 @@ class OrderRepository
                     continue;
                 }
 
-                $lineItem = $this->buildLineItemPayload($row, $pricing, $deliveryDate, $quantityValue);
+                $lineItem = $this->lineItemBuilder->buildLineItemPayload($row, $pricing, $deliveryDate, $quantityValue);
 
                 $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + 1;
                 $results[$customerKey][] = $lineItem;
@@ -711,68 +698,6 @@ class OrderRepository
         }
 
         return null;
-    }
-
-    /**
-     * @param array<string, mixed> $orderRow
-     * @param array<string, mixed>|null $pricing
-     * @return array<string, mixed>
-     */
-    private function buildLineItemPayload(array $orderRow, ?array $pricing, DateTimeImmutable $deliveryDate, float $quantity): array
-    {
-        $internalCustomerId = null;
-        if (isset($orderRow['customer_internal_id']) && $orderRow['customer_internal_id'] !== null) {
-            $internalCustomerId = (int) $orderRow['customer_internal_id'];
-        } elseif (isset($orderRow['customer_id'])) {
-            $internalCustomerId = (int) $orderRow['customer_id'];
-        }
-
-        $payload = [
-            'order_id' => (int) $orderRow['order_id'],
-            'order_delivery_date' => $deliveryDate->format('Y-m-d'),
-            'customer_id' => $internalCustomerId,
-            'customer_reference' => isset($orderRow['customer_id']) ? (int) $orderRow['customer_id'] : null,
-            'article_id' => isset($orderRow['article_id']) && $orderRow['article_id'] !== null
-                ? (int) $orderRow['article_id']
-                : null,
-            'article_number' => $orderRow['article_number'] ?? null,
-            'quantity' => $quantity,
-        ];
-
-        return array_merge($payload, $this->buildArticlePricingDetails($pricing, $quantity));
-    }
-
-    /**
-     * @param array<string, mixed>|null $pricing
-     * @return array<string, mixed>
-     */
-    private function buildArticlePricingDetails(?array $pricing, float $quantity): array
-    {
-        if ($pricing === null) {
-            return [];
-        }
-
-        $details = [
-            'article_name' => $pricing['article']['name'] ?? null,
-            'article_description' => $pricing['article']['description'] ?? null,
-            'unit_name' => $pricing['article']['unit_name'] ?? null,
-        ];
-
-        $priceData = $pricing['price'] ?? null;
-        if ($priceData === null) {
-            return $details;
-        }
-
-        $details['currency'] = $priceData['currency'] ?? null;
-        $details['net_amount'] = $priceData['net_amount'] ?? null;
-        $details['gross_amount'] = $priceData['gross_amount'] ?? null;
-        $details['tax_rate_percentage'] = $priceData['tax_rate_percentage'] ?? null;
-        $details['article_valid_from'] = $priceData['valid_from'] ?? null;
-        $details['article_valid_until'] = $priceData['valid_until'] ?? null;
-        $details['line_total_net'] = $this->calculator->calculateLineTotal($quantity, $priceData['net_amount'] ?? null);
-        $details['line_total_gross'] = $this->calculator->calculateLineTotal($quantity, $priceData['gross_amount'] ?? null);
-
-        return $details;
     }
 
     /**

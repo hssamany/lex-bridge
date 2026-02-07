@@ -13,7 +13,8 @@ use Luxullus\LexBridge\Logger;
 
 // Determine if this is an API request
 $requestUri = $_SERVER['REQUEST_URI'] ?? '/';
-$isApiRequest = (strpos($requestUri, '/api/') === 0 || strpos($requestUri, '/api') === 0);
+$requestPath = parse_url($requestUri, PHP_URL_PATH) ?? '/';
+$isApiRequest = preg_match('#/api(?:/|$)#', $requestPath) === 1;
 
 if ($isApiRequest) {
     // Handle API requests

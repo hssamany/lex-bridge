@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Luxullus\LexBridge\Api;
 
 use Exception;
+use Luxullus\LexBridge\Logger;
 
 final class ApiRouter
 {

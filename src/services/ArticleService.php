@@ -345,14 +345,17 @@ final class ArticleService
             $summary['isSuccess'] = false;
         }
 
-        Logger::info('Article sync completed', [
-            'fetched' => $summary['fetched'],
-            'created' => $summary['created'],
-            'updated' => $summary['updated'],
-            'unchanged' => $summary['unchanged'],
-            'price_updates' => $summary['price_updates'],
-            'error_count' => count($summary['errors'])
-        ]);
+        Logger::info(
+            'Article sync completed: ' . json_encode([
+                'fetched' => $summary['fetched'],
+                'created' => $summary['created'],
+                'updated' => $summary['updated'],
+                'unchanged' => $summary['unchanged'],
+                'price_updates' => $summary['price_updates'],
+                'error_count' => count($summary['errors'])
+            ]),
+            'ArticleService'
+        );
 
         return $summary;
     }

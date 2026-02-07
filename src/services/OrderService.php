@@ -60,6 +60,67 @@ final class OrderService
      */
     public function generateLineItemsFromOrders(array $orderIds): array
     {
+        $normalized = $this->normalizeOrderIds($orderIds);
+
+        if (!$normalized['isValid']) {
+            return [
+                'isSuccess' => false,
+                'error' => $normalized['error'],
+            ];
+        }
+
+        try {
+            $results = $this->repository->generateInvoiceLineItemsFromOrders([
+                'order_ids' => $normalized['orderIds'],
+            ]);
+        } catch (Throwable $exception) {
+            return [
+                'isSuccess' => false,
+                'error' => 'Positionsgenerierung fehlgeschlagen: ' . $exception->getMessage(),
+            ];
+        }
+
+        return $this->buildLineItemsResponse($results, $normalized['orderIds']);
+    }
+
+    /**
+     * Generate line items from orders and immediately create invoices per customer
+     * @param array<int, mixed> $orderIds
+     * @return array<string, mixed>
+     */
+    public function generateInvoicesFromOrders(array $orderIds): array
+    {
+        $normalized = $this->normalizeOrderIds($orderIds);
+
+        if (!$normalized['isValid']) {
+            return [
+                'isSuccess' => false,
+                'error' => $normalized['error'],
+            ];
+        }
+
+        try {
+            $result = $this->repository->generateInvoicesFromOrders([
+                'order_ids' => $normalized['orderIds'],
+            ]);
+        } catch (Throwable $exception) {
+            return [
+                'isSuccess' => false,
+                'error' => 'Rechnungserstellung fehlgeschlagen: ' . $exception->getMessage(),
+            ];
+        }
+
+        return array_merge(['isSuccess' => true], $result);
+    }
+
+    /**
+     * Normalize and validate order IDs from mixed input.
+     * 
+     * @param array<int, mixed> $orderIds
+     * @return array{isValid: bool, orderIds?: array<int>, error?: string}
+     */
+    private function normalizeOrderIds(array $orderIds): array
+    {
         $normalized = [];
 
         foreach ($orderIds as $candidate) {
@@ -80,22 +141,26 @@ final class OrderService
 
         if (!$normalized) {
             return [
-                'isSuccess' => false,
+                'isValid' => false,
                 'error' => 'At least one valid order_id is required.',
             ];
         }
 
-        try {
-            $results = $this->repository->generateInvoiceLineItemsFromOrders([
-                'order_ids' => $normalized,
-            ]);
-        } catch (Throwable $exception) {
-            return [
-                'isSuccess' => false,
-                'error' => 'Positionsgenerierung fehlgeschlagen: ' . $exception->getMessage(),
-            ];
-        }
+        return [
+            'isValid' => true,
+            'orderIds' => $normalized,
+        ];
+    }
 
+    /**
+     * Build response structure from repository results.
+     * 
+     * @param array<int, array<int, array<string, mixed>>> $results
+     * @param array<int> $processedOrderIds
+     * @return array<string, mixed>
+     */
+    private function buildLineItemsResponse(array $results, array $processedOrderIds): array
+    {
         $lineItems = [];
         $customers = [];
 
@@ -118,56 +183,10 @@ final class OrderService
         return [
             'isSuccess' => true,
             'generatedCount' => count($lineItems),
-            'ordersProcessed' => $normalized,
+            'ordersProcessed' => $processedOrderIds,
             'customers' => array_values(array_unique($customers)),
             'lineItems' => $lineItems,
         ];
-    }
-
-    /**
-     * Generate line items from orders and immediately create invoices per customer
-     * @param array<int, mixed> $orderIds
-     * @return array<string, mixed>
-     */
-    public function generateInvoicesFromOrders(array $orderIds): array
-    {
-        $normalized = [];
-
-        foreach ($orderIds as $candidate) {
-            if ($candidate === null || $candidate === '') {
-                continue;
-            }
-
-            $validated = filter_var($candidate, FILTER_VALIDATE_INT, [
-                'options' => ['min_range' => 1],
-            ]);
-
-            if ($validated !== false && $validated !== null) {
-                $normalized[] = (int) $validated;
-            }
-        }
-
-        $normalized = array_values(array_unique($normalized));
-
-        if (!$normalized) {
-            return [
-                'isSuccess' => false,
-                'error' => 'At least one valid order_id is required.',
-            ];
-        }
-
-        try {
-            $result = $this->repository->generateInvoicesFromOrders([
-                'order_ids' => $normalized,
-            ]);
-        } catch (Throwable $exception) {
-            return [
-                'isSuccess' => false,
-                'error' => 'Rechnungserstellung fehlgeschlagen: ' . $exception->getMessage(),
-            ];
-        }
-
-        return array_merge(['isSuccess' => true], $result);
     }
 
     /**

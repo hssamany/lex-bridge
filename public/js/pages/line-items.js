@@ -426,10 +426,35 @@ class LineItemsPage {
         }
 
         try {
+            const lineItems = selectedIds.map((id) => {
+                const item = this.lineItemsMap.get(String(id));
+                return {
+                    id,
+                    article_id: item?.article_id ?? null,
+                    quantity: item?.quantity ?? null
+                };
+            });
+
+            const missingArticle = lineItems.find((item) => !item.article_id || !Number.isFinite(Number(item.article_id)));
+            if (missingArticle) {
+                this.showToast('Bitte wählen Sie nur Positionen mit Artikel aus.', 'warning');
+                return;
+            }
+
+            const missingQuantity = lineItems.find((item) => !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0);
+            if (missingQuantity) {
+                this.showToast('Bitte wählen Sie nur Positionen mit gültiger Menge aus.', 'warning');
+                return;
+            }
+
             const payload = {
                 customer_id: customerId,
                 currency: 'EUR',
-                line_items: selectedIds.map((id) => ({ id }))
+                line_items: lineItems.map((item) => ({
+                    line_item_id: String(item.id),
+                    article_id: Number(item.article_id),
+                    quantity: Number(item.quantity)
+                }))
             };
 
             const response = await fetch(LexBridge.resolveApiUrl('invoices'), {
@@ -444,7 +469,7 @@ class LineItemsPage {
             const data = this.parseJsonSafely(text);
 
             if (!response.ok || !data.invoice_id) {
-                const message = data.error || `Rechnung konnte nicht erstellt werden (Status ${response.status}).`;
+                const message = data.error_message || data.error || `Rechnung konnte nicht erstellt werden (Status ${response.status}).`;
                 throw new Error(message);
             }
 

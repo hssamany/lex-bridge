@@ -27,12 +27,7 @@ final class InvoiceController
      */
     public function getInvoices(array $filters = []): array
     {
-        $invoices = $this->invoiceService->getInvoices($filters);
-        
-        return [
-            'success' => true,
-            'invoices' => $invoices
-        ];
+        return $this->invoiceService->getInvoices($filters);
     }
     
     /**

@@ -492,10 +492,17 @@ final class InvoiceService
                 continue;
             }
 
-            $validated[] = [
+            $lineItemId = $item['line_item_id'] ?? $item['id'] ?? null;
+            $validatedItem = [
                 'article_id' => (int) $item['article_id'],
                 'quantity' => $quantity
             ];
+
+            if ($lineItemId !== null && $lineItemId !== '') {
+                $validatedItem['line_item_id'] = (string) $lineItemId;
+            }
+
+            $validated[] = $validatedItem;
         }
 
         return [

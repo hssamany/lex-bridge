@@ -271,8 +271,8 @@ final class OrderRepositoryTest extends TestCase
     {
         $this->pdo->exec('CREATE TABLE customer (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            kundenNummer TEXT,
+            Name TEXT,
+            Nummer TEXT,
             lex_customer_number TEXT
         )');
 
@@ -321,13 +321,13 @@ final class OrderRepositoryTest extends TestCase
 
     private function insertCustomer(string $name): int
     {
-        $stmt = $this->pdo->prepare('INSERT INTO customer (name) VALUES (:name)');
+        $stmt = $this->pdo->prepare('INSERT INTO customer (Name) VALUES (:name)');
         $stmt->execute([':name' => $name]);
 
         $customerId = (int) $this->pdo->lastInsertId();
         $number = (string) $customerId;
 
-        $update = $this->pdo->prepare('UPDATE customer SET kundenNummer = :number WHERE id = :id');
+        $update = $this->pdo->prepare('UPDATE customer SET Nummer = :number WHERE id = :id');
         $update->execute([
             ':number' => $number,
             ':id' => $customerId,
