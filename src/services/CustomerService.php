@@ -41,7 +41,14 @@ final class CustomerService
     public function searchCustomers(?string $query): array
     {
         $normalizedQuery = $this->normalizeSearchQuery($query);
-        return $this->repository->searchCustomers($normalizedQuery);
+        
+        if ($normalizedQuery === null || $normalizedQuery === '') {
+            return [];
+        }
+
+        $rows = $this->repository->searchCustomers($normalizedQuery);
+        
+        return $this->transformToCustomerModels($rows);
     }
 
     /**
@@ -66,7 +73,9 @@ final class CustomerService
      */
     public function listContacts(): array
     {
-        return $this->repository->getCustomerContacts();
+        $rows = $this->repository->getCustomerContacts();
+        
+        return $this->enrichContactData($rows);
     }
 
     /**
@@ -88,10 +97,13 @@ final class CustomerService
             Logger::info('Contact sync failed', ['page' => $page, 'error' => $errorMessage]);
         }
 
+        $rows = $this->repository->getCustomerContacts();
+        $enrichedContacts = $this->enrichContactData($rows);
+
         return [
             'response' => $response,
             'error' => $errorMessage,
-            'contacts' => $this->repository->getCustomerContacts()
+            'contacts' => $enrichedContacts
         ];
     }
 
@@ -105,16 +117,18 @@ final class CustomerService
     public function updateCustomerArticle(int $customerId, ?int $articleId): array
     {
         try {
-            $this->repository->updateCustomerArticleMapping($customerId, $articleId);
+            $this->performArticleMapping($customerId, $articleId);
         } catch (Exception $exception) {
             Logger::exception($exception, 'CustomerService - Update Customer Article Mapping');
+            
+            $rows = $this->repository->getCustomerContacts();
             
             return [
                 'statusCode' => 500,
                 'isSuccess' => false,
                 'error' => 'Aktualisierung der Artikelzuordnung fehlgeschlagen: ' . $exception->getMessage(),
                 'message' => null,
-                'contacts' => $this->repository->getCustomerContacts(),
+                'contacts' => $this->enrichContactData($rows),
             ];
         }
 
@@ -127,13 +141,29 @@ final class CustomerService
             'article_id' => $articleId
         ]);
 
+        $rows = $this->repository->getCustomerContacts();
+
         return [
             'statusCode' => 200,
             'isSuccess' => true,
             'error' => null,
             'message' => $message,
-            'contacts' => $this->repository->getCustomerContacts(),
+            'contacts' => $this->enrichContactData($rows),
         ];
+    }
+
+    /**
+     * Find contact by Lexware contact ID.
+     */
+    public function findContactByLexwareId(string $lexContactId): ?Contact
+    {
+        $row = $this->repository->findByLexContactId($lexContactId);
+        
+        if ($row === null) {
+            return null;
+        }
+
+        return $this->transformRowToContact($row);
     }
 
     /**
@@ -147,6 +177,117 @@ final class CustomerService
 
         $trimmed = trim($query);
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    /**
+     * Transform database rows to Customer models.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, Customer>
+     */
+    private function transformToCustomerModels(array $rows): array
+    {
+        $customers = [];
+        
+        foreach ($rows as $row) {
+            $customer = new Customer();
+            $customer->id = isset($row['id']) ? (int) $row['id'] : 0;
+            $customer->customer_number = isset($row['customer_number']) ? (string) $row['customer_number'] : '';
+            $customer->company_name = isset($row['company_name']) ? (string) $row['company_name'] : '';
+            $customers[] = $customer;
+        }
+
+        return $customers;
+    }
+
+    /**
+     * Enrich contact data with formatted fields.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @return array<int, array<string, string|null>>
+     */
+    private function enrichContactData(array $rows): array
+    {
+        return array_map(function (array $row): array {
+            $articleLabel = $this->buildArticleLabel(
+                $row['article_number'] ?? null,
+                $row['article_name'] ?? null
+            );
+
+            return [
+                'customerId' => isset($row['customer_id']) ? (int) $row['customer_id'] : null,
+                'companyName' => $row['company_name'] ?? '',
+                'customerNumber' => $row['customer_number'] ?? '',
+                'lexContactId' => $row['lex_contact_id'] ?? '',
+                'lexCustomerNumber' => $row['lex_customer_number'] ?? '',
+                'articleId' => isset($row['article_id']) ? (int) $row['article_id'] : null,
+                'articleLabel' => $articleLabel
+            ];
+        }, $rows);
+    }
+
+    /**
+     * Build article label from number and name.
+     */
+    private function buildArticleLabel(?string $articleNumber, ?string $articleName): ?string
+    {
+        if (empty($articleNumber) && empty($articleName)) {
+            return null;
+        }
+
+        $number = $articleNumber ?? '';
+        $name = $articleName ?? '';
+        
+        return trim($number . ' - ' . $name, ' -');
+    }
+
+    /**
+     * Perform article mapping with business logic.
+     */
+    private function performArticleMapping(int $customerId, ?int $articleId): void
+    {
+        if ($articleId === null) {
+            $this->repository->deleteCustomerArticleMapping($customerId);
+            return;
+        }
+
+        // Business rule: Ensure article is only mapped to one customer
+        $this->repository->clearArticleMappingForOtherCustomers($articleId, $customerId);
+
+        // Upsert the mapping
+        $existingMapping = $this->repository->findCustomerArticleMapping($customerId);
+        
+        if ($existingMapping !== null) {
+            $this->repository->updateCustomerArticleMapping($customerId, $articleId);
+        } else {
+            $this->repository->insertCustomerArticleMapping($customerId, $articleId);
+        }
+    }
+
+    /**
+     * Transform database row to Contact model.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function transformRowToContact(array $row): Contact
+    {
+        $contactData = [
+            'id' => $row['lex_contact_id'] ?? '',
+            'organizationId' => $row['organization_id'] ?? null,
+            'version' => isset($row['version']) ? (int) $row['version'] : 0,
+            'roles' => [
+                'customer' => [
+                    'number' => isset($row['lex_customer_number']) ? (int) $row['lex_customer_number'] : 0
+                ]
+            ],
+            'company' => [
+                'name' => $row['Name'] ?? '',
+                'allowTaxFreeInvoices' => isset($row['allow_tax_free_invoices']) ? (bool) $row['allow_tax_free_invoices'] : false
+            ],
+            'archived' => isset($row['archived']) ? (bool) $row['archived'] : false
+        ];
+
+        return new Contact($contactData);
     }
 
     /**

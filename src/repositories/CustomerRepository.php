@@ -2,18 +2,16 @@
 
 declare(strict_types=1);
 
-
 namespace Luxullus\LexBridge\Repositories;
 
 use PDO;
-use Luxullus\LexBridge\Models\Customer;
 use Luxullus\LexBridge\Models\Contact;
 use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Logger;
 
-
-class CustomerRepository
+final class CustomerRepository
 {
-    private \PDO $db;
+    private PDO $db;
     private string $customerTable;
     private string $customerArticleTable;
     private string $articleTable;
@@ -27,39 +25,30 @@ class CustomerRepository
     }
 
     /**
-     * Search customers by customer number or company name
+     * Search customers by customer number or company name.
+     *
      * @param string|null $query
-     * @return Customer[]
+     * @return array<int, array<string, mixed>>
      */
     public function searchCustomers(?string $query): array
     {
-        $query = $query ?? '';
-
-        $sql = "SELECT id, Nummer AS customer_number, Name AS company_name FROM {$this->customerTable}";
-        $params = [];
-
-        if ($query !== '') {
-            $sql .= " WHERE Nummer LIKE :customerNumber OR Name LIKE :companyName";
-            $params[':customerNumber'] = $query . '%';
-            $params[':companyName'] = $query . '%';
+        if ($query === null || $query === '') {
+            return [];
         }
 
-        $sql .= " ORDER BY Nummer ASC LIMIT 20";
+        $sql = "SELECT id, Nummer AS customer_number, Name AS company_name 
+                FROM {$this->customerTable}
+                WHERE Nummer LIKE :customerNumber OR Name LIKE :companyName
+                ORDER BY Nummer ASC 
+                LIMIT 20";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $stmt->execute([
+            ':customerNumber' => $query . '%',
+            ':companyName' => $query . '%'
+        ]);
 
-        $customers = [];
-        foreach ($rows as $row) {
-            $customer = new Customer();
-            $customer->id = isset($row['id']) ? (int)$row['id'] : 0;
-            $customer->customer_number = isset($row['customer_number']) ? (string)$row['customer_number'] : '';
-            $customer->company_name = isset($row['company_name']) ? (string)$row['company_name'] : '';
-            $customers[] = $customer;
-        }
-
-        return $customers;
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
     /**
@@ -76,19 +65,17 @@ class CustomerRepository
 
         $stmt = $this->db->prepare($sql);
 
-        $params = [
+        return $stmt->execute([
             ':lex_contact_id' => $contact->lexContactId,
             ':lex_customer_number' => $contact->lexCustomerNumber,
             ':company_name' => $contact->companyName
-        ];
-
-        return $stmt->execute($params);
+        ]);
     }
 
     /**
-     * Fetch contacts persisted in the customer table for UI display.
+     * Fetch contacts with article mappings from the customer table.
      *
-     * @return array<int, array<string, string|null>>
+     * @return array<int, array<string, mixed>>
      */
     public function getCustomerContacts(): array
     {
@@ -108,59 +95,92 @@ class CustomerRepository
         SQL;
 
         $stmt = $this->db->query($sql);
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        return array_map(static function (array $row): array {
-            $articleLabel = null;
-            if (!empty($row['article_number']) || !empty($row['article_name'])) {
-                $number = $row['article_number'] ?? '';
-                $name = $row['article_name'] ?? '';
-                $articleLabel = trim($number . ' - ' . $name, ' -');
-            }
-
-            return [
-                'customerId' => isset($row['customer_id']) ? (int) $row['customer_id'] : null,
-                'companyName' => $row['company_name'] ?? '',
-                'customerNumber' => $row['customer_number'] ?? '',
-                'lexContactId' => $row['lex_contact_id'] ?? '',
-                'lexCustomerNumber' => $row['lex_customer_number'] ?? '',
-                'articleId' => isset($row['article_id']) ? (int) $row['article_id'] : null,
-                'articleLabel' => $articleLabel
-            ];
-        }, $rows ?: []);
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
-    public function updateCustomerArticleMapping(int $customerId, ?int $articleId): void
+    /**
+     * Delete customer-article mapping.
+     */
+    public function deleteCustomerArticleMapping(int $customerId): void
     {
-        if ($articleId === null) {
-            $stmt = $this->db->prepare("DELETE FROM {$this->customerArticleTable} WHERE customer_id = :customer_id");
-            $stmt->execute([':customer_id' => $customerId]);
-            return;
-        }
+        $stmt = $this->db->prepare(
+            "DELETE FROM {$this->customerArticleTable} WHERE customer_id = :customer_id"
+        );
+        $stmt->execute([':customer_id' => $customerId]);
+    }
 
-        $clearStmt = $this->db->prepare("DELETE FROM {$this->customerArticleTable} WHERE article_id = :article_id AND customer_id <> :customer_id");
-        $clearStmt->execute([
+    /**
+     * Clear article mapping for all customers except the specified one.
+     */
+    public function clearArticleMappingForOtherCustomers(int $articleId, int $exceptCustomerId): void
+    {
+        $stmt = $this->db->prepare(
+            "DELETE FROM {$this->customerArticleTable} 
+             WHERE article_id = :article_id AND customer_id <> :customer_id"
+        );
+        $stmt->execute([
             ':article_id' => $articleId,
-            ':customer_id' => $customerId,
+            ':customer_id' => $exceptCustomerId,
         ]);
+    }
 
-        $existsStmt = $this->db->prepare("SELECT COUNT(*) FROM {$this->customerArticleTable} WHERE customer_id = :customer_id");
-        $existsStmt->execute([':customer_id' => $customerId]);
-        $exists = (int) $existsStmt->fetchColumn() > 0;
+    /**
+     * Find existing customer-article mapping.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findCustomerArticleMapping(int $customerId): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT customer_id, article_id 
+             FROM {$this->customerArticleTable} 
+             WHERE customer_id = :customer_id"
+        );
+        $stmt->execute([':customer_id' => $customerId]);
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ?: null;
+    }
 
-        if ($exists) {
-            $stmt = $this->db->prepare("UPDATE {$this->customerArticleTable} SET article_id = :article_id WHERE customer_id = :customer_id");
-        } else {
-            $stmt = $this->db->prepare("INSERT INTO {$this->customerArticleTable} (customer_id, article_id) VALUES (:customer_id, :article_id)");
-        }
-
+    /**
+     * Update existing customer-article mapping.
+     */
+    public function updateCustomerArticleMapping(int $customerId, int $articleId): void
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE {$this->customerArticleTable} 
+             SET article_id = :article_id 
+             WHERE customer_id = :customer_id"
+        );
         $stmt->execute([
             ':customer_id' => $customerId,
             ':article_id' => $articleId,
         ]);
     }
 
-    public function findByLexContactId(string $lexContactId): ?Contact
+    /**
+     * Insert new customer-article mapping.
+     */
+    public function insertCustomerArticleMapping(int $customerId, int $articleId): void
+    {
+        $stmt = $this->db->prepare(
+            "INSERT INTO {$this->customerArticleTable} (customer_id, article_id) 
+             VALUES (:customer_id, :article_id)"
+        );
+        $stmt->execute([
+            ':customer_id' => $customerId,
+            ':article_id' => $articleId,
+        ]);
+    }
+
+    /**
+     * Find customer row by Lexware contact ID.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findByLexContactId(string $lexContactId): ?array
     {
         $sql = <<<SQL
             SELECT *
@@ -172,28 +192,8 @@ class CustomerRepository
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':lex_contact_id' => $lexContactId]);
 
-        $row = $stmt->fetch();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        if (!$row) {
-            return null;
-        }
-
-        $contactData = [
-            'id' => $row['lex_contact_id'],
-            'organizationId' => $row['organization_id'] ?? null,
-            'version' => isset($row['version']) ? (int) $row['version'] : 0,
-            'roles' => [
-                'customer' => [
-                    'number' => (int) $row['lex_customer_number']
-                ]
-            ],
-            'company' => [
-                'name' => $row['Name'],
-                'allowTaxFreeInvoices' => isset($row['allow_tax_free_invoices']) ? (bool) $row['allow_tax_free_invoices'] : false
-            ],
-            'archived' => isset($row['archived']) ? (bool) $row['archived'] : false
-        ];
-
-        return new Contact($contactData);
+        return $row ?: null;
     }
 }
