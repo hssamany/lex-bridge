@@ -935,7 +935,6 @@ class OrderRepository
                     ? count($invoiceResult['createdInvoices']) 
                     : 0;
 
-                // Commit transaction if everything succeeded
                 $this->db->commit();
 
                 $response = [
