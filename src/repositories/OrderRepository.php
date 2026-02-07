@@ -10,6 +10,7 @@ use DateTimeInterface;
 use InvalidArgumentException;
 use RuntimeException;
 use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Services\LineItemCalculator;
 
 class OrderRepository
@@ -102,9 +103,9 @@ class OrderRepository
         $countSql = "SELECT COUNT(*) as total, MIN(o.GeaendertAm) as min_date, MAX(o.GeaendertAm) as max_date FROM {$this->ordersTable} o";
         $countStmt = $this->db->query($countSql);
         $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
-        error_log("OrderRepository: Total orders in table: " . ($countResult['total'] ?? 0));
-        error_log("OrderRepository: Date range in table: " . ($countResult['min_date'] ?? 'NULL') . " to " . ($countResult['max_date'] ?? 'NULL'));
-        error_log("OrderRepository: Filtering from: " . $changedFrom->format('Y-m-d') . " to: " . $changedTo->format('Y-m-d'));
+        Logger::log('OrderRepository', 'Total orders in table: %d', $countResult['total'] ?? 0);
+        Logger::log('OrderRepository', 'Date range in table: %s to %s', $countResult['min_date'] ?? 'NULL', $countResult['max_date'] ?? 'NULL');
+        Logger::log('OrderRepository', 'Filtering from: %s to: %s', $changedFrom->format('Y-m-d'), $changedTo->format('Y-m-d'));
 
         $sql = "SELECT
                     o.Id AS order_id,
@@ -148,9 +149,9 @@ class OrderRepository
 
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        error_log("OrderRepository: SQL executed: " . $sql);
-        error_log("OrderRepository: Params: " . json_encode($params));
-        error_log("OrderRepository: Found " . count($orders) . " orders");
+        Logger::log('OrderRepository', 'SQL executed: %s', $sql);
+        Logger::log('OrderRepository', 'Params: %s', json_encode($params));
+        Logger::log('OrderRepository', 'Found %d orders', count($orders));
 
         return $orders ?: [];
     }
@@ -1057,7 +1058,7 @@ class OrderRepository
                 // Collect errors for reporting instead of just logging
                 $articleInfo = $item['article_number'] ?? $item['name'] ?? "item #{$index}";
                 $errors[] = "Failed to persist {$articleInfo} for customer {$customerId}: " . $e->getMessage();
-                error_log(end($errors));
+                Logger::info(end($errors), 'OrderRepository');
             }
         }
 

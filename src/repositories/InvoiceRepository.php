@@ -9,8 +9,9 @@ use PDO;
 use DateTime;
 use Exception;
 use JsonException;
-use Luxullus\LexBridge\Models\Invoice;
 use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Logger;
+use Luxullus\LexBridge\Models\Invoice;
 use Luxullus\LexBridge\Models\InvoiceLineItem;
 
 /**
@@ -509,7 +510,7 @@ class InvoiceRepository
             
         } catch (Exception $e) {
             $this->db->rollBack();
-            error_log("Error updating invoice after transmission: " . $e->getMessage());
+            Logger::exception($e, 'InvoiceRepository - Update After Transmission');
             return false;
         }
     }
@@ -537,7 +538,7 @@ class InvoiceRepository
             ]);
             
         } catch (Exception $e) {
-            error_log("Error updating invoice with error: " . $e->getMessage());
+            Logger::exception($e, 'InvoiceRepository - Update With Error');
             return false;
         }
     }
@@ -556,7 +557,7 @@ class InvoiceRepository
             ]);
             
         } catch (Exception $e) {
-            error_log("Error updating invoice status: " . $e->getMessage());
+            Logger::exception($e, 'InvoiceRepository - Update Status');
             return false;
         }
     }

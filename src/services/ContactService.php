@@ -8,6 +8,7 @@ use Closure;
 use Exception;
 use Luxullus\LexBridge\Http\HttpClient;
 use Luxullus\LexBridge\Http\HttpResponse;
+use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Models\Contact;
 use Luxullus\LexBridge\Repositories\CustomerRepository;
 
@@ -72,7 +73,7 @@ final class ContactService
                 try {
                     $this->customerRepository->updateContact($contact);
                 } catch (Exception $e) {
-                    error_log("Failed to update contact: " . $e->getMessage());
+                    Logger::exception($e, 'ContactService - Update Contact');
                 }
             }
         } else {

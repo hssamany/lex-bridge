@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Controllers;
 
+use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Services\ContactService;
 
 /**
@@ -35,46 +36,27 @@ final class ContactController
                 'contacts' => $contacts
             ];
         } catch (\PDOException $e) {
-            $errorDetails = sprintf(
-                'Database error: %s (Code: %s, File: %s:%d)',
-                $e->getMessage(),
-                $e->getCode(),
-                basename($e->getFile()),
-                $e->getLine()
-            );
-            error_log('ContactController::getContacts PDOException: ' . $errorDetails);
+            Logger::exception($e, 'ContactController - Get Contacts');
             return [
                 'statusCode' => 500,
                 'isSuccess' => false,
-                'error' => $errorDetails,
+                'error' => 'A database error occurred. Please try again later.',
                 'contacts' => []
             ];
         } catch (\Exception $e) {
-            $errorDetails = sprintf(
-                'Error: %s (File: %s:%d)',
-                $e->getMessage(),
-                basename($e->getFile()),
-                $e->getLine()
-            );
-            error_log('ContactController::getContacts Exception: ' . $errorDetails);
+            Logger::exception($e, 'ContactController - Get Contacts');
             return [
                 'statusCode' => 500,
                 'isSuccess' => false,
-                'error' => $errorDetails,
+                'error' => 'An error occurred while retrieving contacts.',
                 'contacts' => []
             ];
         } catch (\Throwable $e) {
-            $errorDetails = sprintf(
-                'Fatal error: %s (File: %s:%d)',
-                $e->getMessage(),
-                basename($e->getFile()),
-                $e->getLine()
-            );
-            error_log('ContactController::getContacts Throwable: ' . $errorDetails);
+            Logger::exception($e, 'ContactController - Get Contacts');
             return [
                 'statusCode' => 500,
                 'isSuccess' => false,
-                'error' => $errorDetails,
+                'error' => 'An unexpected error occurred.',
                 'contacts' => []
             ];
         }

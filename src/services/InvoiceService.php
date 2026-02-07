@@ -6,6 +6,7 @@ namespace Luxullus\LexBridge\Services;
 
 use Luxullus\LexBridge\Http\HttpClient;
 use Luxullus\LexBridge\Http\HttpResponse;
+use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Models\Invoice;
 use Luxullus\LexBridge\Repositories\InvoiceRepository;
 use Luxullus\LexBridge\Http\HttpStatus;
@@ -68,7 +69,7 @@ final class InvoiceService {
 
         if (!$invoice) {
             // Log not found
-            error_log("Invoice not found: $invoiceId");
+            Logger::log('InvoiceService', 'Invoice not found: %s', $invoiceId);
             return [
                 'response' => new HttpResponse(404, null, 'Invoice not found'),
                 'invoice' => null
@@ -90,7 +91,7 @@ final class InvoiceService {
                 // Update with error
                 $errorMessage = $response->getError() ?? 'Unknown error';
                 $this->invoiceRepository->updateWithError($invoiceId, $errorMessage, (string)$response->getStatusCode());
-                error_log("Lexware transfer failed for invoice $invoiceId: $errorMessage");
+                Logger::log('InvoiceService', 'Lexware transfer failed for invoice %s: %s', $invoiceId, $errorMessage);
             }
 
             return [
@@ -100,7 +101,7 @@ final class InvoiceService {
 
         } catch (Exception $e) {
             $this->invoiceRepository->updateWithError($invoiceId, $e->getMessage());
-            error_log("Exception during Lexware transfer for invoice $invoiceId: " . $e->getMessage());
+            Logger::exception($e, 'InvoiceService - Lexware Transfer');
 
             return [
                 'response' => new HttpResponse(HttpStatus::INTERNAL_SERVER_ERROR, null, $e->getMessage()),

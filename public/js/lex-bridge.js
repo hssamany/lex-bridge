@@ -351,10 +351,9 @@ class LexBridge {
         setTimeout(() => {
             if (tabName === 'kontakte' && this.contactsPage) {
                 this.contactsPage.setupRefreshButtonDirect();
-            } else if (tabName === 'rechn' && this.invoicesPage) {
-                this.invoicesPage.setupRefreshButtonDirect();
             }
             // Note: Orders and Line-Items pages now handle their own form events via direct listeners in init()
+            // Note: Invoices page uses filter form, no separate refresh button needed
         }, 100);
     }
     
