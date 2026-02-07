@@ -52,8 +52,21 @@ final class LineItemService
         ];
     }
 
+    /**
+     * Update a line item with validation and total calculation
+     */
     public function updateLineItem(string $lineItemId, array $data): array
     {
+        // Get current line item to retrieve quantity for calculation
+        $currentItem = $this->repository->findLineItemById($lineItemId);
+        if ($currentItem === null) {
+            return [
+                'isSuccess' => false,
+                'error' => 'Line item not found',
+            ];
+        }
+
+        // Sanitize input data
         $payload = [
             'article_id' => $this->sanitizeNullableString($data['article_id'] ?? null),
             'article_number' => $this->sanitizeNullableString($data['article_number'] ?? null),
@@ -66,6 +79,11 @@ final class LineItemService
             'article_valid_from' => $this->sanitizeDateTime($data['article_valid_from'] ?? null),
             'article_valid_until' => $this->sanitizeDateTime($data['article_valid_until'] ?? null),
         ];
+
+        // Calculate totals if amounts and quantity are present
+        $quantity = $currentItem['quantity'] ?? null;
+        $payload['line_total_net'] = $this->calculateLineTotal($payload['net_amount'], $quantity, $currentItem['line_total_net'] ?? null);
+        $payload['line_total_gross'] = $this->calculateLineTotal($payload['gross_amount'], $quantity, $currentItem['line_total_gross'] ?? null);
 
         $updated = $this->repository->updateLineItem($lineItemId, $payload);
 
@@ -82,6 +100,19 @@ final class LineItemService
             'isSuccess' => true,
             'lineItem' => $lineItem,
         ];
+    }
+
+    /**
+     * Calculate line total: amount * quantity
+     * If amount or quantity is null, return the fallback value
+     */
+    private function calculateLineTotal(?float $amount, ?float $quantity, ?float $fallback): ?float
+    {
+        if ($amount === null || $quantity === null) {
+            return $fallback;
+        }
+
+        return round($amount * $quantity, 2);
     }
 
     private function sanitizeString(?string $value): string

@@ -127,6 +127,10 @@ class LineItemRepository
         return $row ?: null;
     }
 
+    /**
+     * Update line item - pure data access only
+     * Caller is responsible for calculating totals
+     */
     public function updateLineItem(string $lineItemId, array $data): bool
     {
         $sql = "UPDATE {$this->lineItemTable}
@@ -139,14 +143,8 @@ class LineItemRepository
                     net_amount = :net_amount,
                     gross_amount = :gross_amount,
                     tax_rate_percentage = :tax_rate_percentage,
-                    line_total_net = CASE
-                        WHEN :net_amount_calc_check IS NULL OR quantity IS NULL THEN line_total_net
-                        ELSE ROUND(:net_amount_calc_value * quantity, 2)
-                    END,
-                    line_total_gross = CASE
-                        WHEN :gross_amount_calc_check IS NULL OR quantity IS NULL THEN line_total_gross
-                        ELSE ROUND(:gross_amount_calc_value * quantity, 2)
-                    END,
+                    line_total_net = :line_total_net,
+                    line_total_gross = :line_total_gross,
                     article_valid_from = :article_valid_from,
                     article_valid_until = :article_valid_until,
                     updated_at = NOW()
@@ -163,13 +161,11 @@ class LineItemRepository
             ':currency' => $data['currency'] ?? null,
             ':net_amount' => $data['net_amount'] ?? null,
             ':gross_amount' => $data['gross_amount'] ?? null,
-            ':tax_rate_percentage' => $data['tax_rate_percentage'],
+            ':tax_rate_percentage' => $data['tax_rate_percentage'] ?? null,
+            ':line_total_net' => $data['line_total_net'] ?? null,
+            ':line_total_gross' => $data['line_total_gross'] ?? null,
             ':article_valid_from' => $data['article_valid_from'] ?? null,
             ':article_valid_until' => $data['article_valid_until'] ?? null,
-            ':net_amount_calc_check' => $data['net_amount'] ?? null,
-            ':net_amount_calc_value' => $data['net_amount'] ?? null,
-            ':gross_amount_calc_check' => $data['gross_amount'] ?? null,
-            ':gross_amount_calc_value' => $data['gross_amount'] ?? null,
         ]);
     }
 }

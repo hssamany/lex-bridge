@@ -47,8 +47,8 @@ final class LineItemRepositoryTest extends TestCase
 
     public function testFindLineItemsReturnsJoinedRowsWithFilters(): void
     {
-        $customerA = $this->insertCustomer(['id' => 1, 'company_name' => 'Acme GmbH', 'kundenNummer' => 'ACM-01']);
-        $customerB = $this->insertCustomer(['id' => 2, 'company_name' => 'Beta AG', 'kundenNummer' => 'BET-02']);
+        $customerA = $this->insertCustomer(['id' => 1, 'Name' => 'Acme GmbH', 'Nummer' => 'ACM-01']);
+        $customerB = $this->insertCustomer(['id' => 2, 'Name' => 'Beta AG', 'Nummer' => 'BET-02']);
 
         $invoiceA = $this->insertInvoice(['id' => 'inv-a', 'contact_id' => $customerA, 'voucher_date' => '2024-01-10']);
         $invoiceB = $this->insertInvoice(['id' => 'inv-b', 'contact_id' => $customerB, 'voucher_date' => '2024-02-05']);
@@ -148,6 +148,7 @@ final class LineItemRepositoryTest extends TestCase
             'line_total_gross' => 36.0,
         ]);
 
+        // Repository is pure data access - caller must provide calculated totals
         $data = [
             'article_id' => 5,
             'article_number' => 'ART-5',
@@ -157,6 +158,8 @@ final class LineItemRepositoryTest extends TestCase
             'net_amount' => 12.5,
             'gross_amount' => 15.5,
             'tax_rate_percentage' => 19.0,
+            'line_total_net' => 37.5,  // 12.5 * 3
+            'line_total_gross' => 46.5,  // 15.5 * 3
             'article_valid_from' => '2024-01-01',
             'article_valid_until' => '2024-12-31',
         ];
@@ -201,6 +204,8 @@ final class LineItemRepositoryTest extends TestCase
             'net_amount' => null,
             'gross_amount' => null,
             'tax_rate_percentage' => 7.0,
+            'line_total_net' => 40.0,  // Keep existing
+            'line_total_gross' => 47.6,  // Keep existing
             'article_valid_from' => null,
             'article_valid_until' => null,
         ]));
@@ -216,8 +221,9 @@ final class LineItemRepositoryTest extends TestCase
     {
         $pdo->exec('CREATE TABLE customer (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            company_name TEXT,
-            kundenNummer TEXT
+            lex_contact_id TEXT,
+            Nummer TEXT,
+            Name TEXT
         )');
 
         $pdo->exec('CREATE TABLE invoices (
@@ -256,22 +262,25 @@ final class LineItemRepositoryTest extends TestCase
     {
         $data = $overrides + [
             'id' => null,
-            'company_name' => 'Customer ' . uniqid('', false),
-            'kundenNummer' => null,
+            'Name' => 'Customer ' . uniqid('', false),
+            'Nummer' => null,
+            'lex_contact_id' => null,
         ];
 
         if ($data['id'] !== null) {
-            $stmt = $this->pdo->prepare('INSERT INTO customer (id, company_name, kundenNummer) VALUES (:id, :company_name, :kundenNummer)');
+            $stmt = $this->pdo->prepare('INSERT INTO customer (id, lex_contact_id, Nummer, Name) VALUES (:id, :lex_contact_id, :Nummer, :Name)');
             $stmt->execute([
                 ':id' => $data['id'],
-                ':company_name' => $data['company_name'],
-                ':kundenNummer' => $data['kundenNummer'],
+                ':lex_contact_id' => $data['lex_contact_id'],
+                ':Nummer' => $data['Nummer'],
+                ':Name' => $data['Name'],
             ]);
         } else {
-            $stmt = $this->pdo->prepare('INSERT INTO customer (company_name, kundenNummer) VALUES (:company_name, :kundenNummer)');
+            $stmt = $this->pdo->prepare('INSERT INTO customer (lex_contact_id, Nummer, Name) VALUES (:lex_contact_id, :Nummer, :Name)');
             $stmt->execute([
-                ':company_name' => $data['company_name'],
-                ':kundenNummer' => $data['kundenNummer'],
+                ':lex_contact_id' => $data['lex_contact_id'],
+                ':Nummer' => $data['Nummer'],
+                ':Name' => $data['Name'],
             ]);
         }
 
