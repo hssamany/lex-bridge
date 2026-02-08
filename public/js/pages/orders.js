@@ -301,12 +301,6 @@
         async bulkGenerateSelectedOrders(button) 
         {
             const orderIds = this.getSelectedOrderIds();
-
-            if (!orderIds.length) {
-                this.notify('Bitte wählen Sie mindestens eine Bestellung aus.', 'warning');
-                return;
-            }
-
             await this.withButtonLoading(button, '<span class="btn-icon spinning">↻</span> Erstelle...', async () => {
                 try {
                     const data = await this.requestJson(LexBridge.resolveApiUrl('orders/generate-line-items'), {
