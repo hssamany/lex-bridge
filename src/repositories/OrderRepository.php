@@ -53,9 +53,10 @@ class OrderRepository
      *     geaendertAm_to?: mixed,
      *     customer_id?: mixed
      * } $filters
-     * @return array<int, array<string, mixed>>
+     * @param array{limit:int,offset:int} $pagination
+     * @return array{items:array<int,array<string,mixed>>,total_count:int}
      */
-    public function getOrders(array $filters): array
+    public function getOrders(array $filters, array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
         if (!$this->filterValueProvided($filters, 'geaendertAm_from')) {
             throw new InvalidArgumentException('Filter "geaendertAm_from" is required.');
@@ -104,6 +105,27 @@ class OrderRepository
         Logger::log('OrderRepository', 'Date range in table: %s to %s', $countResult['min_date'] ?? 'NULL', $countResult['max_date'] ?? 'NULL');
         Logger::log('OrderRepository', 'Filtering from: %s to: %s', $changedFrom->format('Y-m-d'), $changedTo->format('Y-m-d'));
 
+        $fromSql = "FROM {$this->ordersTable} o
+                LEFT JOIN {$this->customerTable} c
+                    ON CAST(c.Nummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
+                LEFT JOIN {$this->customerArticleTable} ca
+                    ON ca.customer_id = c.id
+                LEFT JOIN {$this->articleTable} a
+                    ON a.id = ca.article_id
+                WHERE " . implode(' AND ', $conditions);
+
+        $countSql = "SELECT COUNT(*) AS total {$fromSql}";
+        $countStmt = $this->db->prepare($countSql);
+        foreach ($params as $name => $value) {
+            if ($name === ':customer_id') {
+                $countStmt->bindValue($name, $value, PDO::PARAM_INT);
+                continue;
+            }
+            $countStmt->bindValue($name, $value, PDO::PARAM_STR);
+        }
+        $countStmt->execute();
+        $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+
         $sql = "SELECT
                     o.Id AS order_id,
                     o.Kunde AS customer_id,
@@ -120,15 +142,9 @@ class OrderRepository
                     c.Nummer AS customer_number,
                     c.lex_customer_number,
                     {$verarbeitetSelect}
-                FROM {$this->ordersTable} o
-                LEFT JOIN {$this->customerTable} c
-                    ON CAST(c.Nummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
-                LEFT JOIN {$this->customerArticleTable} ca
-                    ON ca.customer_id = c.id
-                LEFT JOIN {$this->articleTable} a
-                    ON a.id = ca.article_id
-                WHERE " . implode(' AND ', $conditions) . '
-                ORDER BY o.GeaendertAm ASC, o.Id ASC';
+                {$fromSql}
+                ORDER BY o.GeaendertAm ASC, o.Id ASC
+                LIMIT :limit OFFSET :offset";
 
         $stmt = $this->db->prepare($sql);
 
@@ -142,6 +158,9 @@ class OrderRepository
             $stmt->bindValue($name, $value, PDO::PARAM_STR);
         }
 
+        $stmt->bindValue(':limit', $pagination['limit'], PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
+
         $stmt->execute();
 
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -150,7 +169,10 @@ class OrderRepository
         Logger::log('OrderRepository', 'Params: %s', json_encode($params));
         Logger::log('OrderRepository', 'Found %d orders', count($orders));
 
-        return $orders ?: [];
+        return [
+            'items' => $orders ?: [],
+            'total_count' => $totalCount,
+        ];
     }
 
     /**

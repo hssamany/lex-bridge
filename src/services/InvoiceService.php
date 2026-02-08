@@ -13,6 +13,7 @@ use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Models\Invoice;
 use Luxullus\LexBridge\Models\InvoiceLineItem;
 use Luxullus\LexBridge\Repositories\InvoiceRepository;
+use Luxullus\LexBridge\Services\Pagination;
 
 /**
  * Service class to manage invoice operations
@@ -32,9 +33,10 @@ final class InvoiceService
      * Get all invoices with optional filters and enriched data.
      *
      * @param array<string, mixed> $filters Optional filters (contact_id, status, from_date, to_date)
+     * @param array<string, mixed> $pagination
      * @return array{isSuccess:bool,invoices?:array<int,array<string,mixed>>,error?:string}
      */
-    public function getInvoices(array $filters = []): array
+    public function getInvoices(array $filters = [], array $pagination = []): array
     {
         $validationErrors = $this->validateFilters($filters);
         if (!empty($validationErrors)) {
@@ -45,11 +47,18 @@ final class InvoiceService
         }
 
         $validatedFilters = $this->validateAndNormalizeFilters($filters);
-        $rows = $this->repository->findAll($validatedFilters);
+        $paginationState = Pagination::normalize($pagination);
+        $result = $this->repository->findAll($validatedFilters, $paginationState);
+        $rows = $result['items'] ?? [];
+        $totalCount = (int) ($result['total_count'] ?? 0);
 
         return [
             'isSuccess' => true,
-            'invoices' => $this->enrichInvoiceList($rows)
+            'invoices' => $this->enrichInvoiceList($rows),
+            'total_count' => $totalCount,
+            'page' => $paginationState['page'],
+            'page_size' => $paginationState['page_size'],
+            'total_pages' => Pagination::totalPages($totalCount, $paginationState['page_size']),
         ];
     }
 

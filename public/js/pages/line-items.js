@@ -13,6 +13,10 @@ class LineItemsPage {
         this.cachedLineItems = []; // Store all fetched line items
         this.lineItemsMap = new Map(); // Fast lookup map for filtering
         this.showInvoiced = true; // Default: show all items
+        this.currentPage = 1;
+        this.pageSize = 25;
+        this.totalCount = 0;
+        this.paginator = null;
 
         this.setupCustomerSearchController();
 
@@ -35,6 +39,37 @@ class LineItemsPage {
         this.setupSendInvoiceButton();
         this.setupSyncArticlesButton();
         this.setupInvoicedFilterCheckbox();
+        this.setupPaginator();
+    }
+
+    setupPaginator() {
+        const container = document.querySelector('.line-items-paginator');
+        if (!container || !window.lexBridgeUtils || typeof window.lexBridgeUtils.Paginator !== 'function') {
+            return;
+        }
+
+        this.paginator = new window.lexBridgeUtils.Paginator(container, {
+            pageSize: this.pageSize,
+            onChange: ({ page, pageSize }) => {
+                this.currentPage = page;
+                this.pageSize = pageSize;
+                this.reloadCurrentLineItems();
+            }
+        });
+
+        this.renderPaginator();
+    }
+
+    renderPaginator() {
+        if (!this.paginator) {
+            return;
+        }
+
+        this.paginator.render({
+            page: this.currentPage,
+            pageSize: this.pageSize,
+            totalCount: this.totalCount
+        });
     }
 
     setupFilterFormDirect() {
@@ -197,9 +232,10 @@ class LineItemsPage {
         // Update total label to reflect visible items
         const totalLabel = document.querySelector('.line-items-total');
         if (totalLabel) {
-            const totalText = this.showInvoiced 
-                ? `Gesammt: ${this.cachedLineItems.length}`
-                : `Gesammt: ${visibleCount} von ${this.cachedLineItems.length}`;
+            const totalValue = Number.isFinite(Number(this.totalCount)) ? Number(this.totalCount) : this.cachedLineItems.length;
+            const totalText = this.showInvoiced
+                ? `Gesammt: ${totalValue}`
+                : `Gesammt: ${visibleCount} von ${totalValue}`;
             totalLabel.textContent = totalText;
         }
 
@@ -217,6 +253,7 @@ class LineItemsPage {
         this.ensureCustomerSelection(form);
 
         const params = this.buildFilterParams(form);
+        this.currentPage = 1;
         const submitButton = form.querySelector('button[type="submit"]');
         const originalLabel = submitButton ? submitButton.innerHTML : null;
 
@@ -234,6 +271,8 @@ class LineItemsPage {
         } catch (error) {
             console.error('Line items filter error:', error);
             this.showToast(error.message || 'Fehler beim Laden der Positionen', 'error');
+            this.totalCount = 0;
+            this.renderPaginator();
         } finally {
             if (submitButton && originalLabel !== null) {
                 submitButton.disabled = false;
@@ -260,6 +299,8 @@ class LineItemsPage {
     }
 
     async fetchLineItems(params) {
+        params.set('page', String(this.currentPage));
+        params.set('page_size', String(this.pageSize));
         const query = params.toString();
         const url = query ? LexBridge.resolveApiUrl(`line-items?${query}`) : LexBridge.resolveApiUrl('line-items');
 
@@ -283,6 +324,15 @@ class LineItemsPage {
             const message = data.error || `Line items Anfrage fehlgeschlagen (Status ${response.status}).`;
             throw new Error(message);
         }
+
+        this.totalCount = Number.isFinite(Number(data.total_count)) ? Number(data.total_count) : 0;
+        if (Number(data.page) > 0) {
+            this.currentPage = Number(data.page);
+        }
+        if (Number(data.page_size) > 0) {
+            this.pageSize = Number(data.page_size);
+        }
+        this.renderPaginator();
 
         return data;
     }
@@ -350,7 +400,8 @@ class LineItemsPage {
         }
 
         if (totalLabel) {
-            totalLabel.textContent = `Gesammt: ${items.length}`;
+            const totalValue = Number.isFinite(Number(this.totalCount)) ? Number(this.totalCount) : items.length;
+            totalLabel.textContent = `Gesammt: ${totalValue}`;
         }
     }
 

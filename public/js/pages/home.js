@@ -8,7 +8,10 @@
         
         constructor(lexBridge) {
             this.lexBridge = lexBridge;
-            this.currentPage = 0;
+            this.currentPage = 1;
+            this.pageSize = 25;
+            this.totalCount = 0;
+            this.paginator = null;
             this.currentContacts = [];
             this.articleSearchTimers = new WeakMap();
             this.articleCache = new Map();
@@ -26,7 +29,38 @@
             }
 
             this.setupArticleHandlers();
+            this.setupPaginator();
             this.autoLoadIfEmpty();
+        }
+
+        setupPaginator() {
+            const container = document.querySelector('.contacts-paginator');
+            if (!container || !window.lexBridgeUtils || typeof window.lexBridgeUtils.Paginator !== 'function') {
+                return;
+            }
+
+            this.paginator = new window.lexBridgeUtils.Paginator(container, {
+                pageSize: this.pageSize,
+                onChange: ({ page, pageSize }) => {
+                    this.currentPage = page;
+                    this.pageSize = pageSize;
+                    this.loadContacts(this.currentPage);
+                }
+            });
+
+            this.renderPaginator();
+        }
+
+        renderPaginator() {
+            if (!this.paginator) {
+                return;
+            }
+
+            this.paginator.render({
+                page: this.currentPage,
+                pageSize: this.pageSize,
+                totalCount: this.totalCount
+            });
         }
         
         /**
@@ -38,7 +72,7 @@
             setTimeout(async () => {
                 const tbody = document.querySelector('.contacts-container tbody');
                 if (tbody && tbody.children.length === 0) {
-                    await this.loadContacts(0);
+                    await this.loadContacts(1);
                 }
             }, 100);
         }
@@ -53,7 +87,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
-                    await this.syncAndReload(0);
+                    await this.syncAndReload(1);
                     return false;
                 }
             }, true); // Use capture phase to intercept before other handlers
@@ -81,7 +115,7 @@
                     button.addEventListener('click', async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        await this.syncAndReload(0);
+                        await this.syncAndReload(1);
                     });
                 }
             }
@@ -90,10 +124,13 @@
         /**
          * Load contacts via AJAX
          */
-        async loadContacts(page = 0) 
+        async loadContacts(page = 1) 
         {
             try {
-                const contactUrl = LexBridge.resolveApiUrl(`contacts?page=${page}`);                
+            const params = new URLSearchParams();
+            params.set('page', String(page));
+            params.set('page_size', String(this.pageSize));
+            const contactUrl = LexBridge.resolveApiUrl(`contacts?${params.toString()}`);                
                 const response = await fetch(contactUrl);
                 
                 // Check content type
@@ -126,7 +163,15 @@
                 }
 
                 const contacts = Array.isArray(data.contacts) ? data.contacts : [];
+                this.totalCount = Number.isFinite(Number(data.total_count)) ? Number(data.total_count) : contacts.length;
+                if (Number(data.page) > 0) {
+                    this.currentPage = Number(data.page);
+                }
+                if (Number(data.page_size) > 0) {
+                    this.pageSize = Number(data.page_size);
+                }
                 this.updateContactList({ contacts });
+                this.renderPaginator();
 
                 return contacts;
 
@@ -138,19 +183,24 @@
                 );
                 
                 // Show empty state
+                this.totalCount = 0;
                 this.updateContactList({ contacts: [] });
+                this.renderPaginator();
                 
                 return [];
             }
         }
 
-        async syncContacts(page = 0) {
-            const response = await fetch(LexBridge.resolveApiUrl(`contacts/sync?page=${page}`), {
+        async syncContacts(page = 1) {
+            const params = new URLSearchParams();
+            params.set('page', String(page));
+            params.set('page_size', String(this.pageSize));
+            const response = await fetch(LexBridge.resolveApiUrl(`contacts/sync?${params.toString()}`), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ page })
+                body: JSON.stringify({ page, page_size: this.pageSize })
             });
 
             const data = await response.json();
@@ -165,7 +215,7 @@
             return data;
         }
 
-        async syncAndReload(page = 0) {
+        async syncAndReload(page = 1) {
             const button = document.querySelector('form[name="get-kontakte"] button');
             const originalText = button ? button.innerHTML : '';
 
@@ -175,10 +225,20 @@
                     button.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronizing...';
                 }
 
-                const syncData = await this.syncContacts(page);
+                this.currentPage = 1;
+                const syncData = await this.syncContacts(this.currentPage);
                 const contacts = Array.isArray(syncData.contacts) ? syncData.contacts : [];
 
+                this.totalCount = Number.isFinite(Number(syncData.total_count)) ? Number(syncData.total_count) : contacts.length;
+                if (Number(syncData.page) > 0) {
+                    this.currentPage = Number(syncData.page);
+                }
+                if (Number(syncData.page_size) > 0) {
+                    this.pageSize = Number(syncData.page_size);
+                }
+
                 this.updateContactList({ contacts });
+                this.renderPaginator();
 
                 if (syncData.isSuccess) {
                     this.lexBridge.toastNotifier.show(
@@ -277,9 +337,10 @@
         }
 
         updateContactTotal(count) {
-            const totalElement = document.querySelector('.contacts-container p strong');
-            if (totalElement && totalElement.parentElement) {
-                totalElement.parentElement.innerHTML = `<strong>Total:</strong> ${count} contacts`;
+            const totalElement = document.querySelector('.contacts-total');
+            if (totalElement) {
+                const totalValue = Number.isFinite(Number(this.totalCount)) ? Number(this.totalCount) : count;
+                totalElement.innerHTML = `<strong>Gesammt:</strong> ${totalValue} Kontakte`;
             }
         }
 

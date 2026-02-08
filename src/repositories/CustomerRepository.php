@@ -75,10 +75,21 @@ final class CustomerRepository
     /**
      * Fetch contacts with article mappings from the customer table.
      *
-     * @return array<int, array<string, mixed>>
+     * @param array{limit:int,offset:int} $pagination
+     * @return array{items:array<int,array<string,mixed>>,total_count:int}
      */
-    public function getCustomerContacts(): array
+    public function getCustomerContacts(array $pagination): array
     {
+        $baseSql = <<<SQL
+            FROM {$this->customerTable} AS c
+            LEFT JOIN {$this->customerArticleTable} AS ca ON ca.customer_id = c.id
+            LEFT JOIN {$this->articleTable} AS a ON a.id = ca.article_id
+        SQL;
+
+        $countSql = "SELECT COUNT(*) AS total {$baseSql}";
+        $countStmt = $this->db->query($countSql);
+        $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+
         $sql = <<<SQL
             SELECT c.Name AS company_name,
                    c.id AS customer_id,
@@ -88,15 +99,20 @@ final class CustomerRepository
                    ca.article_id,
                    a.article_number,
                    a.name AS article_name
-              FROM {$this->customerTable} AS c
-              LEFT JOIN {$this->customerArticleTable} AS ca ON ca.customer_id = c.id
-              LEFT JOIN {$this->articleTable} AS a ON a.id = ca.article_id
+              {$baseSql}
              ORDER BY c.Nummer ASC
+             LIMIT :limit OFFSET :offset
         SQL;
 
-        $stmt = $this->db->query($sql);
-        
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $pagination['limit'], PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
+        $stmt->execute();
+
+        return [
+            'items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'total_count' => $totalCount,
+        ];
     }
 
     /**

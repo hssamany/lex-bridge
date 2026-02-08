@@ -27,37 +27,39 @@ class LineItemRepository
      * Fetch line items with optional filters
      *
      * @param array $filters
-     * @return array
+     * @param array{limit:int,offset:int} $pagination
+     * @return array{items:array<int,array<string,mixed>>,total_count:int}
      */
-    public function findLineItems(array $filters = []): array
+    public function findLineItems(array $filters = [], array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        $sql = "SELECT 
+        $selectSql = "SELECT 
                 li.id,
                 c.Nummer AS customer_number,
-                    c.Name AS company_name,
-                    c.id AS customer_id,
-                    li.invoice_id,
-                    li.order_id,
-                    li.order_delivery_date,
-                    li.line_order,
-                    li.name,
-                    li.description,
-                    li.quantity,
-                    li.currency,
-                    li.net_amount,
-                    li.gross_amount,
-                    li.tax_rate_percentage,
-                    li.line_total_net,
-                    li.line_total_gross,
-                    li.article_id,
-                    li.article_number,
-                    li.article_label,
-                    li.article_valid_from,
-                    li.article_valid_until,
-                    li.created_at,
-                    li.updated_at,
-                    i.voucher_date
-            FROM {$this->lineItemTable} li
+                c.Name AS company_name,
+                c.id AS customer_id,
+                li.invoice_id,
+                li.order_id,
+                li.order_delivery_date,
+                li.line_order,
+                li.name,
+                li.description,
+                li.quantity,
+                li.currency,
+                li.net_amount,
+                li.gross_amount,
+                li.tax_rate_percentage,
+                li.line_total_net,
+                li.line_total_gross,
+                li.article_id,
+                li.article_number,
+                li.article_label,
+                li.article_valid_from,
+                li.article_valid_until,
+                li.created_at,
+                li.updated_at,
+                i.voucher_date";
+
+        $fromSql = "FROM {$this->lineItemTable} li
             INNER JOIN {$this->invoiceTable} i ON li.invoice_id = i.id
             LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id";
 
@@ -79,18 +81,31 @@ class LineItemRepository
             $params[':customer_id'] = (int)$filters['customer_id'];
         }
 
+        $whereSql = '';
         if ($where) {
-            $sql .= ' WHERE ' . implode(' AND ', $where);
+            $whereSql = ' WHERE ' . implode(' AND ', $where);
         }
 
-        $sql .= ' ORDER BY li.created_at DESC, li.line_order ASC LIMIT 200';
+        $countSql = "SELECT COUNT(*) AS total {$fromSql}{$whereSql}";
+        $countStmt = $this->db->prepare($countSql);
+        $countStmt->execute($params);
+        $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+
+        $sql = "{$selectSql} {$fromSql}{$whereSql} ORDER BY li.created_at DESC, li.line_order ASC LIMIT :limit OFFSET :offset";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value);
+        }
+        $stmt->bindValue(':limit', $pagination['limit'], PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
+        $stmt->execute();
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return [
+            'items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'total_count' => $totalCount,
+        ];
     }
-
     public function findLineItemById(string $lineItemId): ?array
     {
         $sql = "SELECT 

@@ -8,6 +8,11 @@ class InvoicesPage {
     constructor(lexBridge) 
     {
         this.lexBridge = lexBridge;
+        this.currentPage = 1;
+        this.pageSize = 25;
+        this.totalCount = 0;
+        this.paginator = null;
+        this.lastQueryParams = null;
         this.init();
     }
     
@@ -23,6 +28,37 @@ class InvoicesPage {
         this.setupTransferButtons();
         // Auto-load invoices when tab is activated
         this.loadInvoicesOnTabActivation();
+        this.setupPaginator();
+    }
+
+    setupPaginator() {
+        const container = document.querySelector('.invoices-paginator');
+        if (!container || !window.lexBridgeUtils || typeof window.lexBridgeUtils.Paginator !== 'function') {
+            return;
+        }
+
+        this.paginator = new window.lexBridgeUtils.Paginator(container, {
+            pageSize: this.pageSize,
+            onChange: ({ page, pageSize }) => {
+                this.currentPage = page;
+                this.pageSize = pageSize;
+                this.loadInvoicesWithParams(this.lastQueryParams || new URLSearchParams());
+            }
+        });
+
+        this.renderPaginator();
+    }
+
+    renderPaginator() {
+        if (!this.paginator) {
+            return;
+        }
+
+        this.paginator.render({
+            page: this.currentPage,
+            pageSize: this.pageSize,
+            totalCount: this.totalCount
+        });
     }
     
     /**
@@ -47,7 +83,7 @@ class InvoicesPage {
         };
         
         await waitForButton();
-        await this.loadInvoices(0, false);
+        await this.loadInvoices(1, false);
     }
     
     /**
@@ -92,7 +128,7 @@ class InvoicesPage {
     /**
      * Load invoices via AJAX
      */
-    async loadInvoices(page = 0, isUserAction = false, button = null) {
+    async loadInvoices(page = 1, isUserAction = false, button = null) {
 
         // Use provided button or try to find it
         if (!button) {
@@ -107,11 +143,23 @@ class InvoicesPage {
                 button.disabled = true;
                 button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             }
-            const response = await fetch(LexBridge.resolveApiUrl(`invoices?page=${page}`));
+            const params = new URLSearchParams();
+            params.set('page', String(page));
+            params.set('page_size', String(this.pageSize));
+            this.lastQueryParams = params;
+            const response = await fetch(LexBridge.resolveApiUrl(`invoices?${params.toString()}`));
             const data = await response.json();
             
             if (data && data.invoices) {
+                this.totalCount = Number.isFinite(Number(data.total_count)) ? Number(data.total_count) : data.invoices.length;
+                if (Number(data.page) > 0) {
+                    this.currentPage = Number(data.page);
+                }
+                if (Number(data.page_size) > 0) {
+                    this.pageSize = Number(data.page_size);
+                }
                 this.updateInvoiceList(data.invoices);
+                this.renderPaginator();
                 if (isUserAction) {
                     this.lexBridge.toastNotifier.show(
                         `Loaded ${data.invoices.length} invoices`,
@@ -155,15 +203,20 @@ class InvoicesPage {
         
         if (invoices.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">No invoices found</td></tr>';
+            const totalElement = document.querySelector('.invoices-total');
+            if (totalElement) {
+                totalElement.textContent = 'Gesammt: 0';
+            }
             return;
         }
         
         tbody.innerHTML = invoices.map(invoice => this.createInvoiceRow(invoice)).join('');
         
-        const totalElement = document.querySelector('.invoices-container p strong');
+        const totalElement = document.querySelector('.invoices-total');
         
-        if (totalElement && totalElement.parentElement) {
-            totalElement.parentElement.innerHTML = `<strong>Total:</strong> ${invoices.length} invoices`;
+        if (totalElement) {
+            const totalValue = Number.isFinite(Number(this.totalCount)) ? Number(this.totalCount) : invoices.length;
+            totalElement.textContent = `Gesammt: ${totalValue}`;
         }
         
         this.setupTransferButtons();
@@ -241,7 +294,7 @@ class InvoicesPage {
                     'success'
                 );
 
-                await this.loadInvoices();
+                await this.loadInvoicesWithParams(this.lastQueryParams || new URLSearchParams());
 
             } else {
                 throw new Error(result.error || 'Failed to transfer invoice');
@@ -281,6 +334,7 @@ class InvoicesPage {
         }
 
         // Load invoices with filter parameters
+        this.currentPage = 1;
         await this.loadInvoicesWithParams(params, button);
     }
     
@@ -301,13 +355,24 @@ class InvoicesPage {
                 button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             }
             
+            params.set('page', String(this.currentPage));
+            params.set('page_size', String(this.pageSize));
             const queryString = params.toString();
             const url = LexBridge.resolveApiUrl(`invoices${queryString ? '?' + queryString : ''}`);
             const response = await fetch(url);
             const data = await response.json();
             
             if (data && data.invoices) {
+                this.totalCount = Number.isFinite(Number(data.total_count)) ? Number(data.total_count) : data.invoices.length;
+                if (Number(data.page) > 0) {
+                    this.currentPage = Number(data.page);
+                }
+                if (Number(data.page_size) > 0) {
+                    this.pageSize = Number(data.page_size);
+                }
+                this.lastQueryParams = params;
                 this.updateInvoiceList(data.invoices);
+                this.renderPaginator();
                 this.lexBridge.toastNotifier.show(
                     `Loaded ${data.invoices.length} invoices`,
                     'success'

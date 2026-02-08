@@ -41,6 +41,27 @@ final class ApiKernel {
         error_log('[ApiKernel] All routes registered successfully');
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    private function parsePagination(array $payload = []): array
+    {
+        $pagination = [];
+
+        $pageRaw = $payload['page'] ?? ($_GET['page'] ?? null);
+        if (is_numeric($pageRaw)) {
+            $pagination['page'] = (int) $pageRaw;
+        }
+
+        $pageSizeRaw = $payload['page_size'] ?? ($_GET['page_size'] ?? null);
+        if (is_numeric($pageSizeRaw)) {
+            $pagination['page_size'] = (int) $pageSizeRaw;
+        }
+
+        return $pagination;
+    }
+
     private function getCustomersSearchRouteRegistration(): void
     {
         $this->router->get('/customers/search', function() {
@@ -119,7 +140,8 @@ final class ApiKernel {
                 $filters['customer_id'] = $customerId;
             }
 
-            return $controller->getLineItems($filters);
+            $pagination = $this->parsePagination();
+            return $controller->getLineItems($filters, $pagination);
         });
     }
 
@@ -172,7 +194,8 @@ final class ApiKernel {
                 }
             }
 
-            return $controller->getOrders($filters);
+            $pagination = $this->parsePagination();
+            return $controller->getOrders($filters, $pagination);
         });
     }
 
@@ -247,7 +270,8 @@ final class ApiKernel {
     {
         $this->router -> get('/contacts', function() {
             $controller = ControllerFactory::makeContactController($this->httpClient);
-            return $controller->getContacts();
+            $pagination = $this->parsePagination();
+            return $controller->getContacts($pagination);
         });
     }
     
@@ -275,8 +299,9 @@ final class ApiKernel {
                     $page = $pageCandidate;
                 }
             }
+            $pagination = $this->parsePagination($payload);
 
-            return $controller->syncContacts($page);
+            return $controller->syncContacts($page, $pagination);
         });
     }
 
@@ -317,8 +342,9 @@ final class ApiKernel {
             if (!empty($_GET['voucher_date_to'])) {
                 $filters['to_date'] = $_GET['voucher_date_to'];
             }
+            $pagination = $this->parsePagination();
             
-            return $controller->getInvoices($filters);
+            return $controller->getInvoices($filters, $pagination);
         });
     }
 

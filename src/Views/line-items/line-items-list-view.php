@@ -35,6 +35,7 @@
                     </tr>
                 </tbody>
             </table>
+            <div class="table-paginator line-items-paginator" data-paginator="line-items"></div>
             <div class="line-items-total" aria-live="polite">Gesammt: 0</div>
         </div>
     </div>

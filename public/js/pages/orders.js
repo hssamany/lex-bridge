@@ -30,6 +30,10 @@
             this.allOrders = []; // Store all fetched orders
             this.showProcessed = false; // Default: hide processed orders
             this.hasLoadedOnce = false; // Track if orders have been loaded
+            this.currentPage = 1;
+            this.pageSize = 25;
+            this.totalCount = 0;
+            this.paginator = null;
 
             this.ordersChangeHandler = null;
             this.ordersGenerateButton = null;
@@ -46,7 +50,38 @@
             this.setupGenerateInvoicesButton();
             this.setupProcessedFilterCheckbox();
             this.registerSelectAllHandler();
+            this.setupPaginator();
             this.autoLoadOrdersOnFirstOpen();
+        }
+
+        setupPaginator() {
+            const container = document.querySelector('.orders-paginator');
+            if (!container || !window.lexBridgeUtils || typeof window.lexBridgeUtils.Paginator !== 'function') {
+                return;
+            }
+
+            this.paginator = new window.lexBridgeUtils.Paginator(container, {
+                pageSize: this.pageSize,
+                onChange: ({ page, pageSize }) => {
+                    this.currentPage = page;
+                    this.pageSize = pageSize;
+                    this.reloadOrders();
+                }
+            });
+
+            this.renderPaginator();
+        }
+
+        renderPaginator() {
+            if (!this.paginator) {
+                return;
+            }
+
+            this.paginator.render({
+                page: this.currentPage,
+                pageSize: this.pageSize,
+                totalCount: this.totalCount
+            });
         }
 
         attachFormHandler() {
@@ -113,7 +148,7 @@
                 ? this.allOrders 
                 : this.allOrders.filter(order => !order.verarbeitet);
             
-            this.updateOrdersList(filteredOrders);
+            this.updateOrdersList(filteredOrders, this.totalCount);
         }
 
         async autoLoadOrdersOnFirstOpen() {
@@ -371,6 +406,7 @@
                 }
             }
 
+            this.currentPage = 1;
             this.lastQueryString = params.toString();
             const submitButton = form.querySelector(OrdersPage.SELECTORS.submitButton);
             await this.fetchOrders(params, submitButton instanceof HTMLButtonElement ? submitButton : null);
@@ -406,6 +442,8 @@
 
             try 
             {
+                params.set('page', String(this.currentPage));
+                params.set('page_size', String(this.pageSize));
                 const data = await this.requestJson(`${LexBridge.resolveApiUrl('orders')}?${params.toString()}`, {}, 'Orders request failed');
                 
                 if (!data?.isSuccess) {
@@ -414,7 +452,11 @@
 
                 // Store all orders and apply filter
                 this.allOrders = Array.isArray(data.orders) ? data.orders : [];
+                this.totalCount = Number.isFinite(Number(data.total_count)) ? Number(data.total_count) : this.allOrders.length;
+                this.currentPage = Number(data.page) > 0 ? Number(data.page) : this.currentPage;
+                this.pageSize = Number(data.page_size) > 0 ? Number(data.page_size) : this.pageSize;
                 this.applyProcessedFilter();
+                this.renderPaginator();
                 this.notify('Bestellungen aktualisiert.', 'success');
 
             } catch (error) {
@@ -435,6 +477,9 @@
                     totalLabel.textContent = 'Gesammt: 0';
                 }
 
+                this.totalCount = 0;
+                this.renderPaginator();
+
                 this.notify('Fehler beim Laden der Bestellungen.', 'error');
 
             } finally {
@@ -448,7 +493,7 @@
             }
         }
 
-        updateOrdersList(orders) 
+        updateOrdersList(orders, totalCount = null) 
         {
             const container = this.getOrdersContainer();
 
@@ -517,7 +562,12 @@
             }
 
             if (totalLabel instanceof HTMLElement) {
-                totalLabel.textContent = `Gesammt: ${orders.length}`;
+                const totalValue = Number.isFinite(Number(totalCount)) ? Number(totalCount) : orders.length;
+                if (this.showProcessed) {
+                    totalLabel.textContent = `Gesammt: ${totalValue}`;
+                } else {
+                    totalLabel.textContent = `Gesammt: ${orders.length} von ${totalValue}`;
+                }
             }
 
             this.updateGenerateButtonState();

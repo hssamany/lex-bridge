@@ -12,6 +12,7 @@ use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Models\Contact;
 use Luxullus\LexBridge\Models\Customer;
 use Luxullus\LexBridge\Repositories\CustomerRepository;
+use Luxullus\LexBridge\Services\Pagination;
 
 /**
  * Service class to manage customer and contact operations
@@ -69,13 +70,25 @@ final class CustomerService
     /**
      * Return the contacts persisted locally in the customer table.
      *
-     * @return array<int, array<string, string|null>>
+     * @param array<string, mixed> $pagination
+     * @return array{contacts:array<int,array<string,string|null>>,total_count:int,page:int,page_size:int,total_pages:int}
      */
-    public function listContacts(): array
+    public function listContacts(array $pagination = []): array
     {
-        $rows = $this->repository->getCustomerContacts();
-        
-        return $this->enrichContactData($rows);
+        $paginationState = Pagination::normalize($pagination);
+        $result = $this->repository->getCustomerContacts($paginationState);
+        $rows = $result['items'] ?? [];
+        $totalCount = (int) ($result['total_count'] ?? 0);
+
+        $contacts = $this->enrichContactData($rows);
+
+        return [
+            'contacts' => $contacts,
+            'total_count' => $totalCount,
+            'page' => $paginationState['page'],
+            'page_size' => $paginationState['page_size'],
+            'total_pages' => Pagination::totalPages($totalCount, $paginationState['page_size']),
+        ];
     }
 
     /**
@@ -84,7 +97,7 @@ final class CustomerService
      * @param int $page Page number
      * @return array{response:HttpResponse,contacts:array<int,array<string,string|null>>,error:string|null}
      */
-    public function syncContacts(int $page = 0): array
+    public function syncContacts(int $page = 0, array $pagination = []): array
     {
         $response = $this->getContacts($page);
         $errorMessage = null;
@@ -97,13 +110,17 @@ final class CustomerService
             Logger::info('Contact sync failed', ['page' => $page, 'error' => $errorMessage]);
         }
 
-        $rows = $this->repository->getCustomerContacts();
-        $enrichedContacts = $this->enrichContactData($rows);
+        $listResult = $this->listContacts($pagination);
+        $enrichedContacts = $listResult['contacts'];
 
         return [
             'response' => $response,
             'error' => $errorMessage,
-            'contacts' => $enrichedContacts
+            'contacts' => $enrichedContacts,
+            'total_count' => $listResult['total_count'],
+            'page' => $listResult['page'],
+            'page_size' => $listResult['page_size'],
+            'total_pages' => $listResult['total_pages'],
         ];
     }
 
@@ -121,7 +138,8 @@ final class CustomerService
         } catch (Exception $exception) {
             Logger::exception($exception, 'CustomerService - Update Customer Article Mapping');
             
-            $rows = $this->repository->getCustomerContacts();
+            $rowsResult = $this->repository->getCustomerContacts(Pagination::normalize());
+            $rows = $rowsResult['items'] ?? [];
             
             return [
                 'statusCode' => 500,
@@ -141,7 +159,8 @@ final class CustomerService
             'article_id' => $articleId
         ]);
 
-        $rows = $this->repository->getCustomerContacts();
+        $rowsResult = $this->repository->getCustomerContacts(Pagination::normalize());
+        $rows = $rowsResult['items'] ?? [];
 
         return [
             'statusCode' => 200,

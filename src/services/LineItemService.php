@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Luxullus\LexBridge\Services;
 
 use Luxullus\LexBridge\Repositories\LineItemRepository;
+use Luxullus\LexBridge\Services\Pagination;
 
 final class LineItemService
 {
@@ -15,9 +16,12 @@ final class LineItemService
         $this->repository = $repository;
     }
 
-    public function getLineItems(array $filters = []): array
+    public function getLineItems(array $filters = [], array $pagination = []): array
     {
-        $items = $this->repository->findLineItems($filters);
+        $paginationState = Pagination::normalize($pagination);
+        $result = $this->repository->findLineItems($filters, $paginationState);
+        $items = $result['items'] ?? [];
+        $totalCount = (int) ($result['total_count'] ?? 0);
 
         return [
             'lineItems' => array_map(function (array $item) {
@@ -48,7 +52,11 @@ final class LineItemService
                     'voucher_date' => $item['voucher_date'] ?? null,
                 ];
             }, $items),
-            'isSuccess' => true
+            'isSuccess' => true,
+            'total_count' => $totalCount,
+            'page' => $paginationState['page'],
+            'page_size' => $paginationState['page_size'],
+            'total_pages' => Pagination::totalPages($totalCount, $paginationState['page_size']),
         ];
     }
 

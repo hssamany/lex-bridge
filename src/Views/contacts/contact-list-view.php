@@ -62,5 +62,6 @@
             <?php endforeach; ?>
         </tbody>
     </table>
-    <p><strong>Gesammt:</strong> <?= count($contacts); ?> Kontakte</p>
+    <div class="table-paginator contacts-paginator" data-paginator="contacts"></div>
+    <p class="contacts-total" aria-live="polite"><strong>Gesammt:</strong> <?= count($contacts); ?> Kontakte</p>
 </div>

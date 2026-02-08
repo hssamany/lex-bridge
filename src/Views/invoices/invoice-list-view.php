@@ -19,5 +19,6 @@
             </tr>
         </tbody>
     </table>
+    <div class="table-paginator invoices-paginator" data-paginator="invoices"></div>
     <div class="invoices-total" aria-live="polite">Gesammt: 0</div>
 </div>

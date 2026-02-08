@@ -7,6 +7,7 @@ namespace Luxullus\LexBridge\Services;
 use InvalidArgumentException;
 use Throwable;
 use Luxullus\LexBridge\Repositories\OrderRepository;
+use Luxullus\LexBridge\Services\Pagination;
 
 final class OrderService
 {
@@ -19,12 +20,15 @@ final class OrderService
 
     /**
      * @param array<string, mixed> $filters
+     * @param array<string, mixed> $pagination
      * @return array<string, mixed>
      */
-    public function getOrders(array $filters): array
+    public function getOrders(array $filters, array $pagination = []): array
     {
+        $paginationState = Pagination::normalize($pagination);
+
         try {
-            $orders = $this->repository->getOrders($filters);
+            $result = $this->repository->getOrders($filters, $paginationState);
         } catch (InvalidArgumentException $exception) {
             return [
                 'isSuccess' => false,
@@ -37,9 +41,16 @@ final class OrderService
             ];
         }
 
+        $orders = $result['items'] ?? [];
+        $totalCount = (int) ($result['total_count'] ?? 0);
+
         return [
             'isSuccess' => true,
             'orders' => array_map([$this, 'mapOrderRow'], $orders),
+            'total_count' => $totalCount,
+            'page' => $paginationState['page'],
+            'page_size' => $paginationState['page_size'],
+            'total_pages' => Pagination::totalPages($totalCount, $paginationState['page_size']),
         ];
     }
 

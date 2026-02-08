@@ -40,6 +40,7 @@
                 </tr>
             </tbody>
         </table>
+        <div class="table-paginator orders-paginator" data-paginator="orders"></div>
         <div class="orders-total" aria-live="polite">Gesammt: 0</div>
     </div>
 </div>

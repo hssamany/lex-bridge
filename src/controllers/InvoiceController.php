@@ -25,9 +25,9 @@ final class InvoiceController
      * @param array $filters Optional filters (customer_id, status, from_date, to_date)
      * @return array Formatted invoices list response data
      */
-    public function getInvoices(array $filters = []): array
+    public function getInvoices(array $filters = [], array $pagination = []): array
     {
-        return $this->invoiceService->getInvoices($filters);
+        return $this->invoiceService->getInvoices($filters, $pagination);
     }
     
     /**

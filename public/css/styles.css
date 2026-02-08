@@ -199,6 +199,80 @@ input[list]::-webkit-calendar-picker-indicator {
     margin-bottom: 0;
 }
 
+.table-paginator {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.paginator {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+.paginator-info {
+    font-weight: 600;
+    color: #333;
+}
+
+.paginator-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.paginator-pages {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.paginator-page,
+.paginator-nav {
+    border: 1px solid #d0d5dd;
+    background: #fff;
+    color: #333;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.paginator-page.is-active {
+    background: #4CAF50;
+    color: #fff;
+    border-color: #4CAF50;
+}
+
+.paginator-page:disabled,
+.paginator-nav:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.paginator-selectors {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.paginator-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.paginator-selectors select {
+    padding: 2px 6px;
+    border: 1px solid #d0d5dd;
+    border-radius: 4px;
+    background: #fff;
+}
+
 .line-items-filter-form .filter-btn-group {
     display: flex;
     flex-direction: column;

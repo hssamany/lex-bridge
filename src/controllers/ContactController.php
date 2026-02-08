@@ -24,16 +24,21 @@ final class ContactController
      * 
      * @return array Formatted contact data
      */
-    public function getContacts(): array
+    public function getContacts(array $pagination = []): array
     {
         try {
-            $contacts = $this->customerService->listContacts();
+            $result = $this->customerService->listContacts($pagination);
+            $contacts = $result['contacts'] ?? [];
 
             return [
                 'statusCode' => 200,
                 'isSuccess' => true,
                 'error' => null,
-                'contacts' => $contacts
+                'contacts' => $contacts,
+                'total_count' => $result['total_count'] ?? 0,
+                'page' => $result['page'] ?? 1,
+                'page_size' => $result['page_size'] ?? 25,
+                'total_pages' => $result['total_pages'] ?? 1,
             ];
         } catch (\PDOException $e) {
             Logger::exception($e, 'ContactController - Get Contacts');
@@ -62,9 +67,9 @@ final class ContactController
         }
     }
 
-    public function syncContacts(int $page = 0): array
+    public function syncContacts(int $page = 0, array $pagination = []): array
     {
-        $result = $this->customerService->syncContacts($page);
+        $result = $this->customerService->syncContacts($page, $pagination);
         $response = $result['response'];
         $contacts = $result['contacts'];
         $hasContacts = !empty($contacts);
@@ -74,7 +79,11 @@ final class ContactController
             'statusCode' => $response->getStatusCode(),
             'isSuccess' => $isSuccess,
             'error' => $result['error'],
-            'contacts' => $contacts
+            'contacts' => $contacts,
+            'total_count' => $result['total_count'] ?? 0,
+            'page' => $result['page'] ?? 1,
+            'page_size' => $result['page_size'] ?? 25,
+            'total_pages' => $result['total_pages'] ?? 1,
         ];
     }
 

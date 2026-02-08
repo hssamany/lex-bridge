@@ -57,11 +57,12 @@ final class InvoiceRepository
      * Find all invoices with optional filters.
      *
      * @param array<string, mixed> $filters
-     * @return array<int, array<string, mixed>>
+     * @param array{limit:int,offset:int} $pagination
+     * @return array{items:array<int,array<string,mixed>>,total_count:int}
      */
-    public function findAll(array $filters = []): array
+    public function findAll(array $filters = [], array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        $sql = "SELECT 
+        $selectSql = "SELECT 
                     i.id,
                     i.voucher_date,
                     i.title,
@@ -73,8 +74,9 @@ final class InvoiceRepository
                     i.contact_id,
                     i.transmission_attempts,
                     c.Name AS company_name,
-                    (SELECT COUNT(*) FROM {$this->lineItemTable} li WHERE li.invoice_id = i.id) as item_count
-                FROM {$this->invoiceTable} i
+                    (SELECT COUNT(*) FROM {$this->lineItemTable} li WHERE li.invoice_id = i.id) as item_count";
+
+        $fromSql = "FROM {$this->invoiceTable} i
                 LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id";
 
         $where = [];
@@ -100,16 +102,30 @@ final class InvoiceRepository
             $params[':to_date'] = $filters['to_date'];
         }
 
+        $whereSql = '';
         if (!empty($where)) {
-            $sql .= " WHERE " . implode(" AND ", $where);
+            $whereSql = " WHERE " . implode(" AND ", $where);
         }
 
-        $sql .= " ORDER BY i.voucher_date DESC, i.created_at DESC";
+        $countSql = "SELECT COUNT(*) AS total {$fromSql}{$whereSql}";
+        $countStmt = $this->db->prepare($countSql);
+        $countStmt->execute($params);
+        $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
+
+        $sql = "{$selectSql} {$fromSql}{$whereSql} ORDER BY i.voucher_date DESC, i.created_at DESC LIMIT :limit OFFSET :offset";
 
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $name => $value) {
+            $stmt->bindValue($name, $value);
+        }
+        $stmt->bindValue(':limit', $pagination['limit'], PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
+        $stmt->execute();
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        return [
+            'items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'total_count' => $totalCount,
+        ];
     }
 
     /**

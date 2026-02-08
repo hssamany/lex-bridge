@@ -19,9 +19,9 @@ final class OrderController
      * @param array<string, mixed> $filters
      * @return array<string, mixed>
      */
-    public function getOrders(array $filters): array
+    public function getOrders(array $filters, array $pagination = []): array
     {
-        return $this->service->getOrders($filters);
+        return $this->service->getOrders($filters, $pagination);
     }
 
     public function generateLineItemsForOrder(int $orderId): array

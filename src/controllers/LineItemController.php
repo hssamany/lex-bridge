@@ -15,9 +15,9 @@ final class LineItemController
         $this->service = $service;
     }
 
-    public function getLineItems(array $filters = []): array
+    public function getLineItems(array $filters = [], array $pagination = []): array
     {
-        return $this->service->getLineItems($filters);
+        return $this->service->getLineItems($filters, $pagination);
     }
 
     public function updateLineItem(array $payload): array
