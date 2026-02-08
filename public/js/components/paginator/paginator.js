@@ -24,13 +24,14 @@
             }
         }
 
-        render({ page, pageSize, totalCount } = {}) {
+        render({ page, pageSize, totalCount, filteredCount } = {}) {
             if (!this.container) {
                 return;
             }
 
             const normalizedPageSize = this.normalizePageSize(pageSize ?? this.state.pageSize);
             const normalizedTotalCount = Number.isFinite(Number(totalCount)) ? Number(totalCount) : 0;
+            const normalizedFilteredCount = Number.isFinite(Number(filteredCount)) ? Number(filteredCount) : null;
             const totalPages = Math.max(1, Math.ceil(normalizedTotalCount / normalizedPageSize));
             const normalizedPage = Math.min(Math.max(1, Number(page) || this.state.page || 1), totalPages);
 
@@ -62,9 +63,19 @@
             const disableFirst = normalizedPage === 1 ? 'disabled' : '';
             const disableLast = normalizedPage === totalPages ? 'disabled' : '';
 
+            // Format total label
+            let totalLabel = `Gesamt: ${normalizedTotalCount}`;
+            if (
+                normalizedFilteredCount !== null &&
+                normalizedFilteredCount !== normalizedTotalCount &&
+                normalizedFilteredCount > 0
+            ) {
+                totalLabel = `Gesamt: ${normalizedFilteredCount} von ${normalizedTotalCount}`;
+            }
+
             this.container.innerHTML = `
-                <div class="paginator">
-                    <div class="paginator-info">Gesamt: ${normalizedTotalCount}</div>
+                <div class="table-paginator">
+                    <span class="paginator-info">${totalLabel}</span>
                     <div class="paginator-controls">
                         <button type="button" class="paginator-nav" data-page="first" ${disableFirst} aria-label="Erste Seite">«</button>
                         <button type="button" class="paginator-nav" data-page="prev" ${disableFirst} aria-label="Vorherige Seite">‹</button>

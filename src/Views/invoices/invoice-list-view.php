@@ -20,5 +20,5 @@
         </tbody>
     </table>
     <div class="table-paginator invoices-paginator" data-paginator="invoices"></div>
-    <div class="invoices-total" aria-live="polite">Gesammt: 0</div>
+    <!-- Removed legacy total label; now handled by paginator -->
 </div>

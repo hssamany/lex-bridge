@@ -63,5 +63,5 @@
         </tbody>
     </table>
     <div class="table-paginator contacts-paginator" data-paginator="contacts"></div>
-    <p class="contacts-total" aria-live="polite"><strong>Gesammt:</strong> <?= count($contacts); ?> Kontakte</p>
+    <!-- Removed legacy total label; now handled by paginator -->
 </div>
