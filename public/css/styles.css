@@ -14,6 +14,7 @@
     --paginator-height: 48px;
     --table-header-height: 44px;
     --table-row-height: 40px;
+    --toolbar-height: 10px;
     --container-padding: 24px;
     --tab-content-min-height: 320px;
     --tab-content-max-width: 1200px;
@@ -33,6 +34,12 @@ body {
     max-width: var(--tab-content-max-width);
     margin: 0 auto;
     padding: var(--container-padding);
+    height: 100vh;
+    max-height: 100vh;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
 }
 
 .header {
@@ -48,8 +55,8 @@ body {
 .tab-content-container {
     display: flex;
     flex-direction: column;
-    min-height: var(--tab-content-min-height);
-    height: 70vh;
+    flex: 1 1 auto;
+    min-height: 0;
     background: var(--table-bg);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -59,8 +66,8 @@ body {
 
 .table-scrollable {
     flex: 1 1 auto;
-    overflow-y: auto;
     min-height: 0;
+    /* overflow: auto; */
     /* For sticky paginator to work */
 }
 
@@ -110,7 +117,7 @@ tr {
     box-shadow: 0 -2px 8px rgba(0,0,0,0.03);
 }
 
-.paginator-total-label {
+ paginator-total-label {
     font-size: 15px;
     color: var(--secondary-text);
     font-weight: 500;
@@ -274,16 +281,16 @@ tr {
 .orders-container {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
     gap: 12px;
-    min-height: 200px;
-    max-height: clamp(200px, calc(100vh - 240px), 720px);
     overflow: hidden;
 }
 
 .orders-list {
     flex: 1 1 auto;
-    min-height: 120px;
-    overflow: visible;
+    min-height: 0;
+    /* overflow: auto; */
 }
 
 .orders-total {
@@ -351,7 +358,7 @@ input[list]::-webkit-calendar-picker-indicator {
     align-items: center;
 }
 
-.paginator {
+ paginator {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
@@ -359,25 +366,25 @@ input[list]::-webkit-calendar-picker-indicator {
     font-size: 0.9rem;
 }
 
-.paginator-info {
+ paginator-info {
     font-weight: 600;
     color: #333;
 }
 
-.paginator-controls {
+ paginator-controls {
     display: flex;
     align-items: center;
     gap: 0.35rem;
 }
 
-.paginator-pages {
+ paginator-pages {
     display: flex;
     gap: 0.25rem;
     flex-wrap: wrap;
 }
 
-.paginator-page,
-.paginator-nav {
+ paginator-page,
+ paginator-nav {
     border: 1px solid #d0d5dd;
     background: #fff;
     color: #333;
@@ -387,31 +394,31 @@ input[list]::-webkit-calendar-picker-indicator {
     font-size: 0.85rem;
 }
 
-.paginator-page.is-active {
+ paginator-page.is-active {
     background: #4CAF50;
     color: #fff;
     border-color: #4CAF50;
 }
 
-.paginator-page:disabled,
-.paginator-nav:disabled {
+ paginator-page:disabled,
+ paginator-nav:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-.paginator-selectors {
+ paginator-selectors {
     display: flex;
     gap: 0.5rem;
     align-items: center;
 }
 
-.paginator-label {
+ paginator-label {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
 }
 
-.paginator-selectors select {
+ paginator-selectors select {
     padding: 2px 6px;
     border: 1px solid #d0d5dd;
     border-radius: 4px;
@@ -518,14 +525,18 @@ body {
 }
 
 .container {
-    max-width: 1200px;
+    max-width: var(--tab-content-max-width);
     margin: 0 auto;
-    height: 100%;
+    padding: var(--container-padding);
+    height: 100vh;        /* Use viewport height */
+    max-height: 100vh;    /* Prevent overflow beyond viewport */
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    padding: 20px;
-    box-sizing: border-box;
+    overflow: auto;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .header {
@@ -752,7 +763,8 @@ pre {
 .line-items-container {
     display: flex !important;
     flex-direction: column !important;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100% !important;
     overflow: hidden;
     gap: 0 !important;
@@ -772,11 +784,10 @@ pre {
 .invoices-container {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
     overflow: hidden;
-    flex: 1;
-    min-height: 0;
 }
 
 /* Keep action bars/toolbars fixed at top */
@@ -790,13 +801,13 @@ pre {
 /* Scrollable list wrapper */
 .line-items-list,
 .orders-list {
-    flex: 1;
-    overflow: visible;
-    display: flex;
-    flex-direction: column;
+    flex: 1 1 auto;
     min-height: 0;
     width: 100%;
+    display: flex;
+    flex-direction: column;
     position: relative;
+    /* overflow: auto; */
 }
 
 /* Table wrapper inside scrollable list */
@@ -826,6 +837,9 @@ pre {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
     background: white;
     position: relative;
+    display: block;
+    /* Subtract an extra 20px from the available viewport height */
+    max-height: calc(100vh - 300px - 50px);
 }
 
 /* LINE ITEMS TABLE - 9 columns */
@@ -940,8 +954,8 @@ pre {
     height: 54vh;
     min-height: 200px;
     max-height: 62vh;
-    overflow-y: auto;
-    overflow-x: hidden;
+    /* overflow-y: auto;
+    overflow-x: hidden; */
 }
 .contact-table tbody tr,
 .invoices-container tbody tr {
@@ -1100,9 +1114,7 @@ pre {
 
 .contact-table tbody {
     display: block;
-    height: 100%;
-    min-height: 120px;
-    max-height: calc(60vh - 50px);
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -1111,8 +1123,7 @@ pre {
     display: block;
     height: 100%;
     min-height: 120px;
-    /* Subtract extra 40px for toolbar above */
-    max-height: calc(60vh - 60px);
+    max-height: calc(100vh - var(--toolbar-height) - var(--table-header-height) - var(--paginator-height) - var(--container-padding));
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -1121,8 +1132,7 @@ pre {
     display: block;
     height: 100%;
     min-height: 120px;
-    /* Subtract extra 40px for toolbar above */
-    max-height: calc(60vh - 60px);
+    max-height: calc(100vh - var(--toolbar-height) - var(--table-header-height) - var(--paginator-height) - var(--container-padding));
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -1131,8 +1141,7 @@ pre {
     display: block;
     height: 100%;
     min-height: 120px;
-    /* Subtract extra 60px for toolbar and extra reduction */
-    max-height: calc(60vh - 110px);
+    max-height: calc(100vh - var(--toolbar-height) - var(--table-header-height) - var(--paginator-height) - var(--container-padding));
     overflow-y: auto;
     overflow-x: hidden;
 }
