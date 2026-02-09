@@ -1,3 +1,44 @@
+/* Unified header style for all tables */
+.contact-table thead th,
+.orders-table thead th,
+.line-items-table thead th,
+.invoice-table thead th {
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #dee2e6;
+    background-color: #f8f9fa;
+    font-size: 0.9rem;
+    height: var(--table-header-height);
+    color: white;
+    background: linear-gradient(180deg, #4CAF50 0%, #45a049 100%);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Rounded corners for all table headers */
+.contact-table thead th:first-child,
+.orders-table thead th:first-child,
+.line-items-table thead th:first-child,
+.invoice-table thead th:first-child {
+    border-top-left-radius: 8px;
+}
+.contact-table thead th:last-child,
+.orders-table thead th:last-child,
+.line-items-table thead th:last-child,
+.invoice-table thead th:last-child {
+    border-top-right-radius: 8px;
+}
+
+/* Consistent header row height for all tables */
+.contact-table thead,
+.orders-table thead,
+.line-items-table thead,
+.invoice-table thead {
+    height: var(--table-header-height);
+}
 /* =====================
    CSS Variables & Theme
    ===================== */
@@ -1093,55 +1134,15 @@ pre {
 }
 
 /* Reduce contacts table header height */
-.contact-table thead th {
-    padding: 6px 8px;
-    text-align: left;
-    font-weight: 600;
-    border-bottom: 2px solid #dee2e6;
-    background-color: #f8f9fa;
-}
 
-/* Make only tbody scrollable, with fixed height so paginator is always visible */
-/* Make tbody scrollable, but reduce height for a more compact layout */
-/* Make tbody scrollable, but increase height for a more balanced layout */
-/* Make tbody scrollable and fill available space */
-/* Make tbody scrollable, fill available space, but not overshoot */
-/* Make tbody scrollable, fill available space, but not overshoot */
-/* Make tbody scrollable, fill available space, but not overshoot */
-
-
-
-
-.contact-table tbody {
-    display: block;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-.line-items-table tbody {
-    display: block;
-    height: 100%;
-    min-height: 120px;
-    max-height: calc(100vh - var(--toolbar-height) - var(--table-header-height) - var(--paginator-height) - var(--container-padding));
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
+/* Uniform scrollable tbody for all main tables */
+.contact-table tbody,
+.orders-table tbody,
+.line-items-table tbody,
 .invoice-table tbody {
     display: block;
-    height: 100%;
     min-height: 120px;
-    max-height: calc(100vh - var(--toolbar-height) - var(--table-header-height) - var(--paginator-height) - var(--container-padding));
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-.orders-table tbody {
-    display: block;
-    height: 100%;
-    min-height: 120px;
-    max-height: calc(100vh - var(--toolbar-height) - var(--table-header-height) - var(--paginator-height) - var(--container-padding));
+    max-height: calc(100vh - 300px);
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -1184,7 +1185,6 @@ pre {
 .invoice-table td {
     padding: 6px 8px;
 }
-
 /* Column widths for contacts table */
 .contact-table th:nth-child(1),
 .contact-table td:nth-child(1) {
@@ -1248,13 +1248,6 @@ pre {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.orders-table thead th {
-    padding: 12px 8px;
-    text-align: left;
-    font-weight: 600;
-    border-bottom: 2px solid #dee2e6;
-    background-color: #f8f9fa;
-}
 
 .orders-table tbody {
     display: block;
@@ -1278,10 +1271,6 @@ pre {
     background-color: #f8f9fa;
 }
 
-.orders-table td {
-    padding: 10px 8px;
-}
-
 /* INVOICE TABLE - Scrollable with fixed header */
 .invoice-table {
     width: 100%;
@@ -1296,13 +1285,6 @@ pre {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.invoice-table thead th {
-    padding: 12px 8px;
-    text-align: left;
-    font-weight: 600;
-    border-bottom: 2px solid #dee2e6;
-    background-color: #f8f9fa;
-}
 
 .invoice-table tbody {
     display: block;
@@ -1326,10 +1308,6 @@ pre {
     background-color: #f8f9fa;
 }
 
-.invoice-table td {
-    padding: 10px 8px;
-}
-
 /* LINE ITEMS TABLE - Scrollable with fixed header */
 .line-items-table {
     width: 100%;
@@ -1342,14 +1320,6 @@ pre {
     z-index: 10;
     background-color: #f8f9fa;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.line-items-table thead th {
-    padding: 12px 8px;
-    text-align: left;
-    font-weight: 600;
-    border-bottom: 2px solid #dee2e6;
-    background-color: #f8f9fa;
 }
 
 .line-items-table tbody {
@@ -1372,8 +1342,4 @@ pre {
 
 .line-items-table tbody tr:hover {
     background-color: #f8f9fa;
-}
-
-.line-items-table td {
-    padding: 10px 8px;
 }
