@@ -75,10 +75,15 @@ final class ContactController
         $hasContacts = !empty($contacts);
         $isSuccess = $response->isSuccess() || $hasContacts;
 
+        $error = null;
+        if (!$isSuccess) {
+            $error = $result['error'];
+        }
+
         return [
             'statusCode' => $response->getStatusCode(),
             'isSuccess' => $isSuccess,
-            'error' => $result['error'],
+            'error' => $error,
             'contacts' => $contacts,
             'total_count' => $result['total_count'] ?? 0,
             'page' => $result['page'] ?? 1,

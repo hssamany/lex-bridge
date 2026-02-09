@@ -9,7 +9,7 @@ class InvoicesPage {
     {
         this.lexBridge = lexBridge;
         this.currentPage = 1;
-        this.pageSize = 25;
+        this.pageSize = 10;
         this.totalCount = 0;
         this.paginator = null;
         this.lastQueryParams = null;

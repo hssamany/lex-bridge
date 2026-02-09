@@ -31,7 +31,7 @@
             this.showProcessed = false; // Default: hide processed orders
             this.hasLoadedOnce = false; // Track if orders have been loaded
             this.currentPage = 1;
-            this.pageSize = 25;
+            this.pageSize = 10;
             this.totalCount = 0;
             this.paginator = null;
 

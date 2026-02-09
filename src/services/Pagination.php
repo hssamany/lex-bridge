@@ -6,8 +6,8 @@ namespace Luxullus\LexBridge\Services;
 
 final class Pagination
 {
-    public const DEFAULT_PAGE_SIZE = 25;
-    public const PAGE_SIZES = [25, 50, 100];
+    public const DEFAULT_PAGE_SIZE = 10;
+    public const PAGE_SIZES = [10, 25, 50, 100];
 
     /**
      * @param array<string, mixed> $pagination

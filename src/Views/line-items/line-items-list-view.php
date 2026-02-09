@@ -1,4 +1,4 @@
-<div class="line-items-container" style="display: flex; align-items: flex-start; gap: 8px;">
+<div class="line-items-container tab-content-container">
     <div style="flex: 1;">
         <div class="line-items-actions-bar">
             <button type="button" id="send-invoice-btn" class="btn btn-primary line-items-toolbar-btn" title="Rechnung erstellen" aria-label="Rechnung erstellen" disabled>
@@ -14,7 +14,7 @@
                 <span>In Rechnung gestellte anzeigen</span>
             </label>
         </div>
-        <div class="line-items-list" aria-live="polite">
+        <div class="line-items-list table-scrollable" aria-live="polite">
             <table class="line-items-table">
                 <thead>
                     <tr>
@@ -35,7 +35,7 @@
                     </tr>
                 </tbody>
             </table>
-            <div class="table-paginator line-items-paginator" data-paginator="line-items"></div>
+            <div class="table-paginator line-items-paginator sticky-paginator paginator-container" data-paginator="line-items"></div>
             <!-- Removed legacy total label; now handled by paginator -->
         </div>
     </div>

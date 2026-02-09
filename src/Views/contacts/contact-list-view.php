@@ -1,7 +1,7 @@
 <?php $contacts = $contactsData['contacts'] ?? []; ?>
 
 <div
-    class="contacts-container"
+    class="contacts-container tab-content-container"
     data-contacts='<?php echo htmlspecialchars(json_encode($contactsData), ENT_QUOTES, 'UTF-8'); ?>'
 >
     <table class="contact-table">
@@ -62,6 +62,6 @@
             <?php endforeach; ?>
         </tbody>
     </table>
-    <div class="table-paginator contacts-paginator" data-paginator="contacts"></div>
+    <div class="table-paginator contacts-paginator sticky-paginator paginator-container" data-paginator="contacts"></div>
     <!-- Removed legacy total label; now handled by paginator -->
 </div>

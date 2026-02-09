@@ -1,4 +1,4 @@
-<div class="invoices-container">
+<div class="invoices-container tab-content-container">
     <?php require __DIR__ . '/invoices-filter-form.php'; ?>
     
     <table class="invoice-table">
@@ -19,6 +19,6 @@
             </tr>
         </tbody>
     </table>
-    <div class="table-paginator invoices-paginator" data-paginator="invoices"></div>
+    <div class="table-paginator invoices-paginator sticky-paginator paginator-container" data-paginator="invoices"></div>
     <!-- Removed legacy total label; now handled by paginator -->
 </div>

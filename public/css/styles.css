@@ -1,3 +1,148 @@
+/* =====================
+   CSS Variables & Theme
+   ===================== */
+:root {
+    --main-bg: #f8f9fa;
+    --header-bg: #fff;
+    --table-bg: #fff;
+    --border-color: #d1d5db;
+    --primary-text: #222;
+    --secondary-text: #666;
+    --accent: #007bff;
+    --paginator-bg: #f4f4f4;
+    --paginator-border: #d1d5db;
+    --paginator-height: 48px;
+    --table-header-height: 44px;
+    --table-row-height: 40px;
+    --container-padding: 24px;
+    --tab-content-min-height: 320px;
+    --tab-content-max-width: 1200px;
+    --scrollbar-thumb: #c1c1c1;
+    --scrollbar-track: #f1f1f1;
+}
+
+body {
+    background: var(--main-bg);
+    color: var(--primary-text);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: var(--tab-content-max-width);
+    margin: 0 auto;
+    padding: var(--container-padding);
+}
+
+.header {
+    background: var(--header-bg);
+    padding: 0 0 16px 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 16px;
+}
+
+/* =====================
+   Tab Content & Layout
+   ===================== */
+.tab-content-container {
+    display: flex;
+    flex-direction: column;
+    min-height: var(--tab-content-min-height);
+    height: 70vh;
+    background: var(--table-bg);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    overflow: hidden;
+    position: relative;
+}
+
+.table-scrollable {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    /* For sticky paginator to work */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--table-bg);
+}
+
+th, td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    font-size: 15px;
+}
+
+th {
+    background: var(--header-bg);
+    font-weight: 600;
+    height: var(--table-header-height);
+    color: var(--primary-text);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+tr {
+    height: var(--table-row-height);
+}
+
+/* =====================
+   Sticky Paginator Utility
+   ===================== */
+.sticky-paginator {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: var(--paginator-bg);
+    border-top: 1px solid var(--paginator-border);
+    min-height: var(--paginator-height);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 3;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.03);
+}
+
+.paginator-total-label {
+    font-size: 15px;
+    color: var(--secondary-text);
+    font-weight: 500;
+}
+
+/* =====================
+   Miscellaneous & Cleanup
+   ===================== */
+.tab-content-container .paginator-container {
+    /* Remove legacy positioning, now handled by .sticky-paginator */
+    position: static;
+    background: none;
+    border: none;
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Remove legacy paginator rules */
+
+/* Scrollbar styling for better UX */
+.table-scrollable::-webkit-scrollbar {
+    width: 10px;
+    background: var(--scrollbar-track);
+}
+.table-scrollable::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 5px;
+}
+
+/* Remove duplicate/legacy table and paginator rules below this line */
+/* ...existing code... */
 /* Ensure button SVG icons are visible */
 .btn svg {
     display: inline-block;
@@ -986,8 +1131,8 @@ pre {
     display: block;
     height: 100%;
     min-height: 120px;
-    /* Subtract extra 40px for toolbar above */
-    max-height: calc(60vh - 90px);
+    /* Subtract extra 60px for toolbar and extra reduction */
+    max-height: calc(60vh - 110px);
     overflow-y: auto;
     overflow-x: hidden;
 }

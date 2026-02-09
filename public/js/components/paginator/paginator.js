@@ -1,16 +1,20 @@
 (function () {
     'use strict';
 
-    const DEFAULT_PAGE_SIZE = 25;
-    const DEFAULT_PAGE_SIZES = [25, 50, 100];
+    const DEFAULT_PAGE_SIZE = 10;
+    const DEFAULT_PAGE_SIZES = [10, 25, 50, 100];
 
-    class Paginator {
+    class Paginator 
+    {
+
         constructor(container, options = {}) {
             this.container = container;
             this.onChange = typeof options.onChange === 'function' ? options.onChange : null;
+            
             this.pageSizeOptions = Array.isArray(options.pageSizeOptions) && options.pageSizeOptions.length
                 ? options.pageSizeOptions
                 : DEFAULT_PAGE_SIZES;
+
             this.state = {
                 page: 1,
                 pageSize: options.pageSize || DEFAULT_PAGE_SIZE,

@@ -1,5 +1,5 @@
-<div class="orders-container">
-    <div class="orders-list" aria-live="polite" aria-busy="false">
+<div class="orders-container tab-content-container">
+    <div class="orders-list table-scrollable" aria-live="polite" aria-busy="false">
         <div class="orders-toolbar-container">
             <!-- Toolbar will be rendered here by JavaScript -->
             <div class="orders-toolbar line-items-toolbar">
@@ -40,7 +40,7 @@
                 </tr>
             </tbody>
         </table>
-        <div class="table-paginator orders-paginator" data-paginator="orders"></div>
+        <div class="table-paginator orders-paginator sticky-paginator paginator-container" data-paginator="orders"></div>
         <!-- Removed legacy total label; now handled by paginator -->
     </div>
 </div>
