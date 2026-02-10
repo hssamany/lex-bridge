@@ -15,14 +15,17 @@
     --table-header-height: 20px;
     --table-row-height: 40px;
     --toolbar-height: 10px;
+    --table-height:calc(100vh - 300px);
+    --table-body-height:calc(100vh - 400px);
     --container-padding: 24px;
     --tab-content-min-height: 320px;
     --tab-content-max-width: 1200px;
     --scrollbar-thumb: #c1c1c1;
     --scrollbar-track: #f1f1f1;
 }
-
 /* Unified header style for all tables */
+
+
 .contact-table thead th,
 .orders-table thead th,
 .line-items-table thead th,
@@ -76,12 +79,15 @@ body {
     max-width: var(--tab-content-max-width);
     margin: 0 auto;
     padding: var(--container-padding);
-    height: 100vh;
-    max-height: 100vh;
+    height: 100vh;        /* Use viewport height */
+    max-height: 100vh;    /* Prevent overflow beyond viewport */
     min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: auto;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .header {
@@ -109,6 +115,8 @@ body {
 .table-scrollable {
     flex: 1 1 auto;
     min-height: 0;
+    /* overflow: auto; */
+    /* For sticky paginator to work */
 }
 
 table {
@@ -258,6 +266,7 @@ tr {
     font-size: 1em;
 }
 
+
 .customer-search-combobox {
     padding: 0.45rem 0.7rem;
     border: 1px solid #ccc;
@@ -329,7 +338,6 @@ tr {
 .orders-list {
     flex: 1 1 auto;
     min-height: 0;
-    /* overflow: auto; */
 }
 
 .orders-total {
@@ -494,7 +502,6 @@ input[list]::-webkit-calendar-picker-indicator {
     max-width: none;
     flex: 0 0 auto;
 }
-
 /* Inline filter group for line-items filter */
 .line-items-filter-form {
     display: flex;
@@ -577,21 +584,6 @@ body {
     background-color: #f8f9fa;
     overflow: hidden;
     height: 100vh;
-}
-
-.container {
-    max-width: var(--tab-content-max-width);
-    margin: 0 auto;
-    padding: var(--container-padding);
-    height: 100vh;        /* Use viewport height */
-    max-height: 100vh;    /* Prevent overflow beyond viewport */
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: auto;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .header {
@@ -690,6 +682,10 @@ body {
 }
 
 /* Toast styles moved to js/components/toast-notifier.css */
+
+/* Specific view containers: (fixed orphaned block) */
+
+/* Invoice View Styles */
 .container {
     background-color: white;
     border-radius: 8px;
@@ -718,7 +714,7 @@ body {
     background-color: #e8f5e9;
     padding: 15px;
     border-radius: 4px;
-    border-left: 4px solid #388e3c;
+    border-left: 4px solid#388e3c;
 }
 
 .info-section {
@@ -983,21 +979,8 @@ pre {
 }
 
 /* Scrollable table body */
-.line-items-table tbody,
-.orders-table tbody,
-/* Make tbody scrollable, increase height for more space */
-/* Make tbody scrollable, increase height for more space */
-.contact-table tbody {
-    display: block;
-    height: 54vh;
-    min-height: 200px;
-    max-height: 62vh;
-    /* overflow-y: auto;
-    overflow-x: hidden; */
-}
-.contact-table tbody tr,
 .invoices-container tbody tr {
-    display: table-row;
+    display: table-row; 
 }
 
 /* Zebra striping for better readability */
@@ -1113,9 +1096,6 @@ pre {
     flex: 1 1 auto;
     overflow-y: auto;
 }
-.table-paginator {
-    /* unified above */
-}
 
 .contact-table {
     width: 100%;
@@ -1134,13 +1114,21 @@ pre {
 
 /* Uniform scrollable tbody for all main tables */
 
+.contact-table,
+.orders-table,
+.line-items-table,
+.invoice-table {
+    height: var(--table-height);
+}
+
 /* Scrollable tbody for all main tables */
 .contact-table tbody,
 .orders-table tbody,
 .line-items-table tbody,
 .invoice-table tbody {
     display: block;
-    max-height: calc(100vh - 350px); /* Adjust as needed for your layout */
+    /*max-height: calc(100vh - 400px); /* Adjust as needed for your layout */
+    max-height: var(--table-body-height);
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -1246,10 +1234,6 @@ pre {
 }
 
 
-.orders-table tbody {
-
-}
-
 .orders-table thead,
 .orders-table tbody tr {
     display: table;
@@ -1280,10 +1264,6 @@ pre {
 }
 
 
-.invoice-table tbody {
-
-}
-
 .invoice-table thead,
 .invoice-table tbody tr {
     display: table;
@@ -1311,10 +1291,6 @@ pre {
     z-index: 10;
     background-color: #f8f9fa;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.line-items-table tbody {
-
 }
 
 .line-items-table thead,
