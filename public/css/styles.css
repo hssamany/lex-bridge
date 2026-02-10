@@ -53,7 +53,7 @@
     --paginator-bg: #f4f4f4;
     --paginator-border: #d1d5db;
     --paginator-height: 48px;
-    --table-header-height: 44px;
+    --table-header-height: 20px;
     --table-row-height: 40px;
     --toolbar-height: 10px;
     --container-padding: 24px;
@@ -393,13 +393,25 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .table-paginator {
-    margin-top: 0.75rem;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    width: 100%;
     display: flex;
-    justify-content: flex-start;
     align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    font-size: 0.9rem;
+    height: 48px;
+    min-height: 48px;
+    background: linear-gradient(180deg, #4CAF50 0%, #45a049 100%);
+    border-top: 3px solid #388E3C;
+    z-index: 3;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.03);
+    margin-top: 0;
 }
 
- paginator {
+.paginator {
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
@@ -407,25 +419,28 @@ input[list]::-webkit-calendar-picker-indicator {
     font-size: 0.9rem;
 }
 
- paginator-info {
+.paginator-info {
     font-weight: 600;
     color: #333;
+    flex: 1;
 }
-
- paginator-controls {
+.paginator-controls {
     display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 0.35rem;
+    min-width: 0;
 }
 
- paginator-pages {
+.paginator-pages {
     display: flex;
     gap: 0.25rem;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
- paginator-page,
- paginator-nav {
+.paginator-page,
+.paginator-nav {
     border: 1px solid #d0d5dd;
     background: #fff;
     color: #333;
@@ -435,31 +450,31 @@ input[list]::-webkit-calendar-picker-indicator {
     font-size: 0.85rem;
 }
 
- paginator-page.is-active {
+.paginator-page.is-active {
     background: #4CAF50;
     color: #fff;
     border-color: #4CAF50;
 }
 
- paginator-page:disabled,
- paginator-nav:disabled {
+.paginator-page:disabled,
+.paginator-nav:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
 
- paginator-selectors {
+.paginator-selectors {
     display: flex;
     gap: 0.5rem;
     align-items: center;
 }
 
- paginator-label {
+.paginator-label {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
 }
 
- paginator-selectors select {
+.paginator-selectors select {
     padding: 2px 6px;
     border: 1px solid #d0d5dd;
     border-radius: 4px;
@@ -883,27 +898,14 @@ pre {
     max-height: calc(100vh - 300px - 50px);
 }
 
-/* LINE ITEMS TABLE - 9 columns */
-/* Paginator row matches table header style */
-.table-paginator {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    padding-left: 12px;
-    margin-top: 16px;
-    font-size: 0.9rem;
-    height: 48px;
-    background: linear-gradient(180deg, #4CAF50 0%, #45a049 100%);
-    border-bottom: 3px solid #388E3C;
-}
 .paginator-info {
     font-size: 0.9rem;
     margin-right: 1em;
     font-weight: 600;
     color: white;
 }
-.table-paginator button,
-.table-paginator input {
+.paginator button,
+.paginator input {
     font-size: 0.9rem;
     height: 36px;
     background: linear-gradient(180deg, #4CAF50 0%, #45a049 100%);
@@ -1117,7 +1119,7 @@ pre {
     overflow-y: auto;
 }
 .table-paginator {
-    flex-shrink: 0;
+    /* unified above */
 }
 
 .contact-table {
@@ -1136,17 +1138,17 @@ pre {
 /* Reduce contacts table header height */
 
 /* Uniform scrollable tbody for all main tables */
+
+/* Scrollable tbody for all main tables */
 .contact-table tbody,
 .orders-table tbody,
 .line-items-table tbody,
 .invoice-table tbody {
     display: block;
-    min-height: 120px;
-    max-height: calc(100vh - 300px);
+    max-height: calc(100vh - 350px); /* Adjust as needed for your layout */
     overflow-y: auto;
     overflow-x: hidden;
 }
-
 
 .contact-table thead,
 .contact-table tbody tr,
@@ -1250,10 +1252,7 @@ pre {
 
 
 .orders-table tbody {
-    display: block;
-    max-height: calc(100vh - 300px);
-    overflow-y: auto;
-    overflow-x: hidden;
+
 }
 
 .orders-table thead,
@@ -1287,10 +1286,7 @@ pre {
 
 
 .invoice-table tbody {
-    display: block;
-    max-height: calc(100vh - 300px);
-    overflow-y: auto;
-    overflow-x: hidden;
+
 }
 
 .invoice-table thead,
@@ -1323,10 +1319,7 @@ pre {
 }
 
 .line-items-table tbody {
-    display: block;
-    max-height: calc(100vh - 300px);
-    overflow-y: auto;
-    overflow-x: hidden;
+
 }
 
 .line-items-table thead,
