@@ -23,8 +23,86 @@
     --scrollbar-thumb: #c1c1c1;
     --scrollbar-track: #f1f1f1;
 }
-/* Unified header style for all tables */
 
+body {
+    background: var(--main-bg);
+    background-color: #f8f9fa;
+    color: var(--primary-text);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+}
+
+.header h1 {
+    margin: 0 0 1rem 0;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.75rem 1.5rem;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+    text-align: center;
+    text-decoration: none;
+}
+
+.btn:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.btn-primary {
+    background-color: #4CAF50;
+}
+
+.btn-primary:hover {
+    background-color: #45a049;
+}
+
+.btn-secondary {
+    background-color: #008CBA;
+}
+
+.btn-secondary:hover {
+    background-color: #007399;
+}
+
+.btn-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.header {
+    background: var(--header-bg);
+    padding: 0 0 0 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.container h3 {
+    color: #333;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 10px;
+}
+
+/* Consistent header row height for all tables */
+.contact-table thead,
+.orders-table thead,
+.line-items-table thead,
+.invoice-table thead {
+    height: var(--table-header-height);
+}
 
 .contact-table thead th,
 .orders-table thead th,
@@ -45,6 +123,7 @@
     white-space: nowrap;
 }
 
+
 /* Rounded corners for all table headers */
 .contact-table thead th:first-child,
 .orders-table thead th:first-child,
@@ -52,27 +131,12 @@
 .invoice-table thead th:first-child {
     border-top-left-radius: 8px;
 }
+
 .contact-table thead th:last-child,
 .orders-table thead th:last-child,
 .line-items-table thead th:last-child,
 .invoice-table thead th:last-child {
     border-top-right-radius: 8px;
-}
-
-/* Consistent header row height for all tables */
-.contact-table thead,
-.orders-table thead,
-.line-items-table thead,
-.invoice-table thead {
-    height: var(--table-header-height);
-}
-
-body {
-    background: var(--main-bg);
-    color: var(--primary-text);
-    font-family: 'Segoe UI', Arial, sans-serif;
-    margin: 0;
-    padding: 0;
 }
 
 .container {
@@ -90,19 +154,6 @@ body {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.container h3 {
-    color: #333;
-    border-bottom: 2px solid #4CAF50;
-    padding-bottom: 10px;
-}
-
-.header {
-    background: var(--header-bg);
-    padding: 0 0 16px 0;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 16px;
-}
-
 /* =====================
    Tab Content & Layout
    ===================== */
@@ -111,17 +162,18 @@ body {
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
-    background: var(--table-bg);
     border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
     overflow: hidden;
     position: relative;
+    background: var(--table-bg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .table-scrollable {
     flex: 1 1 auto;
     min-height: 0;
 }
+
 
 table {
     width: 100%;
@@ -167,12 +219,6 @@ tr {
     padding: 0 16px;
     z-index: 3;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.03);
-}
-
- paginator-total-label {
-    font-size: 15px;
-    color: var(--secondary-text);
-    font-weight: 500;
 }
 
 /* =====================
@@ -269,7 +315,6 @@ tr {
     height: 32px;
     font-size: 1em;
 }
-
 
 .customer-search-combobox {
     padding: 0.45rem 0.7rem;
@@ -430,8 +475,6 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .paginator-info {
-    font-weight: 600;
-    color: #333;
     flex: 1;
 }
 .paginator-controls {
@@ -578,71 +621,6 @@ input[list]::-webkit-calendar-picker-indicator {
 /* Invoice table spacing */
 .invoice-table {
     margin-top: 1.5rem;
-}
-
-/* Global Styles */
-body {
-    font-family: Arial, sans-serif;
-    padding: 0;
-    margin: 0;
-    background-color: #f8f9fa;
-    overflow: hidden;
-    height: 100vh;
-}
-
-.header {
-    margin-bottom: 1.5rem;
-}
-
-.header h1 {
-    margin: 0 0 1rem 0;
-}
-
-/* Tab styles moved to js/components/tab-manager/tab-manager.css */
-
-/* Buttons */
-.btn {
-    padding: 0.75rem 1.5rem;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.95rem;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    transition: all 0.3s ease;
-    text-align: center;
-    text-decoration: none;
-}
-
-.btn:hover {
-    background: #45a049;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
-}
-
-.btn-primary {
-    background-color: #4CAF50;
-}
-
-.btn-primary:hover {
-    background-color: #45a049;
-}
-
-.btn-secondary {
-    background-color: #008CBA;
-}
-
-.btn-secondary:hover {
-    background-color: #007399;
-}
-
-.btn-icon {
-    font-size: 1.1rem;
-    line-height: 1;
 }
 
 /* Spinning animation for sync icon */
@@ -862,17 +840,16 @@ pre {
 .orders-table,
 .contact-table,
 .invoices-container table {
-    width: 100%;
-    border-collapse: collapse;
-    border-spacing: 0;
-    table-layout: fixed;
-    border-radius: 8px 8px 0 0;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
-    background: white;
-    position: relative;
     display: block;
-    /* Subtract an extra 20px from the available viewport height */
+    position: relative;
+    table-layout: fixed;
+    background: white;
+    /* width: 100%;
+    border-collapse: collapse; */
+    border-spacing: 0;
+    border-radius: 8px 8px 0 0;
     max-height: calc(100vh - 300px - 50px);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .paginator-info {
