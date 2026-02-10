@@ -1,3 +1,27 @@
+/* =====================
+   CSS Variables & Theme
+   ===================== */
+:root {
+    --main-bg: #f8f9fa;
+    --header-bg: #fff;
+    --table-bg: #fff;
+    --border-color: #d1d5db;
+    --primary-text: #222;
+    --secondary-text: #666;
+    --accent: #007bff;
+    --paginator-bg: #f4f4f4;
+    --paginator-border: #d1d5db;
+    --paginator-height: 48px;
+    --table-header-height: 20px;
+    --table-row-height: 40px;
+    --toolbar-height: 10px;
+    --container-padding: 24px;
+    --tab-content-min-height: 320px;
+    --tab-content-max-width: 1200px;
+    --scrollbar-thumb: #c1c1c1;
+    --scrollbar-track: #f1f1f1;
+}
+
 /* Unified header style for all tables */
 .contact-table thead th,
 .orders-table thead th,
@@ -38,29 +62,6 @@
 .line-items-table thead,
 .invoice-table thead {
     height: var(--table-header-height);
-}
-/* =====================
-   CSS Variables & Theme
-   ===================== */
-:root {
-    --main-bg: #f8f9fa;
-    --header-bg: #fff;
-    --table-bg: #fff;
-    --border-color: #d1d5db;
-    --primary-text: #222;
-    --secondary-text: #666;
-    --accent: #007bff;
-    --paginator-bg: #f4f4f4;
-    --paginator-border: #d1d5db;
-    --paginator-height: 48px;
-    --table-header-height: 20px;
-    --table-row-height: 40px;
-    --toolbar-height: 10px;
-    --container-padding: 24px;
-    --tab-content-min-height: 320px;
-    --tab-content-max-width: 1200px;
-    --scrollbar-thumb: #c1c1c1;
-    --scrollbar-track: #f1f1f1;
 }
 
 body {
@@ -108,8 +109,6 @@ body {
 .table-scrollable {
     flex: 1 1 auto;
     min-height: 0;
-    /* overflow: auto; */
-    /* For sticky paginator to work */
 }
 
 table {
@@ -258,7 +257,6 @@ tr {
     height: 32px;
     font-size: 1em;
 }
-
 
 .customer-search-combobox {
     padding: 0.45rem 0.7rem;
@@ -496,6 +494,7 @@ input[list]::-webkit-calendar-picker-indicator {
     max-width: none;
     flex: 0 0 auto;
 }
+
 /* Inline filter group for line-items filter */
 .line-items-filter-form {
     display: flex;
@@ -691,10 +690,6 @@ body {
 }
 
 /* Toast styles moved to js/components/toast-notifier.css */
-
-/* Specific view containers: (fixed orphaned block) */
-
-/* Invoice View Styles */
 .container {
     background-color: white;
     border-radius: 8px;
