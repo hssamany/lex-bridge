@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Luxullus\LexBridge\Services;
 
 use DateTimeImmutable;
+use Luxullus\LexBridge\Logger;
+
 
 /**
  * Builds invoice line item payloads from order data and article pricing.
@@ -30,65 +32,43 @@ final class OrderLineItemBuilder
      */
     public function buildLineItemPayload(
         array $orderRow,
-        ?array $pricing,
+        ?array $articlePrice,
         DateTimeImmutable $deliveryDate,
         float $quantity
-    ): array {
+        ): array {
+
+        
         $internalCustomerId = null;
         if (isset($orderRow['customer_internal_id']) && $orderRow['customer_internal_id'] !== null) {
             $internalCustomerId = (int) $orderRow['customer_internal_id'];
         } elseif (isset($orderRow['customer_id'])) {
             $internalCustomerId = (int) $orderRow['customer_id'];
         }
-
+        
         $payload = [
             'order_id' => (int) $orderRow['order_id'],
             'order_delivery_date' => $deliveryDate->format('Y-m-d'),
             'customer_id' => $internalCustomerId,
-            'customer_reference' => isset($orderRow['customer_id']) ? (int) $orderRow['customer_id'] : null,
-            'article_id' => isset($orderRow['article_id']) && $orderRow['article_id'] !== null
-                ? (int) $orderRow['article_id']
-                : null,
+            'customer_reference' => (int) $orderRow['customer_id'],
+            'article_id' => (int) $orderRow['article_id'],
             'article_number' => $orderRow['article_number'] ?? null,
-            'quantity' => $quantity,
+            'article_name' => $orderRow['article_name'] ?? null,
+            'line_order' => $orderRow['line_order'] ?? null,
+            'quantity' => $quantity,            
+            'article_description' => $orderRow['article_description'] ?? null,
+
+            // Pricing details from articlePrice (fallback if articlePrice is null)
+            'unit_name' => $articlePrice['unit_name'] ?? null,
+            'currency' => $articlePrice['currency'] ?? null,
+            'net_amount' => $articlePrice['net_amount'] ?? null, // Unit price for net amount
+            'gross_amount' => $articlePrice['gross_amount'] ?? null, // Unit price for gross amount
+            'tax_rate_percentage' => $articlePrice['tax_rate_percentage'] ?? null,
+            'article_valid_from' => $articlePrice['valid_from'] ?? null,
+            'article_valid_until' => $articlePrice['valid_until'] ?? null,
+            'line_total_net' => $this->calculator->calculateLineTotal($quantity, $articlePrice['net_amount'] ?? null),
+            'line_total_gross' => $this->calculator->calculateLineTotal($quantity, $articlePrice['gross_amount'] ?? null),
         ];
-
-        return array_merge($payload, $this->buildArticlePricingDetails($pricing, $quantity));
-    }
-
-    /**
-     * Build article and pricing details for a line item.
-     *
-     * @param array<string, mixed>|null $pricing Article and price data
-     * @param float $quantity Line item quantity
-     * @return array<string, mixed> Article and pricing details
-     */
-    public function buildArticlePricingDetails(?array $pricing, float $quantity): array
-    {
-        if ($pricing === null) {
-            return [];
-        }
-
-        $details = [
-            'article_name' => $pricing['article']['name'] ?? null,
-            'article_description' => $pricing['article']['description'] ?? null,
-            'unit_name' => $pricing['article']['unit_name'] ?? null,
-        ];
-
-        $priceData = $pricing['price'] ?? null;
-        if ($priceData === null) {
-            return $details;
-        }
-
-        $details['currency'] = $priceData['currency'] ?? null;
-        $details['net_amount'] = $priceData['net_amount'] ?? null;
-        $details['gross_amount'] = $priceData['gross_amount'] ?? null;
-        $details['tax_rate_percentage'] = $priceData['tax_rate_percentage'] ?? null;
-        $details['article_valid_from'] = $priceData['valid_from'] ?? null;
-        $details['article_valid_until'] = $priceData['valid_until'] ?? null;
-        $details['line_total_net'] = $this->calculator->calculateLineTotal($quantity, $priceData['net_amount'] ?? null);
-        $details['line_total_gross'] = $this->calculator->calculateLineTotal($quantity, $priceData['gross_amount'] ?? null);
-
-        return $details;
-    }
+        
+        return $payload;
+    }    
 }

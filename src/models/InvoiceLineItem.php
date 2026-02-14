@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Models;
+use Luxullus\LexBridge\Utils\UuidUtil;
 
 /**
  * InvoiceLineItem Model
@@ -26,20 +27,6 @@ final class InvoiceLineItem
     public ?float $lineTotalGross = null;
     public ?string $createdAt = null;
     public ?string $updatedAt = null;
-    
-    /**
-     * Generate a new UUID v4
-     */
-    public static function generateUuid(): string
-    {
-        return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
-    }
     
     /**
      * Create from database row
@@ -74,7 +61,7 @@ final class InvoiceLineItem
     public static function fromLexware(array $data, string $invoiceId, int $lineOrder): self
     {
         $item = new self();
-        $item->id = self::generateUuid();
+        $item->id = UuidUtil::generateUuid();
         $item->invoiceId = $invoiceId;
         $item->lineOrder = $lineOrder;
         $item->type = $data['type'] ?? 'custom';
@@ -129,7 +116,7 @@ final class InvoiceLineItem
     {
         // Generate UUID if this is a new line item
         if ($this->id === null) {
-            $this->id = self::generateUuid();
+            $this->id = UuidUtil::generateUuid();
         }
         
         return [

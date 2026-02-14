@@ -7,6 +7,8 @@ namespace Luxullus\LexBridge\Repositories;
 
 use PDO;
 use Luxullus\LexBridge\Database\Database;
+use Luxullus\LexBridge\Logger;
+use Luxullus\LexBridge\Utils\UuidUtil;
 
 class LineItemRepository
 {
@@ -32,7 +34,8 @@ class LineItemRepository
      */
     public function findLineItems(array $filters = [], array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        $selectSql = "SELECT 
+        $selectSql = <<<SQL
+            SELECT 
                 li.id,
                 c.Nummer AS customer_number,
                 c.Name AS company_name,
@@ -57,11 +60,14 @@ class LineItemRepository
                 li.article_valid_until,
                 li.created_at,
                 li.updated_at,
-                i.voucher_date";
+                i.voucher_date
+        SQL;
 
-        $fromSql = "FROM {$this->lineItemTable} li
+        $fromSql = <<<SQL
+            FROM {$this->lineItemTable} li
             INNER JOIN {$this->invoiceTable} i ON li.invoice_id = i.id
-            LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id";
+            LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id
+        SQL;
 
         $where = [];
         $params = [];
@@ -108,31 +114,33 @@ class LineItemRepository
     }
     public function findLineItemById(string $lineItemId): ?array
     {
-        $sql = "SELECT 
-                    li.id,
-                    li.invoice_id,
-                    li.order_id,
-                    li.order_delivery_date,
-                    li.line_order,
-                    li.name,
-                    li.description,
-                    li.quantity,
-                    li.currency,
-                    li.net_amount,
-                    li.gross_amount,
-                    li.tax_rate_percentage,
-                    li.line_total_net,
-                    li.line_total_gross,
-                    li.article_id,
-                    li.article_number,
-                    li.article_label,
-                    li.article_valid_from,
-                    li.article_valid_until,
-                    li.created_at,
-                    li.updated_at
+        $sql = <<<SQL
+            SELECT 
+                li.id,
+                li.invoice_id,
+                li.order_id,
+                li.order_delivery_date,
+                li.line_order,
+                li.name,
+                li.description,
+                li.quantity,
+                li.currency,
+                li.net_amount,
+                li.gross_amount,
+                li.tax_rate_percentage,
+                li.line_total_net,
+                li.line_total_gross,
+                li.article_id,
+                li.article_number,
+                li.article_label,
+                li.article_valid_from,
+                li.article_valid_until,
+                li.created_at,
+                li.updated_at
             FROM {$this->lineItemTable} li 
             WHERE li.id = :line_item_id 
-            LIMIT 1";
+            LIMIT 1
+        SQL;
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':line_item_id' => $lineItemId]);
@@ -148,22 +156,24 @@ class LineItemRepository
      */
     public function updateLineItem(string $lineItemId, array $data): bool
     {
-        $sql = "UPDATE {$this->lineItemTable}
-                SET
-                    article_id = :article_id,
-                    article_number = :article_number,
-                    article_label = :article_label,
-                    name = :article_name,
-                    currency = :currency,
-                    net_amount = :net_amount,
-                    gross_amount = :gross_amount,
-                    tax_rate_percentage = :tax_rate_percentage,
-                    line_total_net = :line_total_net,
-                    line_total_gross = :line_total_gross,
-                    article_valid_from = :article_valid_from,
-                    article_valid_until = :article_valid_until,
-                    updated_at = NOW()
-                WHERE id = :line_item_id";
+        $sql = <<<SQL
+            UPDATE {$this->lineItemTable}
+            SET
+                article_id = :article_id,
+                article_number = :article_number,
+                article_label = :article_label,
+                name = :article_name,
+                currency = :currency,
+                net_amount = :net_amount,
+                gross_amount = :gross_amount,
+                tax_rate_percentage = :tax_rate_percentage,
+                line_total_net = :line_total_net,
+                line_total_gross = :line_total_gross,
+                article_valid_from = :article_valid_from,
+                article_valid_until = :article_valid_until,
+                updated_at = NOW()
+            WHERE id = :line_item_id
+        SQL;
 
         $stmt = $this->db->prepare($sql);
 
@@ -182,5 +192,77 @@ class LineItemRepository
             ':article_valid_from' => $data['article_valid_from'] ?? null,
             ':article_valid_until' => $data['article_valid_until'] ?? null,
         ]);
+    }
+
+    /**
+     * Persist line items for a single customer.
+     *
+     * @param int $customerId
+     * @param array<int, array<string, mixed>> $lineItems
+     * @return array{persisted: int, errors: array<string>}
+     */
+    public function persistLineItemsForCustomer(int $customerId, array $lineItems): array
+    {
+        if (empty($lineItems)) {
+            return ['persisted' => 0, 'errors' => []];
+        }
+
+        $persistedCount = 0;
+        $errors = [];
+
+        foreach ($lineItems as $index => $item) {
+            try {
+                $lineItemId = UuidUtil::generateUuid();
+
+                $sql = <<<SQL
+                    INSERT INTO {$this->lineItemTable} (
+                        id, article_id, article_number, name, description,
+                        quantity, unit_name, currency, net_amount, gross_amount,
+                        tax_rate_percentage, line_total_net, line_total_gross,
+                        order_delivery_date, line_order, order_id, created_at
+                    ) VALUES (
+                        :id, :article_id, :article_number, :name, :description,
+                        :quantity, :unit_name, :currency, :net_amount, :gross_amount,
+                        :tax_rate_percentage, :line_total_net, :line_total_gross,
+                        :order_delivery_date, :line_order, :order_id, NOW()
+                    )
+                SQL;
+
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([
+                    ':id' => $lineItemId,
+                    ':article_id' => $item['article_id'] ?? null,
+                    ':article_number' => $item['article_number'] ?? null,
+                    ':name' => $item['article_name'] ?? $item['name'] ?? null,
+                    ':description' => $item['description'] ?? null,
+                    ':quantity' => $item['quantity'] ?? null,
+                    ':unit_name' => $item['unit_name'] ?? null,
+                    ':currency' => $item['currency'] ?? 'EUR',
+                    ':net_amount' => $item['net_amount'] ?? null,
+                    ':gross_amount' => $item['gross_amount'] ?? null,
+                    ':tax_rate_percentage' => $item['tax_rate_percentage'] ?? null,
+                    ':line_total_net' => $item['line_total_net'] ?? null,
+                    ':line_total_gross' => $item['line_total_gross'] ?? null,
+                    ':order_delivery_date' => $item['order_delivery_date'] ?? null,
+                    ':line_order' => $item['line_order'] ?? null,
+                    ':order_id' => $item['order_id'] ?? null,
+                ]);
+
+                $persistedCount++;
+            } catch (\Throwable $e) {
+                $articleInfo = $item['article_number'] ?? $item['name'] ?? "item #{$index}";
+                $errors[] = "Failed to persist {$articleInfo} for customer {$customerId}: " . $e->getMessage();
+                Logger::info(end($errors), 'LineItemRepository');
+            }
+        }
+
+        Logger::info('Inserting line item: ' . $persistedCount, 'LineItemRepository');
+        $persistedIds = $persistedCount > 0 ? array_map(fn($i) => $i['id'], $lineItems) : [];
+
+        return [
+            'errors' => $errors, 
+            'persisted' => $persistedCount, 
+            'persisted_ids' => $persistedIds
+        ];
     }
 }

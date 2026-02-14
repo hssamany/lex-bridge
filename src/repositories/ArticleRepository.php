@@ -25,25 +25,19 @@ final class ArticleRepository
     /**
      * Search articles by number or name with current price information.
      *
-     * @param string|null $query
+     * @param array<string, mixed> $filter
      * @return array<int, array<string, mixed>>
      */
-    public function searchArticles(?string $query): array
+    public function searchArticles(?array $filter = []): array
     {
-        if ($query === null || $query === '') {
-            return [];
+        $queryData = $this->buildSearchQuery($filter);
+
+        $stmt = $this->db->prepare($queryData['sql']);
+
+        foreach ($queryData['params'] as $ph => $val) {
+            $stmt->bindValue($ph, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
         }
-
-        $driver = (string) $this->db->getAttribute(PDO::ATTR_DRIVER_NAME);
-
-        $sql = $this->buildSearchQuery($driver);
-        $stmt = $this->db->prepare($sql);
-
-        $like = '%' . $query . '%';
-        $stmt->bindValue('term_num', $like, PDO::PARAM_STR);
-        $stmt->bindValue('term_name', $like, PDO::PARAM_STR);
-        $stmt->bindValue('term_combo', $like, PDO::PARAM_STR);
-
+        
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -108,20 +102,39 @@ final class ArticleRepository
         }
     }
 
-    /**
-     * Build search query with driver-specific concatenation.
-     */
-    private function buildSearchQuery(string $driver): string
+    
+    public function buildSearchQuery(?array $filter = []): array
     {
-        $concat = $driver === 'mysql'
-            ? "CONCAT(article_number, ' - ', name)"
-            : "(article_number || ' - ' || name)";
+        $params = [];
+        $whereClauses = [];
 
-        return <<<SQL
+        foreach (($filter ?? []) as $column => $value) {
+            if (is_array($value) && !empty($value)) {
+                // IN clause for arrays
+                $inPlaceholders = [];
+                foreach ($value as $idx => $item) {
+                    $ph = ":{$column}_{$idx}";
+                    $inPlaceholders[] = $ph;
+                    $params[$ph] = $item;
+                }
+                $whereClauses[] = "a.$column IN (" . implode(',', $inPlaceholders) . ")";
+            } elseif ($value !== null) {
+                // Equality for scalars
+                $ph = ":{$column}";
+                $whereClauses[] = "a.$column = $ph";
+                $params[$ph] = $value;
+            }
+        }
+
+        $where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
+
+        $sql = <<<SQL
             SELECT
                 a.id,
                 a.article_number,
                 a.name,
+                a.description,
+                a.unit_name,
                 p.net_amount,
                 p.gross_amount,
                 p.tax_rate_percentage,
@@ -130,26 +143,26 @@ final class ArticleRepository
                 p.valid_until
             FROM {$this->articleTable} a
             LEFT JOIN (
-                SELECT
-                    pr1.*
+                SELECT pr1.*
                 FROM {$this->priceTable} pr1
                 INNER JOIN (
-                    SELECT
-                        article_id,
-                        MAX(valid_from) AS max_valid_from
+                    SELECT article_id, MAX(valid_from) AS max_valid_from
                     FROM {$this->priceTable}
                     WHERE valid_from <= CURRENT_DATE
                     GROUP BY article_id
-                ) pr2 ON pr1.article_id = pr2.article_id AND pr1.valid_from = pr2.max_valid_from
+                ) pr2
+                ON pr1.article_id = pr2.article_id AND pr1.valid_from = pr2.max_valid_from
                 WHERE pr1.valid_from <= CURRENT_DATE
-                  AND (pr1.valid_until IS NULL OR pr1.valid_until >= CURRENT_DATE)
+                AND (pr1.valid_until IS NULL OR pr1.valid_until >= CURRENT_DATE)
             ) p ON a.id = p.article_id
-            WHERE article_number LIKE :term_num 
-               OR name LIKE :term_name 
-               OR {$concat} LIKE :term_combo
-            ORDER BY name ASC 
-            LIMIT 20
+            $where
+            ORDER BY a.name ASC
         SQL;
+
+        return [
+            'sql' => $sql,
+            'params' => $params,
+        ];
     }
 
     /**

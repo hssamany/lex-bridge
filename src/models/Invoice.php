@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Models;
 
+use Luxullus\LexBridge\Utils\UuidUtil;
+
 /**
  * Invoice Model
  * Represents an invoice that can be stored locally and transmitted to Lexware
@@ -63,19 +65,6 @@ final class Invoice
     public ?string $companyName = null;
     public ?array $lineItems = null; // Array of InvoiceLineItem objects
     
-    /**
-     * Generate a new UUID v4
-     */
-    public static function generateUuid(): string
-    {
-        return sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-            mt_rand(0, 0xffff),
-            mt_rand(0, 0x0fff) | 0x4000,
-            mt_rand(0, 0x3fff) | 0x8000,
-            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
-        );
-    }
     
     /**
      * Set line items from array data
@@ -178,7 +167,7 @@ final class Invoice
     {
         // Generate UUID if this is a new invoice
         if ($this->id === null) {
-            $this->id = self::generateUuid();
+            $this->id = UuidUtil::generateUuid();
         }
         
         return [

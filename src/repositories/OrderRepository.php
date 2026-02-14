@@ -15,6 +15,8 @@ use Luxullus\LexBridge\Services\LineItemCalculator;
 use Luxullus\LexBridge\Services\OrderDateCalculator;
 use Luxullus\LexBridge\Services\OrderLineItemBuilder;
 use Luxullus\LexBridge\Services\OrderDomainConstants;
+use Luxullus\LexBridge\Repositories\ArticleRepository;
+use Luxullus\LexBridge\Repositories\LineItemRepository;
 
 class OrderRepository
 {
@@ -28,11 +30,15 @@ class OrderRepository
     private OrderDateCalculator $dateCalculator;
     private OrderLineItemBuilder $lineItemBuilder;
     private ?bool $supportsProcessedFlag = null;
+    private LineItemRepository $lineItemRepository;
+    private ArticleRepository $articleRepository;
 
     public function __construct(
         ?LineItemCalculator $calculator = null,
         ?OrderDateCalculator $dateCalculator = null,
-        ?OrderLineItemBuilder $lineItemBuilder = null
+        ?OrderLineItemBuilder $lineItemBuilder = null,
+        ?ArticleRepository $articleRepository = null,
+        ?LineItemRepository $lineItemRepository = null
     ) {
         $this->db = Database::getConnection();
         $this->ordersTable = \lexbridge_table('orders');
@@ -42,7 +48,9 @@ class OrderRepository
         $this->customerTable = \lexbridge_table('customer');
         $this->calculator = $calculator ?? new LineItemCalculator();
         $this->dateCalculator = $dateCalculator ?? new OrderDateCalculator();
-        $this->lineItemBuilder = $lineItemBuilder ?? new OrderLineItemBuilder($this->calculator);
+        $this->lineItemBuilder = $lineItemBuilder ?? new OrderLineItemBuilder($this->calculator);       $this->articleRepository = $articleRepository ?? new ArticleRepository();
+        $this->articleRepository = $articleRepository ?? new ArticleRepository();
+        $this->lineItemRepository = $lineItemRepository ?? new LineItemRepository();
     }
 
     /**
@@ -107,7 +115,7 @@ class OrderRepository
 
         $fromSql = "FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
-                    ON CAST(c.Nummer AS UNSIGNED) = o.Kunde -- orders.Kunde stores the external customer number
+                    ON c.id = o.Kunde
                 LEFT JOIN {$this->customerArticleTable} ca
                     ON ca.customer_id = c.id
                 LEFT JOIN {$this->articleTable} a
@@ -188,7 +196,7 @@ class OrderRepository
      * } $filters
      * @return array<int, array<int, array<string, mixed>>>
      */
-    public function generateInvoiceLineItemsFromOrders(array $filters = []): array
+    public function generateLineItemsFromOrders(array $filters = []): array
     {
         $where = [];
         $params = [];
@@ -265,7 +273,6 @@ class OrderRepository
         $sql = "SELECT 
                     o.Id AS order_id,
                     o.Kunde AS customer_id,
-                    c.id AS customer_internal_id,
                     o.Jahr AS order_year,
                     o.KW AS order_week,
                     o.Mo,
@@ -274,16 +281,19 @@ class OrderRepository
                     o.Do,
                     o.Fr,
                     ca.article_id,
-                    a.article_number
+                    a.article_number,
+                    a.name AS article_name,
+                    c.name AS customer_name
+                    
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
-                    ON CAST(c.Nummer AS UNSIGNED) = o.Kunde
+                    ON c.id = o.Kunde
                 LEFT JOIN {$this->customerArticleTable} ca
                     ON ca.customer_id = c.id
                 LEFT JOIN {$this->articleTable} a
                     ON a.id = ca.article_id
                 {$whereSql}
-                ORDER BY o.Kunde, o.Jahr, o.KW";
+                ORDER BY o.Id ASC, o.Kunde, o.Jahr, o.KW";
 
         $stmt = $this->db->prepare($sql);
 
@@ -305,7 +315,23 @@ class OrderRepository
             return [];
         }
 
-        $articleCatalog = $this->preloadArticleCatalog($rows, $deliveryFrom, $deliveryTo);
+        // Collect all unique article IDs from $rows
+        $articleIds = [];
+        foreach ($rows as $row) {
+            if (!empty($row['article_id'])) {
+                $articleIds[] = (int)$row['article_id'];
+            }
+        }
+
+        $articleIds = array_unique($articleIds);
+
+        // Fetch all articles with their most recent price in one call
+        $articles = $this->articleRepository->searchArticles(['id' => $articleIds]);
+        $articleMap = [];
+
+        foreach ($articles as $articleRow) {
+            $articleMap[$articleRow['id']] = $articleRow;
+        }
 
         $results = [];
         $lineCountPerOrder = [];
@@ -329,8 +355,8 @@ class OrderRepository
             return $list;
         };
 
-        foreach ($rows as $row) {
-
+        foreach ($rows as $row) 
+        {
             $year = (int) ($row['order_year'] ?? 0);
             $week = (int) ($row['order_week'] ?? 0);
 
@@ -350,6 +376,9 @@ class OrderRepository
                 continue;
             }
 
+            // Start line_order counter
+            $lineOrder = 0;
+
             foreach ($deliveryDates as $weekdayCode => $dateInfo) {
                 $deliveryDate = $dateInfo['date'];
                 $quantity = $dateInfo['quantity'];
@@ -360,12 +389,12 @@ class OrderRepository
                     continue;
                 }
 
+                $lineOrder++;
+                $row['line_order'] = $lineOrder;
+
                 $orderId = (int) $row['order_id'];
-                $customerReference = isset($row['customer_id']) ? (int) $row['customer_id'] : 0;
-                $customerInternalId = isset($row['customer_internal_id']) ? (int) $row['customer_internal_id'] : 0;
-                $customerKey = $customerReference !== 0 ? $customerReference : $customerInternalId;
+                $customerKey = (int) ($row['customer_id'] ?? 0);
                 $articleId = $row['article_id'] !== null ? (int) $row['article_id'] : null;
-                $articleNumber = $row['article_number'] ?? null;
 
                 if ($articleId === null) {
                     if (!isset($missingMappings[$customerKey])) {
@@ -378,102 +407,14 @@ class OrderRepository
                     continue 2;
                 }
 
-                $pricing = $this->extractArticleSnapshot($articleCatalog, $articleId, $articleNumber, $deliveryDate);
+                // Logger::info(json_encode($lineItem, JSON_PRETTY_PRINT),'OrderRepository');
 
-                if ($pricing === null) {
-                    if (!isset($missingArticles[$articleId])) {
-                        $missingArticles[$articleId] = [
-                            'orders' => [],
-                            'customer_ids' => [],
-                            'article_id' => $articleId,
-                            'article_number' => $articleNumber,
-                        ];
-                    }
-
-                    $missingArticles[$articleId]['orders'][$orderId] = true;
-                    $missingArticles[$articleId]['customer_ids'][$customerKey] = true;
-                    if ($articleNumber !== null && $articleNumber !== '') {
-                        $missingArticles[$articleId]['article_number'] = $articleNumber;
-                    }
-
-                    continue 2;
-                }
-
-                $priceData = $pricing['price'] ?? null;
-
-                if ($priceData === null) {
-                    if (!isset($missingPrices[$articleId])) {
-                        $missingPrices[$articleId] = [
-                            'orders' => [],
-                            'dates' => [],
-                            'customer_ids' => [],
-                            'article_id' => $articleId,
-                            'article_number' => $pricing['article']['article_number'] ?? $articleNumber,
-                        ];
-                    }
-
-                    $missingPrices[$articleId]['orders'][$orderId] = true;
-                    $missingPrices[$articleId]['customer_ids'][$customerKey] = true;
-                    $missingPrices[$articleId]['dates'][$deliveryDate->format('Y-m-d')] = true;
-                    if (!empty($articleNumber)) {
-                        $missingPrices[$articleId]['article_number'] = $articleNumber;
-                    }
-
-                    continue;
-                }
-
-                $lineItem = $this->lineItemBuilder->buildLineItemPayload($row, $pricing, $deliveryDate, $quantityValue);
-
+                $article = $articleMap[$articleId] ?? null;
+                $lineItem = $this->lineItemBuilder->buildLineItemPayload($row, $article, $deliveryDate, $quantityValue);
+                $this->lineItemRepository->persistLineItemsForCustomer($customerKey, [$lineItem]);
                 $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + 1;
                 $results[$customerKey][] = $lineItem;
             }
-        }
-
-        if ($missingMappings || $missingArticles || $missingPrices) {
-            $messages = [];
-
-            if ($missingMappings) {
-                foreach ($missingMappings as $customerId => $info) {
-                    $orders = $formatList(array_keys($info['orders'] ?? []));
-                    $messages[] = sprintf(
-                        'Fuer Kunde %d fehlt eine Artikelzuordnung (Bestellungen: %s).',
-                        $customerId,
-                        $orders
-                    );
-                }
-            }
-
-            if ($missingArticles) {
-                foreach ($missingArticles as $articleId => $info) {
-                    $orders = $formatList(array_keys($info['orders'] ?? []));
-                    $customers = $formatList(array_keys($info['customer_ids'] ?? []));
-                    $articleNumber = $info['article_number'] ?? 'unbekannt';
-                    $messages[] = sprintf(
-                        'Artikel-ID %d (Nr. %s) wurde nicht gefunden (Kunden: %s, Bestellungen: %s).',
-                        $articleId,
-                        $articleNumber,
-                        $customers,
-                        $orders
-                    );
-                }
-            }
-
-            if ($missingPrices) {
-                foreach ($missingPrices as $articleId => $info) {
-                    $orders = $formatList(array_keys($info['orders'] ?? []));
-                    $dates = $formatList(array_keys($info['dates'] ?? []));
-                    $articleNumber = $info['article_number'] ?? 'unbekannt';
-                    $messages[] = sprintf(
-                        'Fuer Artikel-ID %d (Nr. %s) existiert kein gueltiger Preis fuer Lieferdatum/Lieferdaten %s (Bestellungen: %s).',
-                        $articleId,
-                        $articleNumber,
-                        $dates,
-                        $orders
-                    );
-                }
-            }
-
-            throw new RuntimeException(implode(' ', $messages));
         }
 
         $this->markOrdersAsProcessed($lineCountPerOrder);
@@ -526,201 +467,7 @@ class OrderRepository
 
         throw new InvalidArgumentException(sprintf('Unsupported value provided for filter "%s".', $filterKey));
     }
-
-    /**
-     * Load article meta data and relevant price histories for all orders in a single query.
-     *
-     * @param array<int, array<string, mixed>> $orders
-     * @return array<string, array{article: array<string, mixed>, prices: array<int, array<string, mixed>>}>
-     */
-    private function preloadArticleCatalog(array $orders, ?DateTimeImmutable $deliveryFrom, ?DateTimeImmutable $deliveryTo): array
-    {
-        $articleIds = [];
-        $articleNumbers = [];
-
-        foreach ($orders as $order) {
-            if (!empty($order['article_id'])) {
-                $articleIds[(int) $order['article_id']] = true;
-            }
-
-            if (!empty($order['article_number'])) {
-                $articleNumbers[(string) $order['article_number']] = true;
-            }
-        }
-
-        if (!$articleIds && !$articleNumbers) {
-            return [];
-        }
-
-        $params = [];
-        $clauses = [];
-
-        if ($articleIds) {
-            $placeholders = [];
-            $index = 0;
-            foreach (array_keys($articleIds) as $id) {
-                $placeholder = ':article_id_' . $index++;
-                $placeholders[] = $placeholder;
-                $params[$placeholder] = $id;
-            }
-            $clauses[] = 'a.id IN (' . implode(', ', $placeholders) . ')';
-        }
-
-        if ($articleNumbers) {
-            $placeholders = [];
-            $index = 0;
-            foreach (array_keys($articleNumbers) as $number) {
-                $placeholder = ':article_number_' . $index++;
-                $placeholders[] = $placeholder;
-                $params[$placeholder] = $number;
-            }
-            $clauses[] = 'a.article_number IN (' . implode(', ', $placeholders) . ')';
-        }
-
-        $priceJoinParts = [];
-        if ($deliveryFrom !== null) {
-            $priceJoinParts[] = '(pr.valid_until IS NULL OR pr.valid_until >= :price_from)';
-            $params[':price_from'] = $deliveryFrom->format('Y-m-d');
-        }
-
-        if ($deliveryTo !== null) {
-            $priceJoinParts[] = 'pr.valid_from <= :price_to';
-            $params[':price_to'] = $deliveryTo->format('Y-m-d');
-        }
-
-        $priceJoinSql = $priceJoinParts ? ' AND ' . implode(' AND ', $priceJoinParts) : '';
-
-        $sql = "SELECT
-                    a.id,
-                    a.article_number,
-                    a.name,
-                    a.description,
-                    a.unit_name,
-                    pr.net_amount,
-                    pr.gross_amount,
-                    pr.tax_rate_percentage,
-                    pr.currency,
-                    pr.valid_from,
-                    pr.valid_until
-                FROM {$this->articleTable} a
-                LEFT JOIN {$this->priceTable} pr
-                    ON pr.article_id = a.id{$priceJoinSql}";
-
-        if ($clauses) {
-            $sql .= ' WHERE ' . implode(' OR ', $clauses);
-        }
-
-        $sql .= ' ORDER BY a.id, pr.valid_from DESC, pr.id DESC';
-
-        $stmt = $this->db->prepare($sql);
-        
-        foreach ($params as $name => $value) {
-            $stmt->bindValue($name, $value);
-        }
-
-        $stmt->execute();
-
-        $byId = [];
-        $numberToId = [];
-
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $articleId = (int) $row['id'];
-
-            if (!isset($byId[$articleId])) {
-                $byId[$articleId] = [
-                    'article' => [
-                        'id' => $articleId,
-                        'article_number' => $row['article_number'],
-                        'name' => $row['name'],
-                        'description' => $row['description'],
-                        'unit_name' => $row['unit_name'],
-                    ],
-                    'prices' => [],
-                ];
-            }
-
-            if (!empty($row['article_number'])) {
-                $numberToId[$row['article_number']] = $articleId;
-            }
-
-            if ($row['net_amount'] !== null
-                || $row['gross_amount'] !== null
-                || $row['tax_rate_percentage'] !== null
-                || $row['currency'] !== null
-                || $row['valid_from'] !== null
-                || $row['valid_until'] !== null
-            ) {
-                $byId[$articleId]['prices'][] = [
-                    'net_amount' => $row['net_amount'],
-                    'gross_amount' => $row['gross_amount'],
-                    'tax_rate_percentage' => $row['tax_rate_percentage'],
-                    'currency' => $row['currency'],
-                    'valid_from' => $row['valid_from'],
-                    'valid_until' => $row['valid_until'],
-                ];
-            }
-        }
-
-        $catalog = [];
-
-        foreach ($byId as $id => $entry) {
-            $catalog['id:' . $id] = $entry;
-        }
-
-        foreach ($numberToId as $number => $id) {
-            if (isset($catalog['id:' . $id])) {
-                $catalog['num:' . $number] = $catalog['id:' . $id];
-            }
-        }
-
-        return $catalog;
-    }
-
-    /**
-     * Pick the article meta entry and matching price for the requested delivery date.
-     */
-    private function extractArticleSnapshot(array $catalog, ?int $articleId, ?string $articleNumber, DateTimeImmutable $deliveryDate): ?array
-    {
-        $key = null;
-
-        if ($articleId !== null && isset($catalog['id:' . $articleId])) {
-            $key = 'id:' . $articleId;
-        } elseif ($articleNumber !== null && isset($catalog['num:' . $articleNumber])) {
-            $key = 'num:' . $articleNumber;
-        }
-
-        if ($key === null) {
-            return null;
-        }
-
-        $entry = $catalog[$key];
-        $price = $this->selectPriceForDate($entry['prices'], $deliveryDate->format('Y-m-d'));
-
-        return [
-            'article' => $entry['article'],
-            'price' => $price,
-        ];
-    }
-
-    /**
-     * @param array<int, array<string, mixed>> $prices
-     */
-    private function selectPriceForDate(array $prices, string $targetDate): ?array
-    {
-        foreach ($prices as $price) {
-            if ($price['valid_from'] !== null && $price['valid_from'] > $targetDate) {
-                continue;
-            }
-
-            if ($price['valid_until'] !== null && $price['valid_until'] < $targetDate) {
-                continue;
-            }
-
-            return $price;
-        }
-
-        return null;
-    }
+    
 
     /**
      * Persist processed state for orders that produced at least one line item.
@@ -815,8 +562,9 @@ class OrderRepository
             
             try {
                 // Step 1: Generate line items from orders (reuses existing logic)
-                $lineItemsByCustomer = $this->generateInvoiceLineItemsFromOrders($filters);
+                $lineItemsByCustomer = $this->generateLineItemsFromOrders($filters);
                 
+
                 if (empty($lineItemsByCustomer)) {
                     $this->db->rollBack();
                     return [
@@ -845,9 +593,8 @@ class OrderRepository
                         continue;
                     }
                     
-                    $result = $this->persistLineItemsForCustomer(
+                    $result = $this->lineItemRepository->persistLineItemsForCustomer(
                         $customerId,
-                        $customerNumbers[$customerId],
                         $customerLineItems
                     );
                     
@@ -941,73 +688,5 @@ class OrderRepository
         }
         
         return $customerNumbers;
-    }
-
-    /**
-     * Persist line items for a single customer
-     *
-     * @param int $customerId
-     * @param string $customerNumber
-     * @param array<int, array<string, mixed>> $lineItems
-     * @return array{persisted: int, errors: array<string>}
-     */
-    private function persistLineItemsForCustomer(int $customerId, string $customerNumber, array $lineItems): array
-    {
-        if (empty($lineItems)) {
-            return ['persisted' => 0, 'errors' => []];
-        }
-
-        $lineItemTable = lexbridge_table('invoice_line_items');
-        $persistedCount = 0;
-        $errors = [];
-
-        foreach ($lineItems as $index => $item) {
-            try {
-                // Use Invoice model's UUID generation for consistency
-                $lineItemId = Invoice::generateUuid();
-
-                $sql = "INSERT INTO {$lineItemTable} (
-                    id, customer_number, article_id, article_number, name, description,
-                    quantity, unit_name, currency, net_amount, gross_amount,
-                    tax_rate_percentage, line_total_net, line_total_gross,
-                    delivery_date, line_order, order_id, created_at
-                ) VALUES (
-                    :id, :customer_number, :article_id, :article_number, :name, :description,
-                    :quantity, :unit_name, :currency, :net_amount, :gross_amount,
-                    :tax_rate_percentage, :line_total_net, :line_total_gross,
-                    :delivery_date, :line_order, :order_id, NOW()
-                )";
-
-                $stmt = $this->db->prepare($sql);
-                $stmt->execute([
-                    ':id' => $lineItemId,
-                    ':customer_number' => $customerNumber,
-                    ':article_id' => $item['article_id'] ?? null,
-                    ':article_number' => $item['article_number'] ?? null,
-                    ':name' => $item['name'] ?? null,
-                    ':description' => $item['description'] ?? null,
-                    ':quantity' => $item['quantity'] ?? null,
-                    ':unit_name' => $item['unit_name'] ?? null,
-                    ':currency' => $item['currency'] ?? 'EUR',
-                    ':net_amount' => $item['net_amount'] ?? null,
-                    ':gross_amount' => $item['gross_amount'] ?? null,
-                    ':tax_rate_percentage' => $item['tax_rate_percentage'] ?? null,
-                    ':line_total_net' => $item['line_total_net'] ?? null,
-                    ':line_total_gross' => $item['line_total_gross'] ?? null,
-                    ':delivery_date' => $item['delivery_date'] ?? null,
-                    ':line_order' => $item['line_order'] ?? null,
-                    ':order_id' => $item['order_id'] ?? null,
-                ]);
-
-                $persistedCount++;
-            } catch (\Throwable $e) {
-                // Collect errors for reporting instead of just logging
-                $articleInfo = $item['article_number'] ?? $item['name'] ?? "item #{$index}";
-                $errors[] = "Failed to persist {$articleInfo} for customer {$customerId}: " . $e->getMessage();
-                Logger::info(end($errors), 'OrderRepository');
-            }
-        }
-
-        return ['persisted' => $persistedCount, 'errors' => $errors];
     }
 }

@@ -531,7 +531,7 @@
                     <td><input type="checkbox" class="${OrdersPage.CLASS_NAMES.orderSelectCheckbox}" data-order-id="${orderIdEscaped}" value="${orderIdEscaped}"></td>
                 `);
 
-                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.customer_id))}</td>`);
+                positionCells.push(`<td>${this.escapeHtml(this.safeText(order.customer_number))}</td>`);
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.lex_customer_number))}</td>`);
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.order_week))}</td>`);
 
