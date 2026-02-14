@@ -32,13 +32,15 @@ class OrderRepository
     private ?bool $supportsProcessedFlag = null;
     private LineItemRepository $lineItemRepository;
     private ArticleRepository $articleRepository;
+    private InvoiceRepository $invoiceRepository;
 
     public function __construct(
         ?LineItemCalculator $calculator = null,
         ?OrderDateCalculator $dateCalculator = null,
         ?OrderLineItemBuilder $lineItemBuilder = null,
         ?ArticleRepository $articleRepository = null,
-        ?LineItemRepository $lineItemRepository = null
+        ?LineItemRepository $lineItemRepository = null,
+        ?InvoiceRepository $invoiceRepository = null
     ) {
         $this->db = Database::getConnection();
         $this->ordersTable = \lexbridge_table('orders');
@@ -48,9 +50,10 @@ class OrderRepository
         $this->customerTable = \lexbridge_table('customer');
         $this->calculator = $calculator ?? new LineItemCalculator();
         $this->dateCalculator = $dateCalculator ?? new OrderDateCalculator();
-        $this->lineItemBuilder = $lineItemBuilder ?? new OrderLineItemBuilder($this->calculator);       $this->articleRepository = $articleRepository ?? new ArticleRepository();
+        $this->lineItemBuilder = $lineItemBuilder ?? new OrderLineItemBuilder($this->calculator);
         $this->articleRepository = $articleRepository ?? new ArticleRepository();
         $this->lineItemRepository = $lineItemRepository ?? new LineItemRepository();
+        $this->invoiceRepository = $invoiceRepository ?? new InvoiceRepository();
     }
 
     /**
@@ -134,25 +137,28 @@ class OrderRepository
         $countStmt->execute();
         $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 
-        $sql = "SELECT
-                    o.Id AS order_id,
-                    o.Kunde AS customer_id,
-                    o.Jahr AS order_year,
-                    o.KW AS order_week,
-                    o.Mo,
-                    o.Di,
-                    o.Mi,
-                    o.Do,
-                    o.Fr,
-                    ca.article_id,
-                    a.article_number,
-                    o.GeaendertAm,
-                    c.Nummer AS customer_number,
-                    c.lex_customer_number,
-                    {$verarbeitetSelect}
-                {$fromSql}
-                ORDER BY o.GeaendertAm ASC, o.Id ASC
-                LIMIT :limit OFFSET :offset";
+        $sql = <<<SQL
+            SELECT
+                o.Id AS order_id,
+                o.Kunde AS customer_id,
+                o.Jahr AS order_year,
+                o.KW AS order_week,
+                o.Mo,
+                o.Di,
+                o.Mi,
+                o.Do,
+                o.Fr,
+                ca.article_id,
+                a.article_number,
+                o.GeaendertAm,
+                c.Nummer AS customer_number,
+                c.lex_customer_number,
+                {$verarbeitetSelect}
+
+            {$fromSql}
+            ORDER BY o.GeaendertAm ASC, o.Id ASC
+            LIMIT :limit OFFSET :offset 
+        SQL;
 
         $stmt = $this->db->prepare($sql);
 
@@ -173,8 +179,6 @@ class OrderRepository
 
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        Logger::log('OrderRepository', 'SQL executed: %s', $sql);
-        Logger::log('OrderRepository', 'Params: %s', json_encode($params));
         Logger::log('OrderRepository', 'Found %d orders', count($orders));
 
         return [
@@ -202,9 +206,7 @@ class OrderRepository
         $params = [];
         $paramTypes = [];
 
-        $customerId = $filters['customer_id']
-            ?? $filters['Kunde']
-            ?? null;
+        $customerId = $filters['customer_id'] ?? $filters['Kunde'] ?? null;
 
         if ($customerId !== null && $customerId !== '') {
             // restrict to a single customer if provided
@@ -215,11 +217,12 @@ class OrderRepository
 
         $orderIdsFilter = [];
 
-        if (isset($filters['order_id']) && $filters['order_id'] !== null && $filters['order_id'] !== '') {
+        if ($this->filterValueProvided($filters, 'order_id')) {
             $orderIdsFilter[] = (int) $filters['order_id'];
         }
 
-        if (isset($filters['order_ids']) && is_array($filters['order_ids'])) {
+        if ($this->filterValueProvided($filters, 'order_ids') && is_array($filters['order_ids'])) {
+
             foreach ($filters['order_ids'] as $candidate) {
                 if ($candidate === null || $candidate === '') {
                     continue;
@@ -238,6 +241,7 @@ class OrderRepository
         $orderIdsFilter = array_values(array_unique(array_filter($orderIdsFilter, static fn(int $id): bool => $id > 0)));
 
         if ($orderIdsFilter) {
+
             $placeholders = [];
 
             foreach ($orderIdsFilter as $index => $orderId) {
@@ -255,11 +259,10 @@ class OrderRepository
             $where[] = '(o.verarbeitet = 0 OR o.verarbeitet IS NULL)';
         }
 
-        $whereSql = $where
-            ? 'WHERE ' . implode(' AND ', $where)
-            : '';
+        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
         $deliveryFrom = null;
+
         if ($this->filterValueProvided($filters, 'liefer_datum_von')) {
             $deliveryFrom = $this->normalizeBoundaryDate($filters['liefer_datum_von'], 'liefer_datum_von');
         }
@@ -270,20 +273,21 @@ class OrderRepository
         }
 
         // fetch raw orders rows for the selected customers/weeks
-        $sql = "SELECT 
-                    o.Id AS order_id,
-                    o.Kunde AS customer_id,
-                    o.Jahr AS order_year,
-                    o.KW AS order_week,
-                    o.Mo,
-                    o.Di,
-                    o.Mi,
-                    o.Do,
-                    o.Fr,
-                    ca.article_id,
-                    a.article_number,
-                    a.name AS article_name,
-                    c.name AS customer_name
+        $sql = <<<SQL
+            SELECT 
+                o.Id AS order_id,
+                o.Kunde AS customer_id,
+                o.Jahr AS order_year,
+                o.KW AS order_week,
+                o.Mo,
+                o.Di,
+                o.Mi,
+                o.Do,
+                o.Fr,
+                ca.article_id,
+                a.article_number,
+                a.name AS article_name,
+                c.name AS customer_name
                     
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
@@ -293,7 +297,8 @@ class OrderRepository
                 LEFT JOIN {$this->articleTable} a
                     ON a.id = ca.article_id
                 {$whereSql}
-                ORDER BY o.Id ASC, o.Kunde, o.Jahr, o.KW";
+                ORDER BY o.Id ASC, o.Kunde, o.Jahr, o.KW
+        SQL;
 
         $stmt = $this->db->prepare($sql);
 
@@ -340,7 +345,9 @@ class OrderRepository
         $missingPrices = [];
 
         $formatList = static function (array $values): string {
+
             $unique = array_values(array_unique(array_map(static fn($value) => (string) $value, $values)));
+            
             if (!$unique) {
                 return '-';
             }
@@ -559,11 +566,10 @@ class OrderRepository
         try {
             // Start transaction for atomic operation
             $this->db->beginTransaction();
-            
+
             try {
-                // Step 1: Generate line items from orders (reuses existing logic)
+                // Step 1: Generate and persist line items from orders
                 $lineItemsByCustomer = $this->generateLineItemsFromOrders($filters);
-                
 
                 if (empty($lineItemsByCustomer)) {
                     $this->db->rollBack();
@@ -574,38 +580,21 @@ class OrderRepository
                     ];
                 }
 
-                // Step 2: Batch fetch customer numbers upfront for efficiency
-                $customerIds = array_keys($lineItemsByCustomer);
-                $customerNumbers = $this->fetchCustomerNumbersBatch($customerIds);
-
-                // Step 3: Persist line items for each customer
+                // Step 2: Count line items and customers
                 $totalLineItems = 0;
                 $customersProcessed = [];
-                $warnings = [];
-                
+                $persistedIds = [];
+
                 foreach ($lineItemsByCustomer as $customerId => $customerLineItems) {
                     if (!is_array($customerLineItems) || empty($customerLineItems)) {
                         continue;
                     }
-
-                    if (!isset($customerNumbers[$customerId])) {
-                        $warnings[] = "Customer ID {$customerId} not found in database";
-                        continue;
-                    }
-                    
-                    $result = $this->lineItemRepository->persistLineItemsForCustomer(
-                        $customerId,
-                        $customerLineItems
-                    );
-                    
-                    $totalLineItems += $result['persisted'];
-                    
-                    if ($result['persisted'] > 0) {
-                        $customersProcessed[] = (int)$customerId;
-                    }
-                    
-                    if (!empty($result['errors'])) {
-                        $warnings = array_merge($warnings, $result['errors']);
+                    $totalLineItems += count($customerLineItems);
+                    $customersProcessed[] = (int)$customerId;
+                    foreach ($customerLineItems as $item) {
+                        if (isset($item['id'])) {
+                            $persistedIds[] = $item['id'];
+                        }
                     }
                 }
 
@@ -615,18 +604,16 @@ class OrderRepository
                         'lineItemsGenerated' => 0,
                         'invoicesCreated' => 0,
                         'customers' => [],
-                        'warnings' => $warnings,
                     ];
                 }
 
-                // Step 4: Create invoices for pending line items using stored procedure
-                $invoiceRepository = new InvoiceRepository();
+
+                // Step 3: Create invoices for pending line items using stored procedure
                 $voucherDate = $filters['voucher_date'] ?? null;
-                
-                $invoiceResult = $invoiceRepository->createInvoicesForPendingLineItemsViaStoredProc($voucherDate);
-                
-                $invoicesCreated = is_array($invoiceResult['createdInvoices'] ?? null) 
-                    ? count($invoiceResult['createdInvoices']) 
+                $invoiceResult = $this->invoiceRepository->createInvoicesForPendingLineItemsViaStoredProc($voucherDate);
+
+                $invoicesCreated = is_array($invoiceResult['createdInvoices'] ?? null)
+                    ? count($invoiceResult['createdInvoices'])
                     : 0;
 
                 $this->db->commit();
@@ -636,14 +623,11 @@ class OrderRepository
                     'invoicesCreated' => $invoicesCreated,
                     'customers' => $customersProcessed,
                     'invoices' => $invoiceResult['createdInvoices'] ?? [],
+                    'persistedIds' => $persistedIds,
                 ];
-                
-                if (!empty($warnings)) {
-                    $response['warnings'] = $warnings;
-                }
-                
+
                 return $response;
-                
+
             } catch (\Throwable $e) {
                 // Rollback on any error during transaction
                 if ($this->db->inTransaction()) {
@@ -676,10 +660,16 @@ class OrderRepository
 
         $customerTable = lexbridge_table('customer');
         $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
-        
-        $stmt = $this->db->prepare(
-            "SELECT id, customer_number FROM {$customerTable} WHERE id IN ({$placeholders})"
-        );
+
+        $sql = <<<SQL
+            SELECT 
+                id, 
+                Nummer AS customer_number 
+            FROM {$customerTable} 
+            WHERE id IN ({$placeholders})
+        SQL;
+
+        $stmt = $this->db->prepare($sql);
         $stmt->execute($customerIds);
         
         $customerNumbers = [];
