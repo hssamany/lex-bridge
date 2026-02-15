@@ -172,21 +172,21 @@ class LexBridge {
                 }
             },
             {
-                id: 'rechn',
-                label: 'Rechn',
-                content: invoicesContent
-            },
-            {
                 id: 'bestellg',
-                label: 'Bestellg.',
+                label: 'Bestellungen',
                 content: ordersContent,
                 action: ordersAction
             },
             {
                 id: 'posn',
-                label: 'Posn',
+                label: 'Positionen',
                 content: lineItemsContent,
                 action: lineItemsAction
+            },
+            {
+                id: 'rechn',
+                label: 'Rechnungen',
+                content: invoicesContent
             }
         ];
 

@@ -37,14 +37,16 @@ final class InvoiceRepository
      */
     public function findById(string $id): ?array
     {
-        $sql = "SELECT 
-                    i.*,
-                    c.lex_contact_id,
-                    c.Name AS company_name
-                FROM {$this->invoiceTable} i
-                LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id
+        $sql = <<<SQL
+            SELECT 
+                i.*,
+                c.lex_contact_id,
+                c.Name AS company_name
+            FROM {$this->invoiceTable} i
+            LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id
                 WHERE i.id = :id
-                LIMIT 1";
+                LIMIT 1
+        SQL;
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':id' => $id]);
@@ -151,10 +153,12 @@ final class InvoiceRepository
      */
     public function findLineItemsByInvoiceId(string $invoiceId): array
     {
-        $sql = "SELECT * 
-                FROM {$this->lineItemTable}
-                WHERE invoice_id = :invoice_id
-                ORDER BY line_order ASC";
+        $sql = <<<SQL
+            SELECT * 
+            FROM {$this->lineItemTable}
+            WHERE invoice_id = :invoice_id
+            ORDER BY line_order ASC
+        SQL;
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':invoice_id' => $invoiceId]);

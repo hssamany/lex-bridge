@@ -28,21 +28,21 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
         <template id="contacts-tab-content">
             <?php $homeView->renderContactsTabContent(); ?>
         </template>
-        
-        <template id="invoices-tab-content">
-            <?php $homeView->renderInvoicesTabContent(); ?>
+                
+        <template id="orders-tab-content">
+            <?php $homeView->renderOrdersTabContent(); ?>
         </template>
 
         <template id="line-items-tab-content">
             <?php $homeView->renderLineItemsTabContent(); ?>
         </template>
-
+        
         <template id="line-items-filter-template">
             <?php $homeView->renderLineItemsFilter(); ?>
         </template>
 
-        <template id="orders-tab-content">
-            <?php $homeView->renderOrdersTabContent(); ?>
+        <template id="invoices-tab-content">
+            <?php $homeView->renderInvoicesTabContent(); ?>
         </template>
 
         <template id="orders-filter-template">
