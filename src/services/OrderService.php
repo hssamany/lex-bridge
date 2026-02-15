@@ -81,7 +81,7 @@ final class OrderService
         }
 
         try {
-            $results = $this->repository->generateInvoiceLineItemsFromOrders([
+            $results = $this->repository->generateLineItemsFromOrders([
                 'order_ids' => $normalized['orderIds'],
             ]);
         } catch (Throwable $exception) {

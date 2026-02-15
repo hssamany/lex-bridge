@@ -23,6 +23,7 @@ final class InvoiceController
      * Get all invoices with optional filters
      * 
      * @param array $filters Optional filters (customer_id, status, from_date, to_date)
+     * @param array $pagination Optional pagination parameters (page, page_size)
      * @return array Formatted invoices list response data
      */
     public function getInvoices(array $filters = [], array $pagination = []): array
@@ -53,13 +54,11 @@ final class InvoiceController
     /**
      * Create a new invoice with line items
      *
-     * @param int $customerId
-     * @param string|null $currency
      * @param array $lineItems
      * @return array Result from InvoiceService
      */
-    public function createInvoiceWithItems(int $customerId, ?string $currency, array $lineItems): array
+    public function createInvoiceWithItems(array $lineItems): array
     {
-        return $this->invoiceService->createInvoiceWithItems($customerId, $currency, $lineItems);
+        return $this->invoiceService->createInvoiceWithItems($lineItems);
     }
 }

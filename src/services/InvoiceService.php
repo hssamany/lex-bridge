@@ -146,17 +146,11 @@ final class InvoiceService
     /**
      * Create a new invoice with line items.
      *
-     * @param int $customerId
-     * @param string|null $currency
      * @param array<int, array<string, mixed>> $lineItems
      * @return array{invoice_id:int|null,error_code:int,error_message:string}
      */
-    public function createInvoiceWithItems(
-        int $customerId,
-        ?string $currency,
-        array $lineItems
-    ): array {
-        $normalizedCurrency = $this->normalizeCurrency($currency);
+    public function createInvoiceWithItems(array $lineItems): array {
+
         $validatedLineItems = $this->validateLineItems($lineItems);
 
         if (!empty($validatedLineItems['errors'])) {
@@ -167,26 +161,9 @@ final class InvoiceService
             ];
         }
 
-        $result = $this->repository->createInvoiceWithItems(
-            $customerId,
-            $normalizedCurrency,
-            $validatedLineItems['items']
-        );
+        $result = $this->repository->createInvoiceWithItems($validatedLineItems['items']);
 
-        if ($result['invoice_id'] !== null) {
-            Logger::info(sprintf(
-                'Invoice created - ID: %s, Customer: %d, Items: %d',
-                $result['invoice_id'],
-                $customerId,
-                count($validatedLineItems['items'])
-            ), 'InvoiceService');
-        } else {
-            Logger::info(sprintf(
-                'Invoice creation failed - Customer: %d, Error: %s',
-                $customerId,
-                $result['error_message']
-            ), 'InvoiceService');
-        }
+        $customerIds = array_unique(array_map(fn($item) => $item['customer_id'] ?? null, $validatedLineItems['items']));
 
         return $result;
     }

@@ -7,6 +7,7 @@ namespace Luxullus\LexBridge\Api;
 use DateTime;
 use Luxullus\LexBridge\Http\HttpClient;
 use Luxullus\LexBridge\Controllers\ControllerFactory;
+use Luxullus\LexBridge\Logger;
 
 final class ApiKernel {
 
@@ -15,12 +16,12 @@ final class ApiKernel {
 
     public function __construct()
     {
-        error_log('[ApiKernel] Constructor started');
+        Logger::info('[ApiKernel] Constructor started', 'ApiKernel');
         
         $this->httpClient = new HttpClient(API_KEY, API_BASE_URL);
         $this->router = new ApiRouter();
 
-        error_log('[ApiKernel] Registering routes...');
+        Logger::info('[ApiKernel] Registering routes...', 'ApiKernel');
         
         $this->getInvoicesRouteRegistration();
         $this->postInvoiceRouteRegistration();
@@ -38,7 +39,7 @@ final class ApiKernel {
         $this->postOrdersGenerateRouteRegistration();
         $this->postOrdersGenerateInvoicesRouteRegistration();
         
-        error_log('[ApiKernel] All routes registered successfully');
+        Logger::info('[ApiKernel] All routes registered successfully', 'ApiKernel');
     }
 
     /**
@@ -67,6 +68,7 @@ final class ApiKernel {
         $this->router->get('/customers/search', function() {
             $controller = ControllerFactory::makeCustomerController($this->httpClient);
             $query = isset($_GET['q']) ? trim($_GET['q']) : null;
+            Logger::info('[ApiKernel] Searching customers with query: ' . ($query ?? 'null'), 'ApiKernel');
             return $controller->searchCustomers($query);
         });
     }
@@ -76,6 +78,7 @@ final class ApiKernel {
         $this->router->get('/articles/search', function() {
             $controller = ControllerFactory::makeArticleController($this->httpClient);
             $query = isset($_GET['q']) ? trim($_GET['q']) : null;
+            Logger::info('[ApiKernel] Searching articles with query: ' . ($query ?? 'null'), 'ApiKernel');
             return $controller->searchArticles($query);
         });
     }
@@ -378,13 +381,14 @@ final class ApiKernel {
             $currency = $data['currency'] ?? null;
             $lineItems = $data['line_items'] ?? [];
 
-            if (!$customerId || empty($lineItems)) {
+            
+            if (empty($lineItems)) {
                 return [
                     'isSuccess' => false,
                     'error' => 'customer_id and line_items are required'
                 ];
             }
-            return $controller->createInvoiceWithItems((int)$customerId, $currency, $lineItems);
+            return $controller->createInvoiceWithItems($lineItems);
         });
     }
 

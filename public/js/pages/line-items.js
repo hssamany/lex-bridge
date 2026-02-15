@@ -471,10 +471,10 @@ class LineItemsPage {
         }
 
         const customerId = this.getSelectedCustomerId();
-        if (!customerId) {
-            this.showToast('Bitte wählen Sie einen Kunden aus.', 'warning');
-            return;
-        }
+        // if (!customerId) {
+        //     this.showToast('Bitte wählen Sie einen Kunden aus.', 'warning');
+        //     return;
+        // }
 
         try {
             const lineItems = selectedIds.map((id) => {

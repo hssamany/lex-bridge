@@ -38,18 +38,10 @@ final class OrderLineItemBuilder
         ): array {
 
         
-        $internalCustomerId = null;
-        if (isset($orderRow['customer_internal_id']) && $orderRow['customer_internal_id'] !== null) {
-            $internalCustomerId = (int) $orderRow['customer_internal_id'];
-        } elseif (isset($orderRow['customer_id'])) {
-            $internalCustomerId = (int) $orderRow['customer_id'];
-        }
-        
         $payload = [
             'order_id' => (int) $orderRow['order_id'],
             'order_delivery_date' => $deliveryDate->format('Y-m-d'),
-            'customer_id' => $internalCustomerId,
-            'customer_reference' => (int) $orderRow['customer_id'],
+            'customer_id' => (int)($orderRow['customer_id']??0),
             'article_id' => (int) $orderRow['article_id'],
             'article_number' => $orderRow['article_number'] ?? null,
             'article_name' => $orderRow['article_name'] ?? null,

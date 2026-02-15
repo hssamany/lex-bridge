@@ -195,6 +195,7 @@ class OrderRepository
      */
     public function generateLineItemsFromOrders(array $filters = []): array
     {
+        Logger::info('<<<Generating line items from orders with filters: ' . json_encode($filters), 'OrderRepository');
         $where = [];
         $params = [];
         $paramTypes = [];
@@ -270,7 +271,6 @@ class OrderRepository
         $sql = <<<SQL
             SELECT 
                 o.Id AS order_id,
-                o.Kunde AS customer_id,
                 o.Jahr AS order_year,
                 o.KW AS order_week,
                 o.Mo,
@@ -281,7 +281,7 @@ class OrderRepository
                 ca.article_id,
                 a.article_number,
                 a.name AS article_name,
-                c.name AS customer_name
+                c.id AS customer_id
                     
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c

@@ -98,7 +98,7 @@ class LineItemRepository
             {$fromSql}
             {$whereSql}
         SQL;
-        
+
         $countStmt = $this->db->prepare($countSql);
         $countStmt->execute($params);
         $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
@@ -227,12 +227,12 @@ class LineItemRepository
 
                 $sql = <<<SQL
                     INSERT INTO {$this->lineItemTable} (
-                        id, article_id, article_number, name, description,
+                        id, article_id, article_number,customer_id, name, description,
                         quantity, unit_name, currency, net_amount, gross_amount,
                         tax_rate_percentage, line_total_net, line_total_gross,
                         order_delivery_date, line_order, order_id, created_at
                     ) VALUES (
-                        :id, :article_id, :article_number, :name, :description,
+                        :id, :article_id, :article_number, :customer_id, :name, :description,
                         :quantity, :unit_name, :currency, :net_amount, :gross_amount,
                         :tax_rate_percentage, :line_total_net, :line_total_gross,
                         :order_delivery_date, :line_order, :order_id, NOW()
@@ -244,6 +244,7 @@ class LineItemRepository
                     ':id' => $lineItemId,
                     ':article_id' => $item['article_id'] ?? null,
                     ':article_number' => $item['article_number'] ?? null,
+                    ':customer_id' => $item['customer_id'] ?? null,
                     ':name' => $item['article_name'] ?? $item['name'] ?? null,
                     ':description' => $item['description'] ?? null,
                     ':quantity' => $item['quantity'] ?? null,
@@ -267,7 +268,6 @@ class LineItemRepository
             }
         }
 
-        Logger::info('Inserting line item: ' . $persistedCount, 'LineItemRepository');
         $persistedIds = $persistedCount > 0 ? array_map(fn($i) => $i['id'], $lineItems) : [];
 
         return [
