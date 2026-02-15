@@ -238,14 +238,13 @@ final class ApiKernel {
     private function postOrdersGenerateInvoicesRouteRegistration(): void
     {
         $this->router->post('/orders/generate-invoices', function () {
-            $controller = ControllerFactory::makeOrderController();
-
+            
             $payload = json_decode(file_get_contents('php://input'), true);
             if (!is_array($payload)) {
                 $payload = [];
             }
 
-            $orderIds = [];
+            $orderIds = [];            
 
             if (isset($payload['order_ids']) && is_array($payload['order_ids'])) {
                 $orderIds = $payload['order_ids'];
@@ -263,8 +262,10 @@ final class ApiKernel {
                     'error' => 'At least one order_id must be provided.',
                 ];
             }
-
-            return $controller->generateInvoicesFromOrders($orderIds);
+//---
+            Logger::info('XXXXXX2' . json_encode($orderIds), 'ApiKernel');
+            $orderController = ControllerFactory::makeOrderController();
+            return $orderController->generateInvoicesFromOrders($orderIds);
         });
     }
     

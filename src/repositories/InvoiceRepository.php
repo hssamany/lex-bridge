@@ -242,94 +242,88 @@ final class InvoiceRepository
         $skippedLineItems = [];
 
         foreach ($lineItemsByCustomer as $customerId => $lineItems) {
+            
             if (empty($lineItems)) {
                 continue;
             }
+
             try {
-                $this->db->beginTransaction();
-                // Calculate totals
-                $currency = $lineItems[0]['currency'] ?? null;
-                $totalNet = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['net_amount'] ?? 0), 0.0);
-                $totalGross = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['gross_amount'] ?? 0), 0.0);
-                $invoiceDate = date('Y-m-d');
 
-                // Find earliest shipping date from line items
-                $deliveryDates = array_column($lineItems, 'order_delivery_date');
-                $shippingDate = !empty($deliveryDates) ? min($deliveryDates) : null;
+                $this->db->beginTransaction(); 
+                {
 
-                // Insert invoice
-                $invoiceSql = <<<SQL
-                    INSERT INTO {$this->invoiceTable} 
-                    (id, contact_id, voucher_date, shipping_date, total_net_amount, total_gross_amount, currency, status, created_at) 
-                    VALUES 
-                    (:id, :contact_id, :voucher_date, :shipping_date, :total_net_amount, :total_gross_amount, :currency, :status, :created_at)
-                SQL;
+                    // Calculate totals
+                    $currency = $lineItems[0]['currency'] ?? null;
+                    $totalNet = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['net_amount'] ?? 0), 0.0);
+                    $totalGross = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['gross_amount'] ?? 0), 0.0);
+                    $invoiceDate = date('Y-m-d');
 
-                $newInvoiceId = UuidUtil::generateUuid();
-                Logger::info("PPPPP Creating invoice",json_encode(
-                    [
+                    // Find earliest shipping date from line items
+                    $deliveryDates = array_column($lineItems, 'order_delivery_date');
+                    $shippingDate = !empty($deliveryDates) ? min($deliveryDates) : null;
+
+                    // Insert invoice
+                    $invoiceSql = <<<SQL
+                        INSERT INTO {$this->invoiceTable} 
+                        (id, contact_id, voucher_date, shipping_date, total_net_amount, total_gross_amount, currency, status, created_at) 
+                        VALUES 
+                        (:id, :contact_id, :voucher_date, :shipping_date, :total_net_amount, :total_gross_amount, :currency, :status, :created_at)
+                    SQL;
+
+                    $newInvoiceId = UuidUtil::generateUuid();
+                    
+                    $invoiceStmt = $this->db->prepare($invoiceSql);
+                    $invoiceStmt->bindValue(':id', $newInvoiceId, PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':contact_id', $customerId, PDO::PARAM_INT);
+                    $invoiceStmt->bindValue(':voucher_date', $invoiceDate, PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':shipping_date', $shippingDate, $shippingDate === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':total_net_amount', $totalNet, PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':total_gross_amount', $totalGross, PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':currency', $currency, $currency === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':status', 'draft', PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':created_at', date('Y-m-d H:i:s'), PDO::PARAM_STR);
+                    $invoiceStmt->execute();
+                    
+
+                    if (!$newInvoiceId) {
+                        Logger::info("XXXXFailed to create invoice for customer $customerId - No ID returned", 'InvoiceRepository');
+                        $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));
+                        $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
+                        $this->db->rollBack();
+                        continue;
+                    }
+                    // Batch update line items to reference this invoice
+                    $lineItemIds = array_filter(array_column($lineItems, 'id'), fn($id) => !empty($id));
+                    if (!empty($lineItemIds)) {
+                        $inClause = implode(',', array_map('intval', $lineItemIds));
+                        $updateSql = <<<SQL
+                            UPDATE {$this->lineItemTable} 
+                            SET invoice_id = :invoice_id 
+                            WHERE id IN ({$inClause})
+                        SQL;
+                        $updateStmt = $this->db->prepare($updateSql);
+                        $updateStmt->bindValue(':invoice_id', $newInvoiceId, PDO::PARAM_STR);
+                        $updateStmt->execute();
+                    } else {
+                        $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));
+                        $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
+                        $this->db->rollBack();
+                        continue;
+                    }
+
+                    $createdInvoices[] = [
                         'id' => $newInvoiceId,
-                        'customer_id' => $customerId,
+                        'invoice_id' => $newInvoiceId,
+                        'contact_id' => $customerId,
                         'voucher_date' => $invoiceDate,
-                        'shipping_date' => $shippingDate,
                         'total_net_amount' => $totalNet,
                         'total_gross_amount' => $totalGross,
                         'currency' => $currency,
-                        'status' => 'draft',
-                        'created_at' => date('Y-m-d H:i:s')
-                    ],JSON_PRETTY_PRINT),
-                    'InvoiceRepository'
-                );
-                
-                $invoiceStmt = $this->db->prepare($invoiceSql);
-                $invoiceStmt->bindValue(':id', $newInvoiceId, PDO::PARAM_STR);
-                $invoiceStmt->bindValue(':contact_id', $customerId, PDO::PARAM_INT);
-                $invoiceStmt->bindValue(':voucher_date', $invoiceDate, PDO::PARAM_STR);
-                $invoiceStmt->bindValue(':shipping_date', $shippingDate, $shippingDate === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-                $invoiceStmt->bindValue(':total_net_amount', $totalNet, PDO::PARAM_STR);
-                $invoiceStmt->bindValue(':total_gross_amount', $totalGross, PDO::PARAM_STR);
-                $invoiceStmt->bindValue(':currency', $currency, $currency === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-                $invoiceStmt->bindValue(':status', 'draft', PDO::PARAM_STR);
-                $invoiceStmt->bindValue(':created_at', date('Y-m-d H:i:s'), PDO::PARAM_STR);
-                $invoiceStmt->execute();
-                
+                        'line_item_count' => count($lineItems),
+                    ];
+                    
+                } $this->db->commit();
 
-                if (!$newInvoiceId) {
-                    Logger::info("XXXXFailed to create invoice for customer $customerId - No ID returned", 'InvoiceRepository');
-                    $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));
-                    $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
-                    $this->db->rollBack();
-                    continue;
-                }
-                // Batch update line items to reference this invoice
-                $lineItemIds = array_filter(array_column($lineItems, 'id'), fn($id) => !empty($id));
-                if (!empty($lineItemIds)) {
-                    $inClause = implode(',', array_map('intval', $lineItemIds));
-                    $updateSql = <<<SQL
-                        UPDATE {$this->lineItemTable} 
-                        SET invoice_id = :invoice_id 
-                        WHERE id IN ({$inClause})
-                    SQL;
-                    $updateStmt = $this->db->prepare($updateSql);
-                    $updateStmt->bindValue(':invoice_id', $newInvoiceId, PDO::PARAM_STR);
-                    $updateStmt->execute();
-                } else {
-                    $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));
-                    $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
-                    $this->db->rollBack();
-                    continue;
-                }
-                $createdInvoices[] = [
-                    'id' => $newInvoiceId,
-                    'invoice_id' => $newInvoiceId,
-                    'contact_id' => $customerId,
-                    'voucher_date' => $invoiceDate,
-                    'total_net_amount' => $totalNet,
-                    'total_gross_amount' => $totalGross,
-                    'currency' => $currency,
-                    'line_item_count' => count($lineItems),
-                ];
-                $this->db->commit();
             } catch (\Throwable $exception) {
 
                 if ($this->db->inTransaction()) {

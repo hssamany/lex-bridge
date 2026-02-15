@@ -34,8 +34,6 @@ class LineItemRepository
      */
     public function findLineItems(array $filters = [], array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        Logger::info('<<<Fetching line items with filters: ' . json_encode($filters), 'LineItemRepository');
-        
         $selectSql = <<<SQL
             SELECT 
                 li.id,
@@ -114,9 +112,8 @@ class LineItemRepository
         $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
         $stmt->execute();
 
-
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        Logger::info('>>>Fetched line items: ' . json_encode($results), 'LineItemRepository');
+
         return [
             'items' => $results,
             'total_count' => $totalCount,
@@ -208,11 +205,10 @@ class LineItemRepository
     /**
      * Persist line items for a single customer.
      *
-     * @param int $customerId
      * @param array<int, array<string, mixed>> $lineItems
      * @return array{persisted: int, errors: array<string>}
      */
-    public function persistLineItemsForCustomer(int $customerId, array $lineItems): array
+    public function persistLineItemsForCustomer(array $lineItems): array
     {
         if (empty($lineItems)) {
             return ['persisted' => 0, 'errors' => []];
@@ -221,6 +217,7 @@ class LineItemRepository
         $persistedCount = 0;
         $errors = [];
 
+        $insertedIds = [];
         foreach ($lineItems as $index => $item) {
             try {
                 $lineItemId = UuidUtil::generateUuid();
@@ -239,12 +236,14 @@ class LineItemRepository
                     )
                 SQL;
 
+                $customerId = $item['customer_id'] ?? throw new \InvalidArgumentException("Missing customer_id for line item at index {$index}");
+
                 $stmt = $this->db->prepare($sql);
-                $stmt->execute([
+                $success = $stmt->execute([
                     ':id' => $lineItemId,
                     ':article_id' => $item['article_id'] ?? null,
                     ':article_number' => $item['article_number'] ?? null,
-                    ':customer_id' => $item['customer_id'] ?? null,
+                    ':customer_id' => $customerId,
                     ':name' => $item['article_name'] ?? $item['name'] ?? null,
                     ':description' => $item['description'] ?? null,
                     ':quantity' => $item['quantity'] ?? null,
@@ -261,18 +260,23 @@ class LineItemRepository
                 ]);
 
                 $persistedCount++;
+                $insertedIds[] = $lineItemId;
+
             } catch (\Throwable $e) {
+
                 $articleInfo = $item['article_number'] ?? $item['name'] ?? "item #{$index}";
-                $errors[] = "Failed to persist {$articleInfo} for customer {$customerId}: " . $e->getMessage();
-                Logger::info(end($errors), 'LineItemRepository');
+                $errorMsge = "Failed to persist line item  " . implode(', ', $insertedIds) . ": " . $e->getMessage();
+                $errors[] = $errorMsge;
+                Logger::exception($e, 'LineItemRepository');
+
             }
         }
 
-        $persistedIds = $persistedCount > 0 ? array_map(fn($i) => $i['id'], $lineItems) : [];
+        $persistedIds = $persistedCount > 0 ? $insertedIds : [];
 
         return [
             'errors' => $errors, 
-            'persisted' => $persistedCount, 
+            'persisted' => count($persistedIds) , 
             'persisted_ids' => $persistedIds
         ];
     }

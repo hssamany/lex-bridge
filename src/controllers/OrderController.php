@@ -8,11 +8,11 @@ use Luxullus\LexBridge\Services\OrderService;
 
 final class OrderController
 {
-    private OrderService $service;
+    private OrderService $orderService;
 
-    public function __construct(OrderService $service)
+    public function __construct(OrderService $orderService)
     {
-        $this->service = $service;
+        $this->orderService = $orderService;
     }
 
     /**
@@ -21,12 +21,12 @@ final class OrderController
      */
     public function getOrders(array $filters, array $pagination = []): array
     {
-        return $this->service->getOrders($filters, $pagination);
+        return $this->orderService->getOrders($filters, $pagination);
     }
 
     public function generateLineItemsForOrder(int $orderId): array
     {
-        return $this->service->generateLineItemsFromOrder($orderId);
+        return $this->orderService->generateLineItemsFromOrder($orderId);
     }
 
     /**
@@ -35,7 +35,7 @@ final class OrderController
      */
     public function generateLineItemsForOrders(array $orderIds): array
     {
-        return $this->service->generateLineItemsFromOrders($orderIds);
+        return $this->orderService->generateLineItemsFromOrders($orderIds);
     }
 
     /**
@@ -44,6 +44,6 @@ final class OrderController
      */
     public function generateInvoicesFromOrders(array $orderIds): array
     {
-        return $this->service->generateInvoicesFromOrders($orderIds);
+        return $this->orderService->generateInvoicesFromOrders($orderIds);
     }
 }
