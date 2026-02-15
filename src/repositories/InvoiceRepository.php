@@ -63,22 +63,26 @@ final class InvoiceRepository
      */
     public function findAll(array $filters = [], array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        $selectSql = "SELECT 
-                    i.id,
-                    i.voucher_date,
-                    i.title,
-                    i.status,
-                    i.total_gross_amount,
-                    i.currency,
-                    i.created_at,
-                    i.transmitted_at,
-                    i.contact_id,
-                    i.transmission_attempts,
-                    c.Name AS company_name,
-                    (SELECT COUNT(*) FROM {$this->lineItemTable} li WHERE li.invoice_id = i.id) as item_count";
+        $selectSql = <<<SQL
+            SELECT 
+                i.id,
+                i.voucher_date,
+                i.title,
+                i.status,
+                i.total_gross_amount,
+                i.currency,
+                i.created_at,
+                i.transmitted_at,
+                i.contact_id,
+                i.transmission_attempts,
+                c.Name AS company_name,
+                (SELECT COUNT(*) FROM {$this->lineItemTable} li WHERE li.invoice_id = i.id) as item_count
+            SQL;
 
-        $fromSql = "FROM {$this->invoiceTable} i
-                LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id";
+        $fromSql = <<<SQL
+            FROM {$this->invoiceTable} i
+            LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id
+        SQL;
 
         $where = [];
         $params = [];
@@ -108,12 +112,23 @@ final class InvoiceRepository
             $whereSql = " WHERE " . implode(" AND ", $where);
         }
 
-        $countSql = "SELECT COUNT(*) AS total {$fromSql}{$whereSql}";
+        $countSql = <<<SQL
+            SELECT COUNT(*) AS total
+            {$fromSql}
+            {$whereSql}
+        SQL;
+
         $countStmt = $this->db->prepare($countSql);
         $countStmt->execute($params);
         $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 
-        $sql = "{$selectSql} {$fromSql}{$whereSql} ORDER BY i.voucher_date DESC, i.created_at DESC LIMIT :limit OFFSET :offset";
+        $sql = <<<SQL
+            {$selectSql}
+            {$fromSql}
+            {$whereSql}
+            ORDER BY i.created_at DESC
+            LIMIT :limit OFFSET :offset
+        SQL;
 
         $stmt = $this->db->prepare($sql);
         foreach ($params as $name => $value) {
@@ -184,17 +199,20 @@ final class InvoiceRepository
         $where = [];
         $params = [];
 
-
         if (!empty($lineItemIds)) {
-            // Use line item IDs filter
+
             $placeholders = implode(',', array_fill(0, count($lineItemIds), '?'));
+            
+            // Use line item IDs filter
             $where[] = "li.id IN ($placeholders)";
-            foreach ($lineItemIds as $id) {
-                $params[] = $id;
-            }
+
+            // Ensure all line item IDs are integers
+            $params = array_values($lineItemIds??[]);
+
         } else {
             // Use date range filter
             $where[] = "li.invoice_id IS NULL";
+
             if ($deliveryDateFrom !== null) {
                 $where[] = "li.order_delivery_date >= ?";
                 $params[] = $deliveryDateFrom;
@@ -220,15 +238,14 @@ final class InvoiceRepository
                 li.gross_amount,
                 li.currency,
                 li.order_delivery_date
+
             FROM {$this->lineItemTable} li
             WHERE $whereSql
-        SQL;
-
-        logger::info("XXX: " . $sql, 'InvoiceRepository');
-        
+        SQL;        
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
+
         $lineItemRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Group line items by customer
@@ -256,12 +273,11 @@ final class InvoiceRepository
                     $currency = $lineItems[0]['currency'] ?? null;
                     $totalNet = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['net_amount'] ?? 0), 0.0);
                     $totalGross = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['gross_amount'] ?? 0), 0.0);
-                    $invoiceDate = date('Y-m-d');
-
+                    
                     // Find earliest shipping date from line items
                     $deliveryDates = array_column($lineItems, 'order_delivery_date');
                     $shippingDate = !empty($deliveryDates) ? min($deliveryDates) : null;
-
+                    
                     // Insert invoice
                     $invoiceSql = <<<SQL
                         INSERT INTO {$this->invoiceTable} 
@@ -269,45 +285,54 @@ final class InvoiceRepository
                         VALUES 
                         (:id, :contact_id, :voucher_date, :shipping_date, :total_net_amount, :total_gross_amount, :currency, :status, :created_at)
                     SQL;
-
+                    
                     $newInvoiceId = UuidUtil::generateUuid();
+                    $invoiceDate = date('Y-m-d');
                     
                     $invoiceStmt = $this->db->prepare($invoiceSql);
+                    $invoiceStmt->bindValue(':status', 'draft', PDO::PARAM_STR);
                     $invoiceStmt->bindValue(':id', $newInvoiceId, PDO::PARAM_STR);
                     $invoiceStmt->bindValue(':contact_id', $customerId, PDO::PARAM_INT);
                     $invoiceStmt->bindValue(':voucher_date', $invoiceDate, PDO::PARAM_STR);
-                    $invoiceStmt->bindValue(':shipping_date', $shippingDate, $shippingDate === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
                     $invoiceStmt->bindValue(':total_net_amount', $totalNet, PDO::PARAM_STR);
                     $invoiceStmt->bindValue(':total_gross_amount', $totalGross, PDO::PARAM_STR);
-                    $invoiceStmt->bindValue(':currency', $currency, $currency === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-                    $invoiceStmt->bindValue(':status', 'draft', PDO::PARAM_STR);
                     $invoiceStmt->bindValue(':created_at', date('Y-m-d H:i:s'), PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':shipping_date', $shippingDate, $shippingDate === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $invoiceStmt->bindValue(':currency', $currency, $currency === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
                     $invoiceStmt->execute();
                     
 
                     if (!$newInvoiceId) {
-                        Logger::info("XXXXFailed to create invoice for customer $customerId - No ID returned", 'InvoiceRepository');
+                        
                         $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));
                         $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
                         $this->db->rollBack();
+
                         continue;
                     }
+
                     // Batch update line items to reference this invoice
                     $lineItemIds = array_filter(array_column($lineItems, 'id'), fn($id) => !empty($id));
+                    
                     if (!empty($lineItemIds)) {
+
                         $inClause = implode(',', array_map('intval', $lineItemIds));
                         $updateSql = <<<SQL
                             UPDATE {$this->lineItemTable} 
                             SET invoice_id = :invoice_id 
                             WHERE id IN ({$inClause})
                         SQL;
+
                         $updateStmt = $this->db->prepare($updateSql);
                         $updateStmt->bindValue(':invoice_id', $newInvoiceId, PDO::PARAM_STR);
                         $updateStmt->execute();
+
                     } else {
+
                         $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));
                         $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
                         $this->db->rollBack();
+
                         continue;
                     }
 
@@ -321,7 +346,7 @@ final class InvoiceRepository
                         'currency' => $currency,
                         'line_item_count' => count($lineItems),
                     ];
-                    
+
                 } $this->db->commit();
 
             } catch (\Throwable $exception) {
@@ -347,6 +372,7 @@ final class InvoiceRepository
     public function updateAfterTransmission(string $invoiceId, array $lexwareResponse): bool
     {
         try {
+
             $this->db->beginTransaction();
 
             $lexCreatedDate = isset($lexwareResponse['createdDate'])
@@ -357,19 +383,22 @@ final class InvoiceRepository
                 ? (new DateTime($lexwareResponse['updatedDate']))->format('Y-m-d H:i:s')
                 : null;
 
-            $sql = "UPDATE {$this->invoiceTable} 
-                    SET status = 'transmitted',
-                        lex_id = :lex_id,
-                        lex_resource_uri = :lex_resource_uri,
-                        lex_version = :lex_version,
-                        lex_created_date = :lex_created_date,
-                        lex_updated_date = :lex_updated_date,
-                        transmitted_at = :transmitted_at,
-                        last_error_message = NULL,
-                        last_error_code = NULL
-                    WHERE id = :id";
+            $sql = <<<SQL
+                UPDATE {$this->invoiceTable} 
+                SET status = 'transmitted',
+                    lex_id = :lex_id,
+                    lex_resource_uri = :lex_resource_uri,
+                    lex_version = :lex_version,
+                    lex_created_date = :lex_created_date,
+                    lex_updated_date = :lex_updated_date,
+                    transmitted_at = :transmitted_at,
+                    last_error_message = NULL,
+                    last_error_code = NULL
+                WHERE id = :id
+            SQL;
 
             $stmt = $this->db->prepare($sql);
+
             $stmt->execute([
                 ':id' => $invoiceId,
                 ':lex_id' => $lexwareResponse['id'] ?? null,
@@ -381,8 +410,11 @@ final class InvoiceRepository
             ]);
 
             $this->db->commit();
+
             return true;
+
         } catch (Exception $e) {
+
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
@@ -398,23 +430,27 @@ final class InvoiceRepository
     public function updateWithError(string $invoiceId, string $errorMessage, ?string $errorCode = null): bool
     {
         try {
-            $sql = "UPDATE {$this->invoiceTable} 
-                    SET status = 'transmission_error',
-                        last_error_message = :error_message,
-                        last_error_code = :error_code,
-                        transmission_attempts = transmission_attempts + 1,
-                        last_transmission_attempt = :last_attempt
-                    WHERE id = :id";
+            $sql = <<<SQL
+                UPDATE {$this->invoiceTable} 
+                SET status = 'transmission_error',
+                    last_error_message = :error_message,
+                    last_error_code = :error_code,
+                    transmission_attempts = transmission_attempts + 1,
+                    last_transmission_attempt = :last_attempt
+                WHERE id = :id
+            SQL;
 
             $stmt = $this->db->prepare($sql);
+
             return $stmt->execute([
                 ':id' => $invoiceId,
                 ':error_message' => $errorMessage,
                 ':error_code' => $errorCode,
                 ':last_attempt' => date('Y-m-d H:i:s')
             ]);
+
         } catch (Exception $e) {
-            Logger::exception($e, 'InvoiceRepository - Update With Error');
+            Logger::exception($e, 'InvoiceRepository');
             return false;
         }
     }
@@ -425,12 +461,20 @@ final class InvoiceRepository
     public function updateStatus(string $invoiceId, string $status): bool
     {
         try {
-            $sql = "UPDATE {$this->invoiceTable} SET status = :status WHERE id = :id";
+
+            $sql = <<<SQL
+                UPDATE {$this->invoiceTable} 
+                SET status = :status
+                WHERE id = :id
+            SQL;
+
             $stmt = $this->db->prepare($sql);
+
             return $stmt->execute([
                 ':id' => $invoiceId,
                 ':status' => $status
             ]);
+
         } catch (Exception $e) {
             Logger::exception($e, 'InvoiceRepository - Update Status');
             return false;
