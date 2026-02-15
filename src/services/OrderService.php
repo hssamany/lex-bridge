@@ -8,14 +8,15 @@ use InvalidArgumentException;
 use Throwable;
 use Luxullus\LexBridge\Repositories\OrderRepository;
 use Luxullus\LexBridge\Services\Pagination;
+use Luxullus\LexBridge\Logger;
 
 final class OrderService
 {
-    private OrderRepository $repository;
+    private OrderRepository $orderRepository;
 
-    public function __construct(OrderRepository $repository)
+    public function __construct(OrderRepository $orderRepository)
     {
-        $this->repository = $repository;
+        $this->orderRepository = $orderRepository;
     }
 
     /**
@@ -28,7 +29,7 @@ final class OrderService
         $paginationState = Pagination::normalize($pagination);
 
         try {
-            $result = $this->repository->getOrders($filters, $paginationState);
+            $result = $this->orderRepository->getOrders($filters, $paginationState);
         } catch (InvalidArgumentException $exception) {
             return [
                 'isSuccess' => false,
@@ -81,7 +82,7 @@ final class OrderService
         }
 
         try {
-            $results = $this->repository->generateLineItemsFromOrders([
+            $results = $this->orderRepository->generateLineItemsFromOrders([
                 'order_ids' => $normalized['orderIds'],
             ]);
         } catch (Throwable $exception) {
@@ -111,9 +112,10 @@ final class OrderService
         }
 
         try {
-            $result = $this->repository->generateInvoicesFromOrders([
-                'order_ids' => $normalized['orderIds'],
+            $result = $this->orderRepository->generateInvoicesFromOrders([
+                'order_ids' => $normalized['orderIds']
             ]);
+
         } catch (Throwable $exception) {
             return [
                 'isSuccess' => false,
@@ -151,9 +153,12 @@ final class OrderService
         $normalized = array_values(array_unique($normalized));
 
         if (!$normalized) {
+
+            Logger::exception(new \InvalidArgumentException('At least one valid order must be selected.'), 'OrderService'); 
+            
             return [
                 'isValid' => false,
-                'error' => 'At least one valid order_id is required.',
+                'error' => 'Mindesten eine Bestellung muss ausgewählt werden.',
             ];
         }
 

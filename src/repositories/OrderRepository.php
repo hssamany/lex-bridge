@@ -195,7 +195,7 @@ class OrderRepository
      */
     public function generateLineItemsFromOrders(array $filters = []): array
     {
-        Logger::info('<<<Generating line items from orders with filters: ' . json_encode($filters), 'OrderRepository');
+        
         $where = [];
         $params = [];
         $paramTypes = [];
@@ -308,21 +308,15 @@ class OrderRepository
 
         $stmt->execute();
 
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // fetch all matching order rows with article info in one go
+        $orderRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if (!$rows) {
+        if (!$orderRows) {
             return [];
         }
 
-        // Collect all unique article IDs from $rows
-        $articleIds = [];
-        foreach ($rows as $row) {
-            if (!empty($row['article_id'])) {
-                $articleIds[] = (int)$row['article_id'];
-            }
-        }
-
-        $articleIds = array_unique($articleIds);
+        // Collect all unique article IDs from $orderRows
+        $articleIds = array_unique(array_map('intval', array_filter(array_column($orderRows, 'article_id'))));
 
         // Fetch all articles with their most recent price in one call
         $articles = $this->articleRepository->searchArticles(['id' => $articleIds]);
@@ -356,13 +350,14 @@ class OrderRepository
             return $list;
         };
 
-        foreach ($rows as $row) 
+        // Process each order row to generate line items
+        foreach ($orderRows as $orderRow) 
         {
-            $year = (int) ($row['order_year'] ?? 0);
-            $week = (int) ($row['order_week'] ?? 0);
+            $year = (int) ($orderRow['order_year'] ?? 0);
+            $week = (int) ($orderRow['order_week'] ?? 0);
 
             // Extract weekday quantities from order row
-            $weekdayQuantities = $this->dateCalculator->extractWeekdayQuantities($row);
+            $weekdayQuantities = $this->dateCalculator->extractWeekdayQuantities($orderRow);
 
             // Calculate delivery dates for this week with filters applied
             try {
@@ -391,11 +386,11 @@ class OrderRepository
                 }
 
                 $lineOrder++;
-                $row['line_order'] = $lineOrder;
+                $orderRow['line_order'] = $lineOrder;
 
-                $orderId = (int) $row['order_id'];
-                $customerKey = (int) ($row['customer_id'] ?? 0);
-                $articleId = $row['article_id'] !== null ? (int) $row['article_id'] : null;
+                $orderId = (int) $orderRow['order_id'];
+                $customerKey = (int) ($orderRow['customer_id'] ?? 0);
+                $articleId = $orderRow['article_id'] !== null ? (int) $orderRow['article_id'] : null;
 
                 if ($articleId === null) {
                     if (!isset($missingMappings[$customerKey])) {
@@ -411,8 +406,8 @@ class OrderRepository
                 // Logger::info(json_encode($lineItem, JSON_PRETTY_PRINT),'OrderRepository');
 
                 $article = $articleMap[$articleId] ?? null;
-                $lineItem = $this->lineItemBuilder->buildLineItemPayload($row, $article, $deliveryDate, $quantityValue);
-                $this->lineItemRepository->persistLineItemsForCustomer($customerKey, [$lineItem]);
+                $lineItem = $this->lineItemBuilder->buildLineItemPayload($orderRow, $article, $deliveryDate, $quantityValue);
+                $this->lineItemRepository->persistLineItemsForCustomer([$lineItem]);
                 $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + 1;
                 $results[$customerKey][] = $lineItem;
             }
@@ -549,9 +544,6 @@ class OrderRepository
     public function generateInvoicesFromOrders(array $filters = []): array
     {
 
-        $filterFrom = InputFilter::filterDateValueProvided($filters, 'geaendertAm_from', true);
-        $filterTo = InputFilter::filterDateValueProvided($filters, 'geaendertAm_to', false, true) ?? new \DateTimeImmutable('now', $filterFrom->getTimezone());
-
         try {
             
             // Step 1: Generate and persist line items from orders
@@ -580,7 +572,7 @@ class OrderRepository
 
 
             // Step 3: Create invoices for pending line items using stored procedure
-            $invoiceResult = $this->invoiceRepository->createInvoicesForPendingLineItems($filterFrom, $filterTo);
+            $invoiceResult = $this->invoiceRepository->createInvoiceWithItems($persistedLineItemIds);
 
             $invoicesCreated = $invoiceResult['createdInvoices'] ?? [];
                         
@@ -596,7 +588,7 @@ class OrderRepository
 
         } catch (\Throwable $exception) {
 
-            Logger::error('Error generating invoices from orders: %s', $exception->getMessage());
+            Logger::exception($exception, 'OrderRepository');
             
             return [
                 'lineItemsGenerated' => 0,

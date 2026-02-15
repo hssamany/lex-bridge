@@ -154,6 +154,9 @@ final class InvoiceService
         $validatedLineItems = $this->validateLineItems($lineItems);
 
         if (!empty($validatedLineItems['errors'])) {
+            
+            Logger::exception(new Exception('Validation errors: ' . implode('; ', $validatedLineItems['errors'])), 'InvoiceService - Create Invoice With Items');
+        
             return [
                 'invoice_id' => null,
                 'error_code' => -1,
