@@ -14,9 +14,11 @@ use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Services\LineItemCalculator;
 use Luxullus\LexBridge\Services\OrderDateCalculator;
 use Luxullus\LexBridge\Services\OrderLineItemBuilder;
+
 use Luxullus\LexBridge\Services\OrderDomainConstants;
 use Luxullus\LexBridge\Repositories\ArticleRepository;
 use Luxullus\LexBridge\Repositories\LineItemRepository;
+use Luxullus\LexBridge\Utils\InputFilter;
 
 class OrderRepository
 {
@@ -69,20 +71,11 @@ class OrderRepository
      */
     public function getOrders(array $filters, array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        if (!$this->filterValueProvided($filters, 'geaendertAm_from')) {
-            throw new InvalidArgumentException('Filter "geaendertAm_from" is required.');
-        }
 
-        $changedFrom = $this->normalizeBoundaryDate($filters['geaendertAm_from'], 'geaendertAm_from')
-            ->setTime(0, 0, 0);
-
-        if ($this->filterValueProvided($filters, 'geaendertAm_to')) {
-            $changedTo = $this->normalizeBoundaryDate($filters['geaendertAm_to'], 'geaendertAm_to');
-        } else {
-            $changedTo = new DateTimeImmutable('now', $changedFrom->getTimezone());
-        }
-
-        $changedTo = $changedTo->setTime(23, 59, 59);
+        // Use InputFilter utility for date normalization and validation
+        $changedFrom = InputFilter::filterDateValueProvided($filters, 'geaendertAm_from', true, false);
+        $changedTo = InputFilter::filterDateValueProvided($filters, 'geaendertAm_to', false, true)
+            ?? new DateTimeImmutable('now', $changedFrom->getTimezone());
 
         if ($changedTo < $changedFrom) {
             throw new InvalidArgumentException('Filter "geaendertAm_to" must be on or after "geaendertAm_from".');
@@ -238,6 +231,7 @@ class OrderRepository
             }
         }
 
+        // Remove duplicates and invalid IDs (non-positive integers) from orderIdsFilter
         $orderIdsFilter = array_values(array_unique(array_filter($orderIdsFilter, static fn(int $id): bool => $id > 0)));
 
         if ($orderIdsFilter) {
@@ -487,17 +481,8 @@ class OrderRepository
             return;
         }
 
-        $orderIds = [];
-
-        foreach ($lineCountPerOrder as $orderId => $count) {
-            if ($count > 0) {
-                $orderIds[] = $orderId;
-            }
-        }
-
-        if (!$orderIds) {
-            return;
-        }
+        // Get order IDs that had line items generated (i.e. processed/verarbeitet)
+        $orderIds = array_keys(array_filter($lineCountPerOrder, fn($count) => $count > 0));
 
         $placeholders = [];
         $params = [];
@@ -508,11 +493,11 @@ class OrderRepository
             $params[$placeholder] = $orderId;
         }
 
-        $sql = "
-            UPDATE {$this->ordersTable} 
+        $sql = <<<SQL
+            UPDATE {$this->ordersTable} o
             SET verarbeitet = 1 
             WHERE Id IN (" . implode(', ', $placeholders) . ")
-        ";
+        SQL;
 
         $stmt = $this->db->prepare($sql);
 
@@ -563,80 +548,56 @@ class OrderRepository
      */
     public function generateInvoicesFromOrders(array $filters = []): array
     {
+
+        $filterFrom = InputFilter::filterDateValueProvided($filters, 'geaendertAm_from', true);
+        $filterTo = InputFilter::filterDateValueProvided($filters, 'geaendertAm_to', false, true) ?? new \DateTimeImmutable('now', $filterFrom->getTimezone());
+
         try {
-            // Start transaction for atomic operation
-            $this->db->beginTransaction();
+            
+            // Step 1: Generate and persist line items from orders
+            $lineItemsByCustomer = $this->generateLineItemsFromOrders($filters);
 
-            try {
-                // Step 1: Generate and persist line items from orders
-                $lineItemsByCustomer = $this->generateLineItemsFromOrders($filters);
-
-                if (empty($lineItemsByCustomer)) {
-                    $this->db->rollBack();
-                    return [
-                        'lineItemsGenerated' => 0,
-                        'invoicesCreated' => 0,
-                        'customers' => [],
-                    ];
-                }
-
-                // Step 2: Count line items and customers
-                $totalLineItems = 0;
-                $customersProcessed = [];
-                $persistedIds = [];
-
-                foreach ($lineItemsByCustomer as $customerId => $customerLineItems) {
-                    if (!is_array($customerLineItems) || empty($customerLineItems)) {
-                        continue;
-                    }
-                    $totalLineItems += count($customerLineItems);
-                    $customersProcessed[] = (int)$customerId;
-                    foreach ($customerLineItems as $item) {
-                        if (isset($item['id'])) {
-                            $persistedIds[] = $item['id'];
-                        }
-                    }
-                }
-
-                if ($totalLineItems === 0) {
-                    $this->db->rollBack();
-                    return [
-                        'lineItemsGenerated' => 0,
-                        'invoicesCreated' => 0,
-                        'customers' => [],
-                    ];
-                }
-
-
-                // Step 3: Create invoices for pending line items using stored procedure
-                $voucherDate = $filters['voucher_date'] ?? null;
-                $invoiceResult = $this->invoiceRepository->createInvoicesForPendingLineItemsViaStoredProc($voucherDate);
-
-                $invoicesCreated = is_array($invoiceResult['createdInvoices'] ?? null)
-                    ? count($invoiceResult['createdInvoices'])
-                    : 0;
-
-                $this->db->commit();
-
-                $response = [
-                    'lineItemsGenerated' => $totalLineItems,
-                    'invoicesCreated' => $invoicesCreated,
-                    'customers' => $customersProcessed,
-                    'invoices' => $invoiceResult['createdInvoices'] ?? [],
-                    'persistedIds' => $persistedIds,
-                ];
-
-                return $response;
-
-            } catch (\Throwable $e) {
-                // Rollback on any error during transaction
-                if ($this->db->inTransaction()) {
-                    $this->db->rollBack();
-                }
-                throw $e;
+            if (empty($lineItemsByCustomer)) {
+                return $lineItemsByCustomer;
             }
 
+            // Step 2: Count line items and customers
+            $totalLineItems = 0;
+            $customersProcessed = [];
+            $persistedLineItemIds = [];
+
+            foreach ($lineItemsByCustomer as $customerId => $customerLineItems) {
+
+                if (!is_array($customerLineItems) || empty($customerLineItems)) {
+                    continue;
+                }
+
+                $totalLineItems += count($customerLineItems);
+                $customersProcessed[] = (int)$customerId;
+                $ids = array_filter(array_column($customerLineItems, 'id'));
+                $persistedLineItemIds = array_merge($persistedLineItemIds, $ids);
+            }
+
+
+            // Step 3: Create invoices for pending line items using stored procedure
+            $invoiceResult = $this->invoiceRepository->createInvoicesForPendingLineItems($filterFrom, $filterTo);
+
+            $invoicesCreated = $invoiceResult['createdInvoices'] ?? [];
+                        
+            $response = [
+                'lineItemsGenerated' => $totalLineItems,
+                'invoicesCreated' => count($invoicesCreated),
+                'invoices' => $invoicesCreated ,
+                'customers' => $customersProcessed,
+                'persistedIds' => $persistedLineItemIds,
+            ];
+
+            return $response;
+
         } catch (\Throwable $exception) {
+
+            Logger::error('Error generating invoices from orders: %s', $exception->getMessage());
+            
             return [
                 'lineItemsGenerated' => 0,
                 'invoicesCreated' => 0,
@@ -644,39 +605,5 @@ class OrderRepository
                 'error' => $exception->getMessage(),
             ];
         }
-    }
-
-    /**
-     * Fetch customer numbers in batch for efficiency
-     *
-     * @param array<int> $customerIds
-     * @return array<int, string> Map of customer ID to customer number
-     */
-    private function fetchCustomerNumbersBatch(array $customerIds): array
-    {
-        if (empty($customerIds)) {
-            return [];
-        }
-
-        $customerTable = lexbridge_table('customer');
-        $placeholders = implode(',', array_fill(0, count($customerIds), '?'));
-
-        $sql = <<<SQL
-            SELECT 
-                id, 
-                Nummer AS customer_number 
-            FROM {$customerTable} 
-            WHERE id IN ({$placeholders})
-        SQL;
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($customerIds);
-        
-        $customerNumbers = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $customerNumbers[$row['id']] = $row['customer_number'];
-        }
-        
-        return $customerNumbers;
     }
 }

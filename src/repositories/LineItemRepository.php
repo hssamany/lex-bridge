@@ -34,6 +34,8 @@ class LineItemRepository
      */
     public function findLineItems(array $filters = [], array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
+        Logger::info('<<<Fetching line items with filters: ' . json_encode($filters), 'LineItemRepository');
+        
         $selectSql = <<<SQL
             SELECT 
                 li.id,
@@ -60,13 +62,12 @@ class LineItemRepository
                 li.article_valid_until,
                 li.created_at,
                 li.updated_at,
-                i.voucher_date
+                li.order_delivery_date
         SQL;
 
         $fromSql = <<<SQL
             FROM {$this->lineItemTable} li
-            INNER JOIN {$this->invoiceTable} i ON li.invoice_id = i.id
-            LEFT JOIN {$this->customerTable} c ON i.contact_id = c.id
+            LEFT JOIN {$this->customerTable} c ON li.customer_id = c.id
         SQL;
 
         $where = [];
@@ -83,7 +84,7 @@ class LineItemRepository
         }
 
         if (!empty($filters['customer_id'])) {
-            $where[] = 'i.contact_id = :customer_id';
+            $where[] = 'li.customer_id = :customer_id';
             $params[':customer_id'] = (int)$filters['customer_id'];
         }
 
@@ -92,7 +93,12 @@ class LineItemRepository
             $whereSql = ' WHERE ' . implode(' AND ', $where);
         }
 
-        $countSql = "SELECT COUNT(*) AS total {$fromSql}{$whereSql}";
+        $countSql = <<<SQL
+            SELECT COUNT(*) AS total
+            {$fromSql}
+            {$whereSql}
+        SQL;
+        
         $countStmt = $this->db->prepare($countSql);
         $countStmt->execute($params);
         $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
@@ -103,15 +109,20 @@ class LineItemRepository
         foreach ($params as $name => $value) {
             $stmt->bindValue($name, $value);
         }
+
         $stmt->bindValue(':limit', $pagination['limit'], PDO::PARAM_INT);
         $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
         $stmt->execute();
 
+
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        Logger::info('>>>Fetched line items: ' . json_encode($results), 'LineItemRepository');
         return [
-            'items' => $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [],
+            'items' => $results,
             'total_count' => $totalCount,
         ];
     }
+
     public function findLineItemById(string $lineItemId): ?array
     {
         $sql = <<<SQL

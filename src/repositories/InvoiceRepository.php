@@ -197,47 +197,162 @@ final class InvoiceRepository
     }
 
     /**
-     * Call stored procedure to create invoices for pending line items.
+     * Create invoices for all customers with pending line items (not yet assigned to an invoice).
      *
-     * @param string|null $voucherDate
+     * @param string|null $filterFrom
+     * @param string|null $filterTo
      * @return array{createdInvoices:array<int,array<string,mixed>>,skippedLineItems:array<int,string>,error?:string}
      */
-    public function createInvoicesForPendingLineItemsViaStoredProc(?string $voucherDate = null): array
+    public function createInvoicesForPendingLineItems(?string $filterFrom = null, ?string $filterTo = null): array
     {
-        try {
-            $stmt = $this->db->prepare('CALL sp_create_invoices_for_pending_line_items(:voucher_date)');
-            $stmt->bindValue(':voucher_date', $voucherDate, $voucherDate === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-            $stmt->execute();
+        // Prepare filter dates
+        $deliveryDateFrom = $filterFrom ?? date('Y-m-d');
+        $deliveryDateTo = $filterTo ?? date('Y-m-d'); // Default to today if not provided
 
-            $createdInvoices = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        // Fetch all pending line items for all customers within date range
+        $sql = <<<SQL
+            SELECT 
+                li.id,
+                li.invoice_id,
+                li.contact_id,
+                li.order_id,
+                li.article_id,
+                li.quantity,
+                li.unit_price,
+                li.net_amount,
+                li.gross_amount,
+                li.currency
+            FROM {$this->lineItemTable} li
+            WHERE li.invoice_id IS NULL
+              AND li.order_delivery_date >= :from
+              AND li.order_delivery_date <= :to
+        SQL;
 
-            $skippedLineItems = [];
-            if ($stmt->nextRowset()) {
-                $skippedRows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-                foreach ($skippedRows as $row) {
-                    if (isset($row['line_item_id'])) {
-                        $skippedLineItems[] = (string) $row['line_item_id'];
-                    }
-                }
-            }
+        $stmt = $this->db->prepare($sql);        
+        $stmt->bindValue(':from', $deliveryDateFrom, PDO::PARAM_STR);
+        $stmt->bindValue(':to', $deliveryDateTo, PDO::PARAM_STR);
 
-            while ($stmt->nextRowset()) {
-                // Consume remaining result sets
-            }
+        $stmt->execute();
+        $lineItemRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            return [
-                'createdInvoices' => $createdInvoices,
-                'skippedLineItems' => $skippedLineItems,
-            ];
-        } catch (\PDOException $exception) {
-            Logger::exception($exception, 'InvoiceRepository - Create Invoices Via Stored Proc');
-            
-            return [
-                'createdInvoices' => [],
-                'skippedLineItems' => [],
-                'error' => 'Database error: ' . $exception->getMessage(),
-            ];
+        // Group line items by customer
+        $lineItemsByCustomer = [];
+
+        foreach ($lineItemRows as $row) {
+            $customerId = $row['contact_id'];
+            $lineItemsByCustomer[$customerId][] = $row;
         }
+
+        $createdInvoices = [];
+        $skippedLineItems = [];
+
+        foreach ($lineItemsByCustomer as $customerId => $lineItems) {
+
+            if (empty($lineItems)) {
+                continue;
+            }
+
+            try {
+
+                $this->db->beginTransaction();
+
+                // Calculate totals
+                $currency = $lineItems[0]['currency'] ?? null;
+                $totalNet = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['net_amount'] ?? 0), 0.0);
+                $totalGross = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['gross_amount'] ?? 0), 0.0);
+
+                $invoiceDate = date('Y-m-d');
+
+                // Find earliest shipping date from line items
+                $deliveryDates = array_column($lineItems, 'order_delivery_date');
+                $shippingDate = !empty($deliveryDates) ? min($deliveryDates) : null;
+
+                // Insert invoice
+                $invoiceSql = <<<SQL
+                    INSERT INTO {$this->invoiceTable} 
+                    (contact_id, voucher_date, shipping_date, total_net_amount, total_gross_amount, currency, status, created_at) 
+                    VALUES 
+                    (:contact_id, :voucher_date, :shipping_date, :total_net_amount, :total_gross_amount, :currency, :status, :created_at)
+                SQL;
+
+                $invoiceStmt = $this->db->prepare($invoiceSql);
+                $invoiceStmt->bindValue(':contact_id', $customerId, PDO::PARAM_INT);
+                $invoiceStmt->bindValue(':voucher_date', $invoiceDate, PDO::PARAM_STR);
+                $invoiceStmt->bindValue(':shipping_date', $shippingDate, $shippingDate === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                $invoiceStmt->bindValue(':total_net_amount', $totalNet, PDO::PARAM_STR);
+                $invoiceStmt->bindValue(':total_gross_amount', $totalGross, PDO::PARAM_STR);
+                $invoiceStmt->bindValue(':currency', $currency, $currency === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                $invoiceStmt->bindValue(':status', 'pending', PDO::PARAM_STR);
+                $invoiceStmt->bindValue(':created_at', date('Y-m-d H:i:s'), PDO::PARAM_STR);
+                $invoiceStmt->execute();
+                $invoiceId = $this->db->lastInsertId();
+
+                if (!$invoiceId) {
+    
+                    $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));                     
+                    $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
+
+                    $this->db->rollBack();
+
+                    continue;
+                }
+
+                // Batch update line items to reference this invoice
+                $lineItemIds = array_filter(array_column($lineItems, 'id'), fn($id) => !empty($id));
+
+                if (!empty($lineItemIds)) {
+
+                    $inClause = implode(',', array_map('intval', $lineItemIds));
+
+                    $updateSql = <<<SQL
+                        UPDATE {$this->lineItemTable} 
+                        SET invoice_id = :invoice_id 
+                        WHERE id IN ({$inClause})
+                    SQL;
+
+                    $updateStmt = $this->db->prepare($updateSql);
+                    $updateStmt->bindValue(':invoice_id', $invoiceId, PDO::PARAM_INT);
+                    $updateStmt->execute();
+
+                } else {
+                    
+                    $failedLineItemIds = array_filter(array_map(fn($item) => (string)($item['id'] ?? ''), $lineItems));                     
+                    $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds);
+
+                    $this->db->rollBack();
+                    continue;
+                }
+
+                $createdInvoices[] = [
+                    'id' => $invoiceId,
+                    'contact_id' => $customerId,
+                    'voucher_date' => $invoiceDate,
+                    'total_net_amount' => $totalNet,
+                    'total_gross_amount' => $totalGross,
+                    'currency' => $currency,
+                    'line_item_count' => count($lineItems),
+                ];
+
+                $this->db->commit();
+
+            } catch (\Throwable $exception) {
+                
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+
+                Logger::exception($exception, "InvoiceRepository - Create Invoice for Customer $customerId failed");
+                
+                $skippedLineItems = array_merge( $skippedLineItems, $failedLineItemIds ?? []);
+                
+                continue;
+            }
+        }
+
+        return [
+            'createdInvoices' => $createdInvoices,
+            'skippedLineItems' => $skippedLineItems,
+        ];
     }
 
     /**
