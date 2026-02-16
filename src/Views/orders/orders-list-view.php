@@ -1,22 +1,6 @@
 <div class="orders-container tab-content-container">
+    <?php require __DIR__ . '/orders-filter-form.php'; ?>
     <div class="orders-list table-scrollable" aria-live="polite" aria-busy="false">
-        <div class="orders-toolbar-container">
-            <!-- Toolbar will be rendered here by JavaScript -->
-            <div class="orders-toolbar line-items-toolbar">
-                <div class="line-items-toolbar-left">
-                    <button type="button" class="btn btn-primary line-items-toolbar-btn orders-generate-button" disabled>
-                        Positionen Erstellen <span class="btn-icon" style="font-size:1.1em;">➤</span>
-                    </button>
-                    <button type="button" class="btn btn-primary line-items-toolbar-btn orders-generate-invoices-button" disabled title="Rechnung direkt aus Bestellungen erstellen">
-                        Rechnung Erstellen <span class="btn-icon" style="font-size:1.1em;">📄</span>
-                    </button>
-                    <label style="display: inline-flex; align-items: center; gap: 8px; margin-left: 20px; font-size: 0.95rem; color: #333;">
-                        <input type="checkbox" class="orders-filter-processed" style="width: 16px; height: 16px; cursor: pointer;">
-                        <span>Verarbeitete anzeigen</span>
-                    </label>
-                </div>
-            </div>
-        </div>
         <table class="orders-table">
             <thead>
                 <tr>

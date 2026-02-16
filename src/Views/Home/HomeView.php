@@ -101,6 +101,11 @@ final class HomeView
         include __DIR__ . '/../line-items/line-items-filter-form.php';
     }
 
+    public function renderLineItemsActions(): void
+    {
+        include __DIR__ . '/../line-items/line-items-actions-view.php';
+    }
+
     public function renderOrdersTabContent(): void
     {
         include __DIR__ . '/../orders/orders-list-view.php';
@@ -109,6 +114,11 @@ final class HomeView
     public function renderOrdersFilter(): void
     {
         include __DIR__ . '/../orders/orders-filter-form.php';
+    }
+
+    public function renderOrdersToolbar(): void
+    {
+        include __DIR__ . '/../orders/orders-toolbar-view.php';
     }
 
     public function renderInvoicesFilter(): void
