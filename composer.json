@@ -20,5 +20,10 @@
     "require": {},
     "scripts": {
         "test": "php vendor/phpunit/phpunit/phpunit"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
     }
 }

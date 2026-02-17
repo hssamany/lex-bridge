@@ -71,6 +71,7 @@ class LineItemRepository
         $where = [];
         $params = [];
 
+        // >>> Create filters.
         if (!empty($filters['created_at_from'])) {
             $where[] = 'li.created_at >= :created_from';
             $params[':created_from'] = $filters['created_at_from'];
@@ -86,28 +87,38 @@ class LineItemRepository
             $params[':customer_id'] = (int)$filters['customer_id'];
         }
 
+        // <<< End filters.
+
+        // Build WHERE clause
         $whereSql = '';
         if ($where) {
             $whereSql = ' WHERE ' . implode(' AND ', $where);
         }
 
+        // First get total count for pagination
         $countSql = <<<SQL
             SELECT COUNT(*) AS total
             {$fromSql}
             {$whereSql}
         SQL;
 
+        // Now fetch paginated count results
         $countStmt = $this->db->prepare($countSql);
         $countStmt->execute($params);
         $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 
-        $sql = "{$selectSql} {$fromSql}{$whereSql} ORDER BY li.created_at DESC, li.line_order ASC LIMIT :limit OFFSET :offset";
+        // Assemble main SQL query with pagination
+            $sql = <<<SQL
+            {$selectSql}
+            {$fromSql}
+            {$whereSql}
+            ORDER BY li.created_at DESC
+            LIMIT :limit OFFSET :offset
+        SQL;
 
+        // Prepare and execute main query
         $stmt = $this->db->prepare($sql);
-        foreach ($params as $name => $value) {
-            $stmt->bindValue($name, $value);
-        }
-
+        array_walk($params, fn($value, $name) => $stmt->bindValue($name, $value));
         $stmt->bindValue(':limit', $pagination['limit'], PDO::PARAM_INT);
         $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
         $stmt->execute();
@@ -211,73 +222,134 @@ class LineItemRepository
     public function persistLineItemsForCustomer(array $lineItems): array
     {
         if (empty($lineItems)) {
-            return ['persisted' => 0, 'errors' => []];
+            return ['persisted' => 0, 'errors' => [], 'persisted_ids' => []];
         }
 
-        $persistedCount = 0;
-        $errors = [];
-
-        $insertedIds = [];
-        foreach ($lineItems as $index => $item) {
-            try {
-                $lineItemId = UuidUtil::generateUuid();
-
-                $sql = <<<SQL
-                    INSERT INTO {$this->lineItemTable} (
-                        id, article_id, article_number,customer_id, name, description,
-                        quantity, unit_name, currency, net_amount, gross_amount,
-                        tax_rate_percentage, line_total_net, line_total_gross,
-                        order_delivery_date, line_order, order_id, created_at
-                    ) VALUES (
-                        :id, :article_id, :article_number, :customer_id, :name, :description,
-                        :quantity, :unit_name, :currency, :net_amount, :gross_amount,
-                        :tax_rate_percentage, :line_total_net, :line_total_gross,
-                        :order_delivery_date, :line_order, :order_id, NOW()
-                    )
-                SQL;
-
-                $customerId = $item['customer_id'] ?? throw new \InvalidArgumentException("Missing customer_id for line item at index {$index}");
-
-                $stmt = $this->db->prepare($sql);
-                $success = $stmt->execute([
-                    ':id' => $lineItemId,
-                    ':article_id' => $item['article_id'] ?? null,
-                    ':article_number' => $item['article_number'] ?? null,
-                    ':customer_id' => $customerId,
-                    ':name' => $item['article_name'] ?? $item['name'] ?? null,
-                    ':description' => $item['description'] ?? null,
-                    ':quantity' => $item['quantity'] ?? null,
-                    ':unit_name' => $item['unit_name'] ?? null,
-                    ':currency' => $item['currency'] ?? 'EUR',
-                    ':net_amount' => $item['net_amount'] ?? null,
-                    ':gross_amount' => $item['gross_amount'] ?? null,
-                    ':tax_rate_percentage' => $item['tax_rate_percentage'] ?? null,
-                    ':line_total_net' => $item['line_total_net'] ?? null,
-                    ':line_total_gross' => $item['line_total_gross'] ?? null,
-                    ':order_delivery_date' => $item['order_delivery_date'] ?? null,
-                    ':line_order' => $item['line_order'] ?? null,
-                    ':order_id' => $item['order_id'] ?? null,
-                ]);
-
-                $persistedCount++;
-                $insertedIds[] = $lineItemId;
-
-            } catch (\Throwable $e) {
-
-                $articleInfo = $item['article_number'] ?? $item['name'] ?? "item #{$index}";
-                $errorMsge = "Failed to persist line item  " . implode(', ', $insertedIds) . ": " . $e->getMessage();
-                $errors[] = $errorMsge;
-                Logger::exception($e, 'LineItemRepository');
-
-            }
-        }
-
-        $persistedIds = $persistedCount > 0 ? $insertedIds : [];
-
-        return [
-            'errors' => $errors, 
-            'persisted' => count($persistedIds) , 
-            'persisted_ids' => $persistedIds
+        $columns = [
+            'id',
+            'article_id',
+            'article_number',
+            'customer_id',
+            'name',
+            'description',
+            'quantity',
+            'unit_name',
+            'currency',
+            'net_amount',
+            'gross_amount',
+            'tax_rate_percentage',
+            'line_total_net',
+            'line_total_gross',
+            'order_delivery_date',
+            'line_order',
+            'order_id',
+            'created_at',
+            'updated_at'
         ];
+
+        $valuesSql = [];
+        $params = [];
+        $insertedIds = [];
+
+        $this->db->beginTransaction();
+        try {
+            foreach ($lineItems as $i => $item) {
+                $lineItemId = $item['id'] ?? UuidUtil::generateUuid();
+                $insertedIds[] = $lineItemId;
+                $customerId = $item['customer_id'] ?? null;
+                if (!$customerId) {
+                    throw new \InvalidArgumentException("Missing customer_id for line item at index {$i}");
+                }
+                $customerId = (int)$customerId;
+                $placeholders = [];
+                foreach ($columns as $col) {
+                    if ($col === 'created_at' || $col === 'updated_at') {
+                        $placeholders[] = 'NOW()';
+                        continue;
+                    }
+                    $ph = ":{$col}_{$i}";
+                    $placeholders[] = $ph;
+                    switch ($col) {
+                        case 'id':
+                            $params[$ph] = $lineItemId;
+                            break;
+                        case 'article_id':
+                            $params[$ph] = $item['article_id'] ?? null;
+                            break;
+                        case 'article_number':
+                            $params[$ph] = $item['article_number'] ?? null;
+                            break;
+                        case 'customer_id':
+                            $params[$ph] = $customerId;
+                            break;
+                        case 'name':
+                            $params[$ph] = $item['article_name'] ?? $item['name'] ?? null;
+                            break;
+                        case 'description':
+                            $params[$ph] = $item['description'] ?? null;
+                            break;
+                        case 'quantity':
+                            $params[$ph] = $item['quantity'] ?? null;
+                            break;
+                        case 'unit_name':
+                            $params[$ph] = $item['unit_name'] ?? null;
+                            break;
+                        case 'currency':
+                            $params[$ph] = $item['currency'] ?? 'EUR';
+                            break;
+                        case 'net_amount':
+                            $params[$ph] = $item['net_amount'] ?? null;
+                            break;
+                        case 'gross_amount':
+                            $params[$ph] = $item['gross_amount'] ?? null;
+                            break;
+                        case 'tax_rate_percentage':
+                            $params[$ph] = $item['tax_rate_percentage'] ?? null;
+                            break;
+                        case 'line_total_net':
+                            $params[$ph] = $item['line_total_net'] ?? null;
+                            break;
+                        case 'line_total_gross':
+                            $params[$ph] = $item['line_total_gross'] ?? null;
+                            break;
+                        case 'order_delivery_date':
+                            $params[$ph] = $item['order_delivery_date'] ?? null;
+                            break;
+                        case 'line_order':
+                            $params[$ph] = $item['line_order'] ?? null;
+                            break;
+                        case 'order_id':
+                            $params[$ph] = $item['order_id'] ?? null;
+                            break;
+                    }
+                }
+
+                $valuesSql[] = '('.implode(', ', $placeholders).')';
+            }
+
+            $columnsSql = implode(', ', $columns);
+            $valuesSqlStr = implode(",\n", $valuesSql);
+            $sql = <<<SQL
+                INSERT INTO {$this->lineItemTable} 
+                ({$columnsSql})
+                VALUES 
+                {$valuesSqlStr}
+            SQL;
+
+            // Replace all created_at and updated_at placeholders with NOW() in SQL
+            $sql = preg_replace('/:(created_at|updated_at)_\d+/', 'NOW()', $sql);
+
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            $this->db->commit();
+
+            return [
+                'persisted' => count($insertedIds),
+                'persisted_ids' => $insertedIds
+            ];
+        } catch (\Throwable $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
 }

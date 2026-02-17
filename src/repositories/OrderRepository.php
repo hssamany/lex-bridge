@@ -211,21 +211,18 @@ class OrderRepository
 
         $orderIdsFilter = [];
 
-        if ($this->filterValueProvided($filters, 'order_id')) {
+        if (InputFilter::filterValueProvided($filters, 'order_id')) {
             $orderIdsFilter[] = (int) $filters['order_id'];
         }
 
-        if ($this->filterValueProvided($filters, 'order_ids') && is_array($filters['order_ids'])) {
-
+        if (InputFilter::filterValueProvided($filters, 'order_ids') && is_array($filters['order_ids'])) {
             foreach ($filters['order_ids'] as $candidate) {
                 if ($candidate === null || $candidate === '') {
                     continue;
                 }
-
                 $validated = filter_var($candidate, FILTER_VALIDATE_INT, [
                     'options' => ['min_range' => 1],
                 ]);
-
                 if ($validated !== false && $validated !== null) {
                     $orderIdsFilter[] = (int) $validated;
                 }
@@ -258,12 +255,12 @@ class OrderRepository
 
         $deliveryFrom = null;
 
-        if ($this->filterValueProvided($filters, 'liefer_datum_von')) {
+        if (InputFilter::filterValueProvided($filters, 'liefer_datum_von')) {
             $deliveryFrom = $this->normalizeBoundaryDate($filters['liefer_datum_von'], 'liefer_datum_von');
         }
 
         $deliveryTo = null;
-        if ($this->filterValueProvided($filters, 'liefer_datum_bis')) {
+        if (InputFilter::filterValueProvided($filters, 'liefer_datum_bis')) {
             $deliveryTo = $this->normalizeBoundaryDate($filters['liefer_datum_bis'], 'liefer_datum_bis');
         }
 
@@ -350,6 +347,7 @@ class OrderRepository
             return $list;
         };
 
+
         // Process each order row to generate line items
         foreach ($orderRows as $orderRow) 
         {
@@ -372,10 +370,10 @@ class OrderRepository
                 continue;
             }
 
-            // Start line_order counter
             $lineOrder = 0;
+            $orderLineItems = [];
 
-            foreach ($deliveryDates as $weekdayCode => $dateInfo) {
+            foreach ($deliveryDates as $weekdayCode => $dateInfo)  {
                 $deliveryDate = $dateInfo['date'];
                 $quantity = $dateInfo['quantity'];
 
@@ -403,13 +401,17 @@ class OrderRepository
                     continue 2;
                 }
 
-                // Logger::info(json_encode($lineItem, JSON_PRETTY_PRINT),'OrderRepository');
-
                 $article = $articleMap[$articleId] ?? null;
                 $lineItem = $this->lineItemBuilder->buildLineItemPayload($orderRow, $article, $deliveryDate, $quantityValue);
-                $this->lineItemRepository->persistLineItemsForCustomer([$lineItem]);
-                $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + 1;
+                $orderLineItems[] = $lineItem;
                 $results[$customerKey][] = $lineItem;
+            }
+
+            // Persist all line items for this order in a single call
+            if (!empty($orderLineItems)) {
+                $this->lineItemRepository->persistLineItemsForCustomer($orderLineItems);
+                $orderId = (int) $orderRow['order_id'];
+                $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + count($orderLineItems);
             }
         }
 
@@ -418,19 +420,6 @@ class OrderRepository
         return $results;
     }
 
-    /**
-     * @param array<string, mixed> $filters
-     */
-    private function filterValueProvided(array $filters, string $key): bool
-    {
-        if (!array_key_exists($key, $filters)) {
-            return false;
-        }
-
-        $value = $filters[$key];
-
-        return $value !== null && $value !== '';
-    }
 
     private function normalizeBoundaryDate(mixed $value, string $filterKey): DateTimeImmutable
     {
