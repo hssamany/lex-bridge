@@ -391,7 +391,13 @@
             const formData = new FormData(form);
 
             for (const [key, value] of formData.entries()) {
+                // Skip customer_search display field
                 if (key === 'customer_search') {
+                    continue;
+                }
+
+                // Skip empty customer_id (ensures "All Customers" works)
+                if (key === 'customer_id' && (!value || value.trim() === '' || value === '0')) {
                     continue;
                 }
 

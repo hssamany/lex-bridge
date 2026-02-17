@@ -295,6 +295,48 @@ tr {
     gap: 16px;
 }
 
+.tab-actions .line-items-actions-bar,
+.tab-actions .orders-toolbar-actions {
+    margin: 0;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.orders-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.orders-toolbar-toggle,
+.line-items-toolbar-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    font-size: 0.95rem;
+    color: #333;
+    white-space: nowrap;
+}
+
+.line-items-filter-form .filter-extra-toggle {
+    margin-left: auto;
+    min-width: auto;
+    max-width: none;
+    flex: 0 0 auto;
+}
+
+.line-items-filter-form .filter-extra-toggle .orders-filter-toggle,
+.line-items-filter-form .filter-extra-toggle .line-items-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    margin: 0;
+    font-size: 0.95rem;
+    color: #333;
+}
+
 .line-items-actions-bar .btn {
     min-width: 180px;
     display: inline-flex;
@@ -380,7 +422,7 @@ tr {
     flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
-    gap: 12px;
+    gap: 0;
     overflow: hidden;
 }
 
@@ -618,9 +660,33 @@ input[list]::-webkit-calendar-picker-indicator {
     outline: none;
 }
 
+.orders-container > .orders-filter-container,
+.line-items-container > .line-items-filter-container,
+.invoices-container > .invoices-filter-container {
+    margin: 0 0 12px 0;
+    padding: 0;
+}
+
+.orders-container > .orders-filter-container .line-items-filter-form,
+.line-items-container > .line-items-filter-container .line-items-filter-form,
+.invoices-container > .invoices-filter-container .line-items-filter-form {
+    margin: 0;
+    gap: 1.2rem;
+}
+
+.invoices-container > .invoice-table,
+.orders-list > .orders-table,
+.line-items-list > .line-items-table {
+    margin-top: 0;
+}
+
 /* Invoice table spacing */
 .invoice-table {
     margin-top: 1.5rem;
+}
+
+.invoices-container .invoice-table {
+    margin-top: 0;
 }
 
 /* Spinning animation for sync icon */

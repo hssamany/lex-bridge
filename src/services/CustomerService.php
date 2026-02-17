@@ -55,7 +55,7 @@ final class CustomerService
     /**
      * Retrieve contacts from Lexware API.
      *
-     * @param int $page Page number (default: 0)
+     * @param int $page Page number (1-based from UI, converted to 0-based for API)
      * @return HttpResponse
      */
     public function getContacts(int $page = 0): HttpResponse
@@ -64,7 +64,17 @@ final class CustomerService
             return ($this->contactFetcher)($page);
         }
 
-        return $this->client->get('/contacts?page=' . $page);
+        // Convert 1-based page (from UI) to 0-based page (for Lexware API)
+        // Page 1 from UI -> Page 0 for API (first page)
+        // Page 2 from UI -> Page 1 for API (second page)
+        $apiPage = max(0, $page - 1);
+
+        Logger::info('Fetching contacts from Lexware - ' . json_encode([
+            'uiPage' => $page,
+            'apiPage' => $apiPage
+        ]));
+
+        return $this->client->get('/contacts?page=' . $apiPage);
     }
 
     /**
@@ -107,7 +117,7 @@ final class CustomerService
             $this->persistContacts($contacts);
         } else {
             $errorMessage = $response->getMessage() ?? 'Failed to synchronize contacts from Lexware.';
-            Logger::info('Contact sync failed', ['page' => $page, 'error' => $errorMessage]);
+            Logger::info('Contact sync failed - ' . json_encode(['page' => $page, 'error' => $errorMessage]));
         }
 
         $listResult = $this->listContacts($pagination);
@@ -154,10 +164,10 @@ final class CustomerService
             ? 'Artikelzuordnung entfernt.'
             : 'Artikelzuordnung aktualisiert.';
 
-        Logger::info('Customer article mapping updated', [
+        Logger::info('Customer article mapping updated - ' . json_encode([
             'customer_id' => $customerId,
             'article_id' => $articleId
-        ]);
+        ]));
 
         $rowsResult = $this->repository->getCustomerContacts(Pagination::normalize());
         $rows = $rowsResult['items'] ?? [];
@@ -316,10 +326,23 @@ final class CustomerService
      */
     private function extractContactsFromResponse(HttpResponse $response): array
     {
+        // Debug: Log response details
+        Logger::info('API Response Debug - ' . json_encode([
+            'statusCode' => $response->getStatusCode(),
+            'isSuccess' => $response->isSuccess(),
+            'bodyLength' => strlen($response->getBody()),
+            'error' => $response->getError()
+        ]));
+
+        // Debug: Log first 500 chars of body
+        Logger::info('API Response Body (first 500 chars): ' . substr($response->getBody(), 0, 500));
+
         $contacts = $response->getData(fn($d) => Contact::fromResponseData($d)) ?? [];
 
         if (empty($contacts)) {
-            Logger::info('No contacts returned from API');
+            Logger::info('No contacts returned from API - parsed array: ' . json_encode($response->toArray()));
+        } else {
+            Logger::info('Successfully parsed contacts - count: ' . count($contacts));
         }
 
         return $contacts;
@@ -341,16 +364,15 @@ final class CustomerService
                 $successCount++;
             } catch (Exception $e) {
                 $errorCount++;
-                Logger::exception($e, 'CustomerService - Update Contact', [
-                    'company_name' => $contact->companyName ?? '(unknown)'
-                ]);
+                $companyName = $contact->companyName ?? '(unknown)';
+                Logger::exception($e, "CustomerService - Update Contact - Company: $companyName");
             }
         }
 
-        Logger::info('Contact persistence completed', [
+        Logger::info('Contact persistence completed - ' . json_encode([
             'total' => count($contacts),
             'success' => $successCount,
             'errors' => $errorCount
-        ]);
+        ]));
     }
 }

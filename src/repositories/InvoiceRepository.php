@@ -233,7 +233,6 @@ final class InvoiceRepository
             SELECT 
                 li.id,
                 li.invoice_id,
-                li.customer_id,
                 li.order_id,
                 li.article_id,
                 li.quantity,
@@ -241,9 +240,12 @@ final class InvoiceRepository
                 li.net_amount,
                 li.gross_amount,
                 li.currency,
-                li.order_delivery_date
+                li.order_delivery_date,
+                c.id AS customer_id,
+                c.Nummer AS customer_number
 
             FROM {$this->lineItemTable} li
+            LEFT JOIN {$this->customerTable} c ON li.customer_id = c.id
             WHERE $whereSql
         SQL;        
 
@@ -252,10 +254,14 @@ final class InvoiceRepository
 
         $lineItemRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Group line items by customer
+        // Group line items by customer ID
         $lineItemsByCustomer = [];
         foreach ($lineItemRows as $row) {
             $customerId = $row['customer_id'];
+            if ($customerId === null) {
+                Logger::info("Line item {$row['id']} has no matching customer for customer_number: {$row['customer_number']}", 'InvoiceRepository');
+                continue;
+            }
             $lineItemsByCustomer[$customerId][] = $row;
         }
 

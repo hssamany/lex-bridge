@@ -26,6 +26,10 @@ $containerClass = $containerClass ?? '';
 $includeStatus = $includeStatus ?? false;
 $statusFieldId = $statusFieldId ?? 'status';
 $statusFieldName = $statusFieldName ?? 'status';
+$extraToggleClass = $extraToggleClass ?? '';
+$extraToggleInputClass = $extraToggleInputClass ?? '';
+$extraToggleLabel = $extraToggleLabel ?? '';
+$extraToggleInputStyle = $extraToggleInputStyle ?? '';
 ?>
 <div class="<?= htmlspecialchars($containerClass) ?>">
     <form name="<?= htmlspecialchars($formName) ?>" class="line-items-filter-form inline-form">
@@ -89,5 +93,13 @@ $statusFieldName = $statusFieldName ?? 'status';
                 <span class="btn-icon" aria-hidden="true">⌕</span>
             </button>
         </div>
+        <?php if ($extraToggleInputClass !== '' && $extraToggleLabel !== ''): ?>
+        <div class="filter-group-col filter-extra-toggle">
+            <label class="<?= htmlspecialchars($extraToggleClass) ?>">
+                <input type="checkbox" class="<?= htmlspecialchars($extraToggleInputClass) ?>" style="<?= htmlspecialchars($extraToggleInputStyle) ?>">
+                <span><?= htmlspecialchars($extraToggleLabel) ?></span>
+            </label>
+        </div>
+        <?php endif; ?>
     </form>
 </div>

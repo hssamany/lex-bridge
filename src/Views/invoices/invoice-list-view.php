@@ -4,13 +4,13 @@
     <table class="invoice-table">
         <thead>
             <tr>
-                <th>Action</th>
-                <th>Customer</th>
-                <th>Date</th>
-                <th>Items</th>
+                <th>Aktionen</th>
+                <th>Kunde</th>
+                <th>Datum</th>
+                <th>Artikel</th>
                 <th>Status</th>
-                <th>Attempts</th>
-                <th>Total</th>
+                <th>Versuche</th>
+                <th>Gesamt</th>
             </tr>
         </thead>
         <tbody class="invoice-table-body">

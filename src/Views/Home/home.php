@@ -38,7 +38,7 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
         </template>
         
         <template id="line-items-filter-template">
-            <?php $homeView->renderLineItemsFilter(); ?>
+            <?php $homeView->renderLineItemsActions(); ?>
         </template>
 
         <template id="invoices-tab-content">
@@ -46,7 +46,7 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
         </template>
 
         <template id="orders-filter-template">
-            <?php $homeView->renderOrdersFilter(); ?>
+            <?php $homeView->renderOrdersToolbar(); ?>
         </template>
         
         <template id="invoices-filter-template">
