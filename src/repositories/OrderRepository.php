@@ -317,11 +317,7 @@ class OrderRepository
 
         // Fetch all articles with their most recent price in one call
         $articles = $this->articleRepository->searchArticles(['id' => $articleIds]);
-        $articleMap = [];
-
-        foreach ($articles as $articleRow) {
-            $articleMap[$articleRow['id']] = $articleRow;
-        }
+        $articleMap = array_column($articles, null, 'id');
 
         $results = [];
         $lineCountPerOrder = [];
@@ -331,18 +327,16 @@ class OrderRepository
 
         $formatList = static function (array $values): string {
 
-            $unique = array_values(array_unique(array_map(static fn($value) => (string) $value, $values)));
+        $unique = array_values(array_unique(array_map(static fn($value) => (string) $value, $values)));
             
-            if (!$unique) {
+            if (!$unique)  
                 return '-';
-            }
 
             $slice = array_slice($unique, 0, 5);
             $list = implode(', ', $slice);
 
-            if (count($unique) > 5) {
+            if (count($unique) > 5) 
                 $list .= ', ...';
-            }
 
             return $list;
         };
