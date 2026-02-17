@@ -47,9 +47,28 @@
             };
 
             const pageButtons = [];
-            for (let i = 1; i <= totalPages; i += 1) {
+            // Show only up to two page buttons: current and one adjacent
+            if (totalPages > 1) {
+                // If not first page, show previous page
+                if (normalizedPage > 1) {
+                    pageButtons.push(
+                        `<button type="button" class="paginator-page" data-page="${normalizedPage - 1}">${normalizedPage - 1}</button>`
+                    );
+                }
+                // Always show current page
                 pageButtons.push(
-                    `<button type="button" class="paginator-page${i === normalizedPage ? ' is-active' : ''}" data-page="${i}">${i}</button>`
+                    `<button type="button" class="paginator-page is-active" data-page="${normalizedPage}">${normalizedPage}</button>`
+                );
+                // If not last page, show next page
+                if (normalizedPage < totalPages && pageButtons.length < 2) {
+                    pageButtons.push(
+                        `<button type="button" class="paginator-page" data-page="${normalizedPage + 1}">${normalizedPage + 1}</button>`
+                    );
+                }
+            } else {
+                // Only one page
+                pageButtons.push(
+                    `<button type="button" class="paginator-page is-active" data-page="1">1</button>`
                 );
             }
 
