@@ -109,15 +109,18 @@ final class ArticleRepository
         $whereClauses = [];
 
         foreach (($filter ?? []) as $column => $value) {
-            if (is_array($value) && !empty($value)) {
-                // IN clause for arrays
-                $inPlaceholders = [];
-                foreach ($value as $idx => $item) {
-                    $ph = ":{$column}_{$idx}";
-                    $inPlaceholders[] = $ph;
-                    $params[$ph] = $item;
+            if (is_array($value)) {
+                if (!empty($value)) {
+                    // IN clause for arrays
+                    $inPlaceholders = [];
+                    foreach ($value as $idx => $item) {
+                        $ph = ":{$column}_{$idx}";
+                        $inPlaceholders[] = $ph;
+                        $params[$ph] = $item;
+                    }
+                    $whereClauses[] = "a.$column IN (" . implode(',', $inPlaceholders) . ")";
                 }
-                $whereClauses[] = "a.$column IN (" . implode(',', $inPlaceholders) . ")";
+                // else: skip empty arrays
             } elseif ($value !== null) {
                 // Equality for scalars
                 $ph = ":{$column}";
@@ -261,7 +264,7 @@ final class ArticleRepository
                 net_price = :net_price,
                 gross_price = :gross_price,
                 tax_rate = :tax_rate,
-                updated_at = NOW()
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
         SQL;
 

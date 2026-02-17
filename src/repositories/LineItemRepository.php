@@ -190,7 +190,7 @@ class LineItemRepository
                 line_total_gross = :line_total_gross,
                 article_valid_from = :article_valid_from,
                 article_valid_until = :article_valid_until,
-                updated_at = NOW()
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :line_item_id
         SQL;
 
@@ -264,7 +264,7 @@ class LineItemRepository
                 $placeholders = [];
                 foreach ($columns as $col) {
                     if ($col === 'created_at' || $col === 'updated_at') {
-                        $placeholders[] = 'NOW()';
+                        $placeholders[] = 'CURRENT_TIMESTAMP';
                         continue;
                     }
                     $ph = ":{$col}_{$i}";
@@ -337,7 +337,7 @@ class LineItemRepository
             SQL;
 
             // Replace all created_at and updated_at placeholders with NOW() in SQL
-            $sql = preg_replace('/:(created_at|updated_at)_\d+/', 'NOW()', $sql);
+            $sql = preg_replace('/:(created_at|updated_at)_\d+/', 'CURRENT_TIMESTAMP', $sql);
 
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);

@@ -20,8 +20,9 @@ use Luxullus\LexBridge\Repositories\ArticleRepository;
 use Luxullus\LexBridge\Repositories\LineItemRepository;
 use Luxullus\LexBridge\Utils\InputFilter;
 
-class OrderRepository
+final class OrderRepository
 {
+    
     private PDO $db;
     private string $priceTable;
     private string $ordersTable;
@@ -385,18 +386,21 @@ class OrderRepository
                 $articleId = $orderRow['article_id'] !== null ? (int) $orderRow['article_id'] : null;
 
                 if ($articleId === null) {
-                    if (!isset($missingMappings[$customerKey])) {
-                        $missingMappings[$customerKey] = [
-                            'orders' => [],
-                        ];
-                    }
-
-                    $missingMappings[$customerKey]['orders'][$orderId] = true;
-                    continue 2;
+                    throw new \RuntimeException('Fuer Kunde ' . $customerKey . ' fehlt eine Artikelzuordnung');
                 }
 
                 $article = $articleMap[$articleId] ?? null;
+                if ($article === null) {
+                    throw new \RuntimeException('Artikel-ID ' . $articleId . ' nicht gefunden');
+                }
+
                 $lineItem = $this->lineItemBuilder->buildLineItemPayload($orderRow, $article, $deliveryDate, $quantityValue);
+
+                // Check for missing price
+                if (!isset($lineItem['net_amount']) || !isset($lineItem['gross_amount']) || $lineItem['net_amount'] === null || $lineItem['gross_amount'] === null) {
+                    throw new \RuntimeException('existiert kein gueltiger Preis');
+                }
+
                 $orderLineItems[] = $lineItem;
                 $results[$customerKey][] = $lineItem;
             }
@@ -471,11 +475,14 @@ class OrderRepository
             $params[$placeholder] = $orderId;
         }
 
+
         $sql = <<<SQL
-            UPDATE {$this->ordersTable} o
-            SET verarbeitet = 1 
-            WHERE Id IN (" . implode(', ', $placeholders) . ")
+            UPDATE {$this->ordersTable}
+            SET verarbeitet = 1
+            WHERE Id IN (%s)
         SQL;
+        
+        $sql = sprintf($sql, implode(', ', $placeholders));
 
         $stmt = $this->db->prepare($sql);
 
