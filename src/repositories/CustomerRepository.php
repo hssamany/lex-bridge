@@ -65,11 +65,25 @@ final class CustomerRepository
 
         $stmt = $this->db->prepare($sql);
 
-        return $stmt->execute([
+        $params = [
             ':lex_contact_id' => $contact->lexContactId,
             ':lex_customer_number' => $contact->lexCustomerNumber,
             ':company_name' => $contact->companyName
-        ]);
+        ];
+
+        $success = $stmt->execute($params);
+        $rowCount = $stmt->rowCount();
+
+        // Debug logging
+        Logger::info('CustomerRepository::updateContact - ' . json_encode([
+            'companyName' => $contact->companyName,
+            'lexContactId' => $contact->lexContactId,
+            'lexCustomerNumber' => $contact->lexCustomerNumber,
+            'rowsAffected' => $rowCount,
+            'executeSuccess' => $success
+        ]));
+
+        return $success;
     }
 
     /**

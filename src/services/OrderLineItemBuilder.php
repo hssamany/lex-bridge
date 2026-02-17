@@ -42,6 +42,7 @@ final class OrderLineItemBuilder
             'order_id' => (int) $orderRow['order_id'],
             'order_delivery_date' => $deliveryDate->format('Y-m-d'),
             'customer_id' => (int)($orderRow['customer_id']??0),
+            'customer_number' => $orderRow['customer_number'] ?? null,
             'article_id' => (int) $orderRow['article_id'],
             'article_number' => $orderRow['article_number'] ?? null,
             'article_name' => $orderRow['article_name'] ?? null,

@@ -81,8 +81,50 @@ final class InvoiceService
      */
     public function transferInvoiceToLexware(Invoice $invoice): HttpResponse
     {
+        // Validate before sending
+        $validationErrors = $this->validateInvoiceForTransmission($invoice);
+        if (!empty($validationErrors)) {
+            Logger::info('Invoice validation failed: ' . implode(', ', $validationErrors), 'InvoiceService');
+            return new HttpResponse(400, json_encode(['error' => implode(', ', $validationErrors)]), 'Validation failed');
+        }
+        
         $payload = $invoice->toLexwarePayload();
+        
+        // Log the payload for debugging
+        Logger::info('Lexware API payload: ' . json_encode($payload, JSON_PRETTY_PRINT), 'InvoiceService');
+        Logger::info('Invoice has ' . count($invoice->lineItems ?? []) . ' line items', 'InvoiceService');
+        Logger::info('Invoice contact ID: ' . $invoice->contactId . ', Lex contact ID: ' . ($invoice->lexContactId ?? 'NULL'), 'InvoiceService');
+        
         return $this->client->post('/invoices', $payload);
+    }
+    
+    /**
+     * Validate invoice before transmission.
+     */
+    private function validateInvoiceForTransmission(Invoice $invoice): array
+    {
+        $errors = [];
+        
+        if (empty($invoice->lexContactId)) {
+            $errors[] = 'Lex contact ID is required';
+        }
+        
+        if (empty($invoice->lineItems)) {
+            $errors[] = 'Invoice must have at least one line item';
+        }
+        
+        foreach ($invoice->lineItems ?? [] as $index => $lineItem) {
+            if ($lineItem->type !== 'text') {
+                if ($lineItem->netAmount === null || $lineItem->netAmount === 0.0) {
+                    $errors[] = "Line item #{$index} has invalid netAmount: {$lineItem->netAmount}";
+                }
+                if ($lineItem->taxRatePercentage === null) {
+                    $errors[] = "Line item #{$index} is missing taxRatePercentage";
+                }
+            }
+        }
+        
+        return $errors;
     }
 
     /**
@@ -403,8 +445,13 @@ final class InvoiceService
      */
     private function handleTransmissionError(string $invoiceId, HttpResponse $response): void
     {
-        $errorMessage = $response->getError() ?? 'Unknown error';
+        // Get error message from API response body, not just curl error
+        $errorMessage = $response->getMessage() ?? 'Unknown error';
         $errorCode = (string) $response->getStatusCode();
+        
+        // Log the full response body for debugging
+        Logger::info('Lexware API error response body: ' . $response->getBody(), 'InvoiceService');
+        Logger::info('Lexware API error details: ' . json_encode($response->toArray()), 'InvoiceService');
 
         $this->repository->updateWithError($invoiceId, $errorMessage, $errorCode);
 

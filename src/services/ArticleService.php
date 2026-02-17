@@ -34,7 +34,9 @@ final class ArticleService
             return [];
         }
 
-        $articles = $this->repository->searchArticles($normalizedQuery);
+        // Build filter array for text search
+        $filter = ['q' => $normalizedQuery];
+        $articles = $this->repository->searchArticles($filter);
 
         return $this->enrichArticleSearchResults($articles);
     }

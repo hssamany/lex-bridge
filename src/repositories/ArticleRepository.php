@@ -109,6 +109,15 @@ final class ArticleRepository
         $whereClauses = [];
 
         foreach (($filter ?? []) as $column => $value) {
+            // Handle text search query
+            if ($column === 'q' && is_string($value) && $value !== '') {
+                $searchTerm = "%{$value}%";
+                $whereClauses[] = "(a.article_number LIKE :search_number OR a.name LIKE :search_name)";
+                $params[':search_number'] = $searchTerm;
+                $params[':search_name'] = $searchTerm;
+                continue;
+            }
+            
             if (is_array($value) && !empty($value)) {
                 // IN clause for arrays
                 $inPlaceholders = [];

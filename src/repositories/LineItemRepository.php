@@ -65,7 +65,7 @@ class LineItemRepository
 
         $fromSql = <<<SQL
             FROM {$this->lineItemTable} li
-            LEFT JOIN {$this->customerTable} c ON li.customer_id = c.id
+            LEFT JOIN {$this->customerTable} c ON li.customer_number = c.Nummer
         SQL;
 
         $where = [];
@@ -82,7 +82,7 @@ class LineItemRepository
         }
 
         if (!empty($filters['customer_id'])) {
-            $where[] = 'li.customer_id = :customer_id';
+            $where[] = 'c.id = :customer_id';
             $params[':customer_id'] = (int)$filters['customer_id'];
         }
 
@@ -224,26 +224,33 @@ class LineItemRepository
 
                 $sql = <<<SQL
                     INSERT INTO {$this->lineItemTable} (
-                        id, article_id, article_number,customer_id, name, description,
+                        id, article_id, article_number, customer_number, name, description,
                         quantity, unit_name, currency, net_amount, gross_amount,
                         tax_rate_percentage, line_total_net, line_total_gross,
                         order_delivery_date, line_order, order_id, created_at
                     ) VALUES (
-                        :id, :article_id, :article_number, :customer_id, :name, :description,
+                        :id, :article_id, :article_number, :customer_number, :name, :description,
                         :quantity, :unit_name, :currency, :net_amount, :gross_amount,
                         :tax_rate_percentage, :line_total_net, :line_total_gross,
                         :order_delivery_date, :line_order, :order_id, NOW()
                     )
+                    ON DUPLICATE KEY UPDATE
+                        quantity = VALUES(quantity),
+                        net_amount = VALUES(net_amount),
+                        gross_amount = VALUES(gross_amount),
+                        line_total_net = VALUES(line_total_net),
+                        line_total_gross = VALUES(line_total_gross),
+                        updated_at = NOW()
                 SQL;
 
-                $customerId = $item['customer_id'] ?? throw new \InvalidArgumentException("Missing customer_id for line item at index {$index}");
+                $customerNumber = $item['customer_number'] ?? throw new \InvalidArgumentException("Missing customer_number for line item at index {$index}");
 
                 $stmt = $this->db->prepare($sql);
                 $success = $stmt->execute([
                     ':id' => $lineItemId,
                     ':article_id' => $item['article_id'] ?? null,
                     ':article_number' => $item['article_number'] ?? null,
-                    ':customer_id' => $customerId,
+                    ':customer_number' => $customerNumber,
                     ':name' => $item['article_name'] ?? $item['name'] ?? null,
                     ':description' => $item['description'] ?? null,
                     ':quantity' => $item['quantity'] ?? null,

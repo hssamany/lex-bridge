@@ -281,7 +281,8 @@ class OrderRepository
                 ca.article_id,
                 a.article_number,
                 a.name AS article_name,
-                c.id AS customer_id
+                c.id AS customer_id,
+                c.Nummer AS customer_number
                     
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
@@ -293,6 +294,9 @@ class OrderRepository
                 {$whereSql}
                 ORDER BY o.Id ASC, o.Kunde, o.Jahr, o.KW
         SQL;
+
+        Logger::info("Executing order selection query with WHERE: " . $whereSql, 'OrderRepository');
+        Logger::info("Query params: " . json_encode($params), 'OrderRepository');
 
         $stmt = $this->db->prepare($sql);
 
@@ -311,8 +315,18 @@ class OrderRepository
         // fetch all matching order rows with article info in one go
         $orderRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        Logger::info("Order selection query returned " . count($orderRows) . " rows", 'OrderRepository');
+        
         if (!$orderRows) {
+            Logger::info("No orders found matching criteria. Filters: " . json_encode($filters), 'OrderRepository');
             return [];
+        }
+        
+        // Check for rows with missing article mappings
+        $rowsWithoutArticle = array_filter($orderRows, fn($row) => empty($row['article_id']));
+        if (count($rowsWithoutArticle) > 0) {
+            $sampleRows = array_slice($rowsWithoutArticle, 0, 3);
+            Logger::info("WARNING: " . count($rowsWithoutArticle) . " order rows have no article mapping. Sample: " . json_encode($sampleRows), 'OrderRepository');
         }
 
         // Collect all unique article IDs from $orderRows
@@ -320,9 +334,16 @@ class OrderRepository
 
         // Fetch all articles with their most recent price in one call
         $articles = $this->articleRepository->searchArticles(['id' => $articleIds]);
+        
+        Logger::info("Fetched " . count($articles) . " articles for " . count($articleIds) . " article IDs", 'OrderRepository');
+        
         $articleMap = [];
 
         foreach ($articles as $articleRow) {
+            $hasPrice = isset($articleRow['net_amount']) && $articleRow['net_amount'] > 0;
+            if (!$hasPrice) {
+                Logger::info("WARNING: Article {$articleRow['id']} ({$articleRow['article_number']}) has no valid price. net_amount: " . ($articleRow['net_amount'] ?? 'NULL'), 'OrderRepository');
+            }
             $articleMap[$articleRow['id']] = $articleRow;
         }
 
@@ -331,6 +352,8 @@ class OrderRepository
         $missingMappings = [];
         $missingArticles = [];
         $missingPrices = [];
+
+        Logger::info("Starting to process " . count($orderRows) . " order rows", 'OrderRepository');
 
         $formatList = static function (array $values): string {
 
@@ -400,20 +423,31 @@ class OrderRepository
                     }
 
                     $missingMappings[$customerKey]['orders'][$orderId] = true;
+                    Logger::info("Skipping order {$orderId} for customer {$customerKey}: No article mapping found", 'OrderRepository');
                     continue 2;
                 }
 
                 // Logger::info(json_encode($lineItem, JSON_PRETTY_PRINT),'OrderRepository');
 
                 $article = $articleMap[$articleId] ?? null;
+                
+                if ($article === null) {
+                    Logger::info("No article found for article_id {$articleId} in order {$orderId}", 'OrderRepository');
+                }
+                
                 $lineItem = $this->lineItemBuilder->buildLineItemPayload($orderRow, $article, $deliveryDate, $quantityValue);
-                $this->lineItemRepository->persistLineItemsForCustomer([$lineItem]);
+                $persistResult = $this->lineItemRepository->persistLineItemsForCustomer([$lineItem]);
+                
+                Logger::info("Persist result for order {$orderId}: " . json_encode($persistResult), 'OrderRepository');
+                
                 $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + 1;
                 $results[$customerKey][] = $lineItem;
             }
         }
 
         $this->markOrdersAsProcessed($lineCountPerOrder);
+
+        Logger::info("Line items generation complete. Total line items: " . array_sum(array_map('count', $results)) . ", Orders processed: " . count($lineCountPerOrder), 'OrderRepository');
 
         return $results;
     }
@@ -488,11 +522,9 @@ class OrderRepository
             $params[$placeholder] = $orderId;
         }
 
-        $sql = <<<SQL
-            UPDATE {$this->ordersTable} o
-            SET verarbeitet = 1 
-            WHERE Id IN (" . implode(', ', $placeholders) . ")
-        SQL;
+        $inClause = implode(', ', $placeholders);
+        
+        $sql = "UPDATE {$this->ordersTable} SET verarbeitet = 1 WHERE Id IN ($inClause)";
 
         $stmt = $this->db->prepare($sql);
 
