@@ -235,6 +235,7 @@
             
             if (this.ordersGenerateButton) {
                 this.ordersGenerateButton.disabled = selectedCount === 0;
+                // No error toast here; error is not defined in this scope
             }
             
             if (this.ordersGenerateInvoicesButton) {
@@ -457,7 +458,7 @@
                 this.pageSize = Number(data.page_size) > 0 ? Number(data.page_size) : this.pageSize;
                 this.applyProcessedFilter();
                 this.renderPaginator();
-                this.notify('Bestellungen aktualisiert.', 'success');
+                // Only show toast for errors or sync/save actions, not for successful loads
 
             } catch (error) {
                 console.error('Orders filter error:', error);
