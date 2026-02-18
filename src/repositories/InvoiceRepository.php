@@ -10,6 +10,7 @@ use JsonException;
 use PDO;
 use Luxullus\LexBridge\Database\Database;
 use Luxullus\LexBridge\Logger;
+use Luxullus\LexBridge\Services\LineItemCalculator;
 use Luxullus\LexBridge\Utils\UuidUtil;
 
 /**
@@ -240,6 +241,8 @@ final class InvoiceRepository
                 li.unit_name,
                 li.net_amount,
                 li.gross_amount,
+                li.line_total_net,
+                li.line_total_gross,
                 li.currency,
                 li.order_delivery_date,
                 c.id AS customer_id
@@ -279,10 +282,10 @@ final class InvoiceRepository
                 $this->db->beginTransaction(); 
                 {
 
-                    // Calculate totals
+                    // Calculate totals with fallback to quantity * unit price if line totals not set
                     $currency = $lineItems[0]['currency'] ?? null;
-                    $totalNet = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['net_amount'] ?? 0), 0.0);
-                    $totalGross = array_reduce($lineItems, fn($carry, $item) => $carry + (float)($item['gross_amount'] ?? 0), 0.0);
+                    $totalNet = $this->sumLineItemTotals($lineItems, 'line_total_net', 'net_amount');
+                    $totalGross = $this->sumLineItemTotals($lineItems, 'line_total_gross', 'gross_amount');
                     
                     // Find earliest shipping date from line items
                     $deliveryDates = array_column($lineItems, 'order_delivery_date');
@@ -326,7 +329,17 @@ final class InvoiceRepository
                     
                     if (!empty($lineItemIds)) {
 
-                        $inClause = implode(',', array_map('intval', $lineItemIds));
+                        // Build parameterized placeholders for UUID strings
+                        $placeholders = [];
+                        $updateParams = [':invoice_id' => $newInvoiceId];
+                        
+                        foreach ($lineItemIds as $index => $lineItemId) {
+                            $paramName = ":line_item_id_{$index}";
+                            $placeholders[] = $paramName;
+                            $updateParams[$paramName] = (string)$lineItemId;
+                        }
+                        
+                        $inClause = implode(',', $placeholders);
                         $updateSql = <<<SQL
                             UPDATE {$this->lineItemTable} 
                             SET invoice_id = :invoice_id 
@@ -334,7 +347,9 @@ final class InvoiceRepository
                         SQL;
 
                         $updateStmt = $this->db->prepare($updateSql);
-                        $updateStmt->bindValue(':invoice_id', $newInvoiceId, PDO::PARAM_STR);
+                        foreach ($updateParams as $param => $value) {
+                            $updateStmt->bindValue($param, $value, PDO::PARAM_STR);
+                        }
                         $updateStmt->execute();
 
                     } else {
@@ -489,5 +504,33 @@ final class InvoiceRepository
             Logger::exception($e, 'InvoiceRepository - Update Status');
             return false;
         }
+    }
+
+    /**
+     * Sum line item totals with fallback calculation using LineItemCalculator.
+     *
+     * @param array<int, array<string, mixed>> $lineItems
+     * @param string $totalField Field containing pre-calculated total (e.g., 'line_total_gross')
+     * @param string $unitField Field containing unit price (e.g., 'gross_amount')
+     * @return float
+     */
+    private function sumLineItemTotals(array $lineItems, string $totalField, string $unitField): float
+    {
+        $calculator = new LineItemCalculator();
+        
+        return array_reduce($lineItems, function($carry, $item) use ($calculator, $totalField, $unitField) {
+            // Use pre-calculated total if available
+            $lineTotal = $item[$totalField] ?? null;
+            
+            // Fallback: calculate using quantity * unit price with precision handling
+            if ($lineTotal === null && isset($item['quantity'], $item[$unitField])) {
+                $lineTotal = $calculator->calculateLineTotal(
+                    (float)$item['quantity'],
+                    $item[$unitField]
+                );
+            }
+            
+            return $carry + ($lineTotal ?? 0.0);
+        }, 0.0);
     }
 }
