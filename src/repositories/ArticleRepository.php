@@ -104,33 +104,34 @@ final class ArticleRepository
 
     
     public function buildSearchQuery(?array $filter = []): array
-    {
+    {   
         $params = [];
         $whereClauses = [];
 
         foreach (($filter ?? []) as $column => $value) {
-            if (is_array($value)) {
-                if (!empty($value)) {
-                    // IN clause for arrays
-                    $inPlaceholders = [];
-                    foreach ($value as $idx => $item) {
-                        $ph = ":{$column}_{$idx}";
-                        $inPlaceholders[] = $ph;
-                        $params[$ph] = $item;
-                    }
-                    $whereClauses[] = "a.$column IN (" . implode(',', $inPlaceholders) . ")";
+
+            if (is_array($value) && !empty($value)) {
+                
+                // IN clause for arrays
+                $inPlaceholders = [];
+                foreach ($value as $idx => $item) {
+                    $ph = ":{$column}_{$idx}";
+                    $inPlaceholders[] = $ph;
+                    $params[$ph] = $item;
                 }
-                // else: skip empty arrays
+
+                $whereClauses[] = "a.$column IN (" . implode(',', $inPlaceholders) . ")";
+
             } elseif ($value !== null) {
                 // Equality for scalars
                 $ph = ":{$column}";
-                $whereClauses[] = "a.$column = $ph";
-                $params[$ph] = $value;
+                $whereClauses[] = "a.$column LIKE $ph";
+                $params[$ph] = '%' . $value . '%';
             }
         }
 
-        $where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
-
+        $where = $whereClauses ? 'WHERE ' . implode(' OR ', $whereClauses) : '';
+              
         $sql = <<<SQL
             SELECT
                 a.id,
@@ -161,6 +162,9 @@ final class ArticleRepository
             $where
             ORDER BY a.name ASC
         SQL;
+
+        Logger::info('#########-1', implode(', ', $params));   
+        Logger::info('#########-1', $sql);   
 
         return [
             'sql' => $sql,
