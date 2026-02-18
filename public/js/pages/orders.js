@@ -402,6 +402,12 @@
                     continue;
                 }
 
+                // if (key === 'customer_id') {
+                //     const input = form.querySelector('input[name="customer_id"]');
+                //     const dataValue = input ? input.dataset.customerId: null;
+                //     params.append("customer_id", dataValue || '');
+                // }
+
                 if (typeof value === 'string' && value.trim() !== '') {
                     params.append(key, value.trim());
                 }

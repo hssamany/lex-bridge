@@ -216,12 +216,6 @@
                     option.setAttribute('data-customer-number', number);
                 }
 
-                const key = number || id;
-                if (key) {
-                    option.dataset.customerKey = key;
-                    option.setAttribute('data-customer-key', key);
-                }
-
                 datalist.appendChild(option);
             });
         }
@@ -255,8 +249,7 @@
                 ? Array.from(datalist.options)
                 : Array.from(datalist.children);
             const lowerValue = value.toLowerCase();
-            const numericValue = CustomerSearchController.extractCustomerNumber(value);
-            let matchedKey = '';
+            let matchedId = '';
 
             for (const optionElement of options) {
                 if (!(optionElement instanceof HTMLOptionElement)) {
@@ -269,30 +262,17 @@
                 }
 
                 const optionLower = optionValue.toLowerCase();
-                const optionNumber = optionElement.dataset.customerNumber || optionElement.getAttribute('data-customer-number') || '';
-                const optionKey = optionElement.dataset.customerKey || optionElement.getAttribute('data-customer-key') || optionNumber || optionElement.dataset.customerId || optionElement.getAttribute('data-customer-id') || '';
-                const labelNumber = CustomerSearchController.extractCustomerNumber(optionValue);
+                const optionId = optionElement.dataset.customerId || optionElement.getAttribute('data-customer-id') || '';
 
-                if (optionKey === '') {
-                    continue;
-                }
-
-                const labelMatches = optionValue === value || optionLower === lowerValue;
-                const numberMatches = optionNumber !== '' && (optionNumber === value || optionNumber === numericValue);
-                const prefixMatches = labelNumber !== '' && (labelNumber === numericValue || labelNumber === value || lowerValue.startsWith(labelNumber.toLowerCase()));
-
-                if (labelMatches || numberMatches || prefixMatches) {
-                    matchedKey = optionKey;
+                // Match by label (displayed value)
+                if (optionValue === value || optionLower === lowerValue) {
+                    matchedId = optionId;
                     break;
                 }
             }
 
-            if (!matchedKey && numericValue) {
-                matchedKey = numericValue;
-            }
-
-            if (matchedKey) {
-                hidden.value = matchedKey;
+            if (matchedId) {
+                hidden.value = matchedId;
             }
         }
 

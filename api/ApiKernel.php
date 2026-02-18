@@ -196,7 +196,7 @@ final class ApiKernel {
                     $filters['customer_id'] = $customerId;
                 }
             }
-
+            Logger::info('XXXXXXXXXXXXXXXXXXXx-3: '. json_encode($filters), 'ApiKernel');
             $pagination = $this->parsePagination();
             return $controller->getOrders($filters, $pagination);
         });

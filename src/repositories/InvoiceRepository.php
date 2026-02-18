@@ -196,8 +196,8 @@ final class InvoiceRepository
      */
     private function invoiceCreator(array $filters): array
     {
-        $deliveryDateFrom = $filters['from'] ?? null;
         $deliveryDateTo = $filters['to'] ?? null;
+        $deliveryDateFrom = $filters['from'] ?? null;
         $lineItemIds = $filters['line_item_ids'] ?? null;
         
         // Build WHERE clause and params
@@ -260,11 +260,13 @@ final class InvoiceRepository
         // Group line items by customer ID
         $lineItemsByCustomer = [];
         foreach ($lineItemRows as $row) {
+
             $customerId = $row['customer_id'];
             if ($customerId === null) {
                 Logger::info("Line item {$row['id']} has no matching customer for customer_number: {$row['customer_number']}", 'InvoiceRepository');
                 continue;
             }
+
             $lineItemsByCustomer[$customerId][] = $row;
         }
 
@@ -330,27 +332,7 @@ final class InvoiceRepository
                     if (!empty($lineItemIds)) {
 
                         // Build parameterized placeholders for UUID strings
-                        $placeholders = [];
-                        $updateParams = [':invoice_id' => $newInvoiceId];
-                        
-                        foreach ($lineItemIds as $index => $lineItemId) {
-                            $paramName = ":line_item_id_{$index}";
-                            $placeholders[] = $paramName;
-                            $updateParams[$paramName] = (string)$lineItemId;
-                        }
-                        
-                        $inClause = implode(',', $placeholders);
-                        $updateSql = <<<SQL
-                            UPDATE {$this->lineItemTable} 
-                            SET invoice_id = :invoice_id 
-                            WHERE id IN ({$inClause})
-                        SQL;
-
-                        $updateStmt = $this->db->prepare($updateSql);
-                        foreach ($updateParams as $param => $value) {
-                            $updateStmt->bindValue($param, $value, PDO::PARAM_STR);
-                        }
-                        $updateStmt->execute();
+                        $this->updateLineItemsInvoiceId($newInvoiceId, $lineItemIds);
 
                     } else {
 
@@ -381,14 +363,43 @@ final class InvoiceRepository
                 }
 
                 Logger::exception($exception, "InvoiceRepository - Create Invoice for Customer $customerId failed");
+
                 $skippedLineItems = array_merge($skippedLineItems, $failedLineItemIds ?? []);
                 continue;
             }
         }
+
         return [
             'createdInvoices' => $createdInvoices,  
             'skippedLineItems' => $skippedLineItems,
         ];
+    }
+
+    private function updateLineItemsInvoiceId(string $invoiceId, array $lineItemIds): void
+    {
+        $placeholders = [];
+        $updateParams = [':invoice_id' => $invoiceId];
+
+        foreach ($lineItemIds as $index => $lineItemId) {
+            $paramName = ":line_item_id_{$index}";
+            $placeholders[] = $paramName;
+            $updateParams[$paramName] = (string)$lineItemId;
+        }
+
+        $inClause = implode(',', $placeholders);
+        $updateSql = <<<SQL
+            UPDATE {$this->lineItemTable} 
+            SET invoice_id = :invoice_id 
+            WHERE id IN ({$inClause})
+        SQL;
+
+        $updateStmt = $this->db->prepare($updateSql);
+
+        foreach ($updateParams as $param => $value) {
+            $updateStmt->bindValue($param, $value, PDO::PARAM_STR);
+        }
+
+        $updateStmt->execute();
     }
 
     /**
@@ -524,7 +535,8 @@ final class InvoiceRepository
             
             // Fallback: calculate using quantity * unit price with precision handling
             if ($lineTotal === null && isset($item['quantity'], $item[$unitField])) {
-                $lineTotal = $calculator->calculateLineTotal(
+                $lineTotal = $calculator->calculateLineTotal
+                (
                     (float)$item['quantity'],
                     $item[$unitField]
                 );

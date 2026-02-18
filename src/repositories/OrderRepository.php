@@ -72,7 +72,7 @@ final class OrderRepository
      */
     public function getOrders(array $filters, array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-
+        Logger::info('OrderRepository', 'XXXXXXXXXXXXXXXXXXXx-1: %s', json_encode($filters));
         // Use InputFilter utility for date normalization and validation
         $changedFrom = InputFilter::filterDateValueProvided($filters, 'geaendertAm_from', true, false);
         $changedTo = InputFilter::filterDateValueProvided($filters, 'geaendertAm_to', false, true)
@@ -103,29 +103,40 @@ final class OrderRepository
             : '0 AS verarbeitet';
 
         // First, let's check if there are ANY orders in the table
-        $countSql = "SELECT COUNT(*) as total, MIN(o.GeaendertAm) as min_date, MAX(o.GeaendertAm) as max_date FROM {$this->ordersTable} o";
+        $countSql = <<<SQL
+            SELECT 
+                COUNT(*) as total,
+                MIN(GeaendertAm) as min_date,
+                MAX(GeaendertAm) as max_date
+            FROM {$this->ordersTable}
+        SQL;
+
         $countStmt = $this->db->query($countSql);
         $countResult = $countStmt->fetch(PDO::FETCH_ASSOC);
-        Logger::log('OrderRepository', 'Total orders in table: %d', $countResult['total'] ?? 0);
-        Logger::log('OrderRepository', 'Date range in table: %s to %s', $countResult['min_date'] ?? 'NULL', $countResult['max_date'] ?? 'NULL');
-        Logger::log('OrderRepository', 'Filtering from: %s to: %s', $changedFrom->format('Y-m-d'), $changedTo->format('Y-m-d'));
 
-        $fromSql = "FROM {$this->ordersTable} o
-                LEFT JOIN {$this->customerTable} c
-                    ON c.id = o.Kunde
-                LEFT JOIN {$this->customerArticleTable} ca
-                    ON ca.customer_id = c.id
-                LEFT JOIN {$this->articleTable} a
-                    ON a.id = ca.article_id
-                WHERE " . implode(' AND ', $conditions);
+        $sqlConditions = implode(' AND ', $conditions);
+        
+        $fromSql = <<<SQL
+            FROM {$this->ordersTable} o
+            LEFT JOIN {$this->customerTable} c ON c.id = o.Kunde
+            LEFT JOIN {$this->customerArticleTable} ca ON ca.customer_id = c.id
+            LEFT JOIN {$this->articleTable} a ON a.id = ca.article_id
+            WHERE {$sqlConditions}
+        SQL;
 
-        $countSql = "SELECT COUNT(*) AS total {$fromSql}";
+        $countSql = <<<SQL
+            SELECT COUNT(DISTINCT o.Id) as total {$fromSql}
+        SQL;
+
         $countStmt = $this->db->prepare($countSql);
+
         foreach ($params as $name => $value) {
+
             if ($name === ':customer_id') {
                 $countStmt->bindValue($name, $value, PDO::PARAM_INT);
                 continue;
             }
+
             $countStmt->bindValue($name, $value, PDO::PARAM_STR);
         }
         $countStmt->execute();
@@ -134,7 +145,7 @@ final class OrderRepository
         $sql = <<<SQL
             SELECT
                 o.Id AS order_id,
-                o.Kunde AS customer_id,
+                -- o.Kunde AS customer_id,
                 o.Jahr AS order_year,
                 o.KW AS order_week,
                 o.Mo,
@@ -147,6 +158,7 @@ final class OrderRepository
                 o.GeaendertAm,
                 c.Nummer AS customer_number,
                 c.lex_customer_number,
+                c.id AS customer_id,
                 {$verarbeitetSelect}
 
             {$fromSql}
