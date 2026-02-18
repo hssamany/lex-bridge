@@ -25,21 +25,19 @@ final class ArticleRepository
     /**
      * Search articles by number or name with current price information.
      *
-     * @param array<string, mixed> $filter
+     * @param string|null $query Search term for article_number or name
      * @return array<int, array<string, mixed>>
      */
-    public function searchArticles(?array $filter = []): array
+    public function searchArticles(?string $query = null): array
     {
-        $queryData = $this->buildSearchQuery($filter);
-
+        $queryData = $this->buildSearchQuery($query);
         $stmt = $this->db->prepare($queryData['sql']);
 
-        foreach ($queryData['params'] as $ph => $val) {
-            $stmt->bindValue($ph, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        if (!empty($queryData['params'])) {
+            $stmt->execute($queryData['params']);
+        } else {
+            $stmt->execute();
         }
-        
-        $stmt->execute();
-
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
@@ -103,34 +101,22 @@ final class ArticleRepository
     }
 
     
-    public function buildSearchQuery(?array $filter = []): array
+    /**
+     * Build SQL and params for article search by query string.
+     *
+     * @param string|null $query
+     * @return array{sql:string,params:array}
+     */
+    public function buildSearchQuery(?string $query = null): array
     {
         $params = [];
         $whereClauses = [];
-
-        foreach (($filter ?? []) as $column => $value) {
-            if (is_array($value)) {
-                if (!empty($value)) {
-                    // IN clause for arrays
-                    $inPlaceholders = [];
-                    foreach ($value as $idx => $item) {
-                        $ph = ":{$column}_{$idx}";
-                        $inPlaceholders[] = $ph;
-                        $params[$ph] = $item;
-                    }
-                    $whereClauses[] = "a.$column IN (" . implode(',', $inPlaceholders) . ")";
-                }
-                // else: skip empty arrays
-            } elseif ($value !== null) {
-                // Equality for scalars
-                $ph = ":{$column}";
-                $whereClauses[] = "a.$column = $ph";
-                $params[$ph] = $value;
-            }
+        if ($query !== null && $query !== '') {
+            $ph = ':q';
+            $whereClauses[] = "(a.article_number LIKE $ph OR a.name LIKE $ph)";
+            $params[$ph] = '%' . $query . '%';
         }
-
         $where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
-
         $sql = <<<SQL
             SELECT
                 a.id,
@@ -161,7 +147,7 @@ final class ArticleRepository
             $where
             ORDER BY a.name ASC
         SQL;
-
+        
         return [
             'sql' => $sql,
             'params' => $params,

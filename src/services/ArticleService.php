@@ -29,15 +29,10 @@ final class ArticleService
     public function searchArticles(?string $query): array
     {
         $normalizedQuery = $this->normalizeSearchQuery($query);
-        
         if ($normalizedQuery === null || $normalizedQuery === '') {
             return [];
         }
-
-        // Build filter array for text search
-        $filter = ['q' => $normalizedQuery];
-        $articles = $this->repository->searchArticles($filter);
-
+        $articles = $this->repository->searchArticles($normalizedQuery);
         return $this->enrichArticleSearchResults($articles);
     }
 

@@ -5,23 +5,25 @@ declare(strict_types=1);
 namespace Luxullus\LexBridge\Controllers;
 
 use Luxullus\LexBridge\Services\ArticleService;
+use Luxullus\LexBridge\Logger;
 
 final class ArticleController
 {
-    private ArticleService $service;
+    private ArticleService $articleService;
 
-    public function __construct(ArticleService $service)
+    public function __construct(ArticleService $articleService)
     {
-        $this->service = $service;
+        $this->articleService = $articleService;
     }
 
     public function searchArticles(?string $query): array
     {
-        return $this->service->searchArticles($query);
+        Logger::info("AAAAAAAAAA: " . ($query ?? 'null'));   
+        return $this->articleService->searchArticles($query);
     }
 
     public function syncArticles(?int $page = null): array
     {
-        return $this->service->syncArticlesFromLexware($page);
+        return $this->articleService->syncArticlesFromLexware($page);
     }
 }
