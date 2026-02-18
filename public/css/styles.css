@@ -664,6 +664,7 @@ input[list]::-webkit-calendar-picker-indicator {
     z-index: 3;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.03);
     margin-top: 0;
+    padding-right: 50px;
 }
 
 .paginator {
@@ -724,6 +725,7 @@ input[list]::-webkit-calendar-picker-indicator {
     display: flex;
     gap: var(--space-sm);
     align-items: center;
+    padding-left: var(--space-sm);
 }
 
 .paginator-label {
