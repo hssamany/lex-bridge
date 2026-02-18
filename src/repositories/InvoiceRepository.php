@@ -234,7 +234,6 @@ final class InvoiceRepository
             SELECT 
                 li.id,
                 li.invoice_id,
-                li.customer_number,
                 li.order_id,
                 li.article_id,
                 li.quantity,
@@ -245,10 +244,11 @@ final class InvoiceRepository
                 li.line_total_gross,
                 li.currency,
                 li.order_delivery_date,
-                c.id AS customer_id
+                c.id AS customer_id,
+                c.Nummer AS customer_number
 
             FROM {$this->lineItemTable} li
-            LEFT JOIN {$this->customerTable} c ON li.customer_number = c.Nummer
+            LEFT JOIN {$this->customerTable} c ON li.customer_id = c.id
             WHERE $whereSql
         SQL;        
 

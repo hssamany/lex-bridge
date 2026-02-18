@@ -267,7 +267,7 @@ class LineItemsPage {
             this.updateLineItemsList(data);
             this.updateSendInvoiceButtonState();
             this.applyInvoicedFilter();
-            this.showToast('Line items aktualisiert', 'success');
+            // Only show toast for errors or sync/save actions, not for successful loads
         } catch (error) {
             console.error('Line items filter error:', error);
             this.showToast(error.message || 'Fehler beim Laden der Positionen', 'error');

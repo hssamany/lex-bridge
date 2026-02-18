@@ -213,7 +213,7 @@ Controller → Service (business logic, validation, transformation) → Reposito
 
 1. Apply same pattern to **LineItemService** and **LineItemRepository**
 2. Apply same pattern to **OrderService** and **OrderRepository**
-   - `OrderRepository::generateInvoiceLineItemsFromOrders()` contains 200+ lines of business logic
+   - `OrderRepository::generateLineItemsFromOrders()` contains 200+ lines of business logic
 3. Create integration tests for Lexware API interactions
 4. Consider adding validation middleware for API endpoints
 

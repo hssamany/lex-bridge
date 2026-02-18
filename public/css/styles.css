@@ -84,11 +84,31 @@
     /* Transitions */
     --transition-fast: 0.15s ease;
     --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+    
+    /* Font size variables */
+    --font-size-data: 1.2rem;
+    --font-size-header: 1.4rem;
+    --font-size-control: 1.1rem;
+    --font-size-labels: 1.2rem;
+}
+
+table, .data-table {
+    font-size: var(--font-size-data);
 }
 
 /* =====================
    Base & Typography
    ===================== */
+body {
+    font-size: var(--font-size-data);
+}
+
+h2, h3, h4, h5, h6 {
+    font-size: var(--font-size-header);
+}
+
+
 body {
     background: var(--main-bg);
     background-color: var(--main-bg);
@@ -368,7 +388,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.95rem;
+    font-size: var(--font-size-data);
     color: var(--table-text);
     line-height: 1.5;
     transition: background-color var(--transition-fast);
@@ -563,7 +583,7 @@ body {
 
 .filter-form label,
 .line-items-filter-form label {
-    font-size: 0.95rem;
+    font-size: var(--font-size-labels);
     color: #333;
     margin-bottom: 0.3rem;
     font-weight: 500;
@@ -579,7 +599,7 @@ body {
     padding: 0.45rem 0.7rem;
     border: 1px solid #ccc;
     border-radius: var(--border-radius);
-    font-size: 1rem;
+    font-size: var(--font-size-control);
     background: var(--header-bg);
     transition: border-color 0.2s;
     width: 100%;
@@ -614,7 +634,7 @@ body {
     gap: 8px;
     white-space: nowrap;
     margin: 0;
-    font-size: 0.95rem;
+    font-size: var(--font-size-control);
     color: #333;
 }
 
@@ -636,7 +656,7 @@ input[list]::-webkit-calendar-picker-indicator {
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    font-size: 0.9rem;
+    font-size: var(--font-size-control);
     height: var(--paginator-height);
     min-height: var(--paginator-height);
     background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
@@ -651,12 +671,12 @@ input[list]::-webkit-calendar-picker-indicator {
     flex-wrap: wrap;
     gap: 0.75rem;
     align-items: center;
-    font-size: 0.9rem;
+    font-size: var(--font-size-control);
 }
 
 .paginator-info {
     flex: 1;
-    font-size: 0.9rem;
+    font-size: var(--font-size-labels);
     margin-right: 1em;
     font-weight: 600;
     color: white;
@@ -719,7 +739,7 @@ input[list]::-webkit-calendar-picker-indicator {
     border-radius: var(--border-radius);
     background: var(--header-bg);
     color: #333;
-    font-size: 0.9rem;
+    font-size: var(--font-size-control);
     height: auto;
     cursor: pointer;
 }
@@ -731,7 +751,7 @@ input[list]::-webkit-calendar-picker-indicator {
     border-radius: var(--border-radius);
     background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-hover) 100%);
     color: white;
-    font-size: 0.9rem;
+    font-size: var(--font-size-control);
     height: 36px;
 }
 
@@ -840,7 +860,7 @@ input[list]::-webkit-calendar-picker-indicator {
     align-items: center;
     gap: 8px;
     margin-left: 12px;
-    font-size: 0.95rem;
+    font-size: var(--font-size-control);
     color: #333;
     white-space: nowrap;
 }
@@ -863,7 +883,6 @@ input[list]::-webkit-calendar-picker-indicator {
 
 .line-items-toolbar-btn {
     height: 32px;
-    font-size: 1em;
 }
 
 .line-item-edit-btn {
@@ -877,7 +896,7 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .line-item-edit-btn .btn-icon {
-    font-size: 1rem;
+    font-size: var(--font-size-control);
     line-height: 1;
 }
 
@@ -891,7 +910,7 @@ input[list]::-webkit-calendar-picker-indicator {
 }
 
 .filter-submit-btn .btn-icon {
-    font-size: 1.3rem;
+    font-size: var(--font-size-control);
     line-height: 1;
     color: var(--header-bg);
 }
@@ -905,7 +924,7 @@ input[list]::-webkit-calendar-picker-indicator {
     margin-top: var(--space-sm);
     padding: 12px 8px;
     margin: 0;
-    font-size: 0.9rem;
+    font-size: var(--font-size-data);
     color: #333;
     text-align: left;
     font-weight: 600;
@@ -929,7 +948,7 @@ input[list]::-webkit-calendar-picker-indicator {
     padding: 6px 8px;
     border: 1px solid #ccc;
     border-radius: var(--border-radius);
-    font-size: 0.95rem;
+    font-size: var(--font-size-control);
     background-color: var(--header-bg);
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -983,6 +1002,7 @@ input[list]::-webkit-calendar-picker-indicator {
     padding: 6px 8px;
     border: 1px solid #ced4da;
     border-radius: var(--border-radius);
+    font-size: var(--font-size-control);
 }
 
 .contact-article-clear {
@@ -992,7 +1012,7 @@ input[list]::-webkit-calendar-picker-indicator {
     border: none;
     border-radius: var(--border-radius);
     cursor: pointer;
-    font-size: 16px;
+    font-size: var(--font-size-control);
     line-height: 1;
 }
 
@@ -1007,6 +1027,7 @@ input[list]::-webkit-calendar-picker-indicator {
     margin-bottom: 15px;
     padding: 12px;
     border-radius: var(--border-radius);
+    font-size: var(--font-size-control);
 }
 
 .alert-success {

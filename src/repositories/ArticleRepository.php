@@ -104,21 +104,14 @@ final class ArticleRepository
 
     
     public function buildSearchQuery(?array $filter = []): array
-    {
+    {   
         $params = [];
         $whereClauses = [];
 
         foreach (($filter ?? []) as $column => $value) {
-            // Handle text search query
-            if ($column === 'q' && is_string($value) && $value !== '') {
-                $searchTerm = "%{$value}%";
-                $whereClauses[] = "(a.article_number LIKE :search_number OR a.name LIKE :search_name)";
-                $params[':search_number'] = $searchTerm;
-                $params[':search_name'] = $searchTerm;
-                continue;
-            }
-            
+
             if (is_array($value) && !empty($value)) {
+                
                 // IN clause for arrays
                 $inPlaceholders = [];
                 foreach ($value as $idx => $item) {
@@ -126,17 +119,19 @@ final class ArticleRepository
                     $inPlaceholders[] = $ph;
                     $params[$ph] = $item;
                 }
+
                 $whereClauses[] = "a.$column IN (" . implode(',', $inPlaceholders) . ")";
+
             } elseif ($value !== null) {
                 // Equality for scalars
                 $ph = ":{$column}";
-                $whereClauses[] = "a.$column = $ph";
-                $params[$ph] = $value;
+                $whereClauses[] = "a.$column LIKE $ph";
+                $params[$ph] = '%' . $value . '%';
             }
         }
 
-        $where = $whereClauses ? 'WHERE ' . implode(' AND ', $whereClauses) : '';
-
+        $where = $whereClauses ? 'WHERE ' . implode(' OR ', $whereClauses) : '';
+              
         $sql = <<<SQL
             SELECT
                 a.id,
@@ -167,6 +162,9 @@ final class ArticleRepository
             $where
             ORDER BY a.name ASC
         SQL;
+
+        Logger::info('#########-1', implode(', ', $params));   
+        Logger::info('#########-1', $sql);   
 
         return [
             'sql' => $sql,
@@ -270,7 +268,7 @@ final class ArticleRepository
                 net_price = :net_price,
                 gross_price = :gross_price,
                 tax_rate = :tax_rate,
-                updated_at = NOW()
+                updated_at = CURRENT_TIMESTAMP
             WHERE id = :id
         SQL;
 

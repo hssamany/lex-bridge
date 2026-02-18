@@ -20,8 +20,9 @@ use Luxullus\LexBridge\Repositories\ArticleRepository;
 use Luxullus\LexBridge\Repositories\LineItemRepository;
 use Luxullus\LexBridge\Utils\InputFilter;
 
-class OrderRepository
+final class OrderRepository
 {
+    
     private PDO $db;
     private string $priceTable;
     private string $ordersTable;
@@ -211,21 +212,18 @@ class OrderRepository
 
         $orderIdsFilter = [];
 
-        if ($this->filterValueProvided($filters, 'order_id')) {
+        if (InputFilter::filterValueProvided($filters, 'order_id')) {
             $orderIdsFilter[] = (int) $filters['order_id'];
         }
 
-        if ($this->filterValueProvided($filters, 'order_ids') && is_array($filters['order_ids'])) {
-
+        if (InputFilter::filterValueProvided($filters, 'order_ids') && is_array($filters['order_ids'])) {
             foreach ($filters['order_ids'] as $candidate) {
                 if ($candidate === null || $candidate === '') {
                     continue;
                 }
-
                 $validated = filter_var($candidate, FILTER_VALIDATE_INT, [
                     'options' => ['min_range' => 1],
                 ]);
-
                 if ($validated !== false && $validated !== null) {
                     $orderIdsFilter[] = (int) $validated;
                 }
@@ -258,12 +256,12 @@ class OrderRepository
 
         $deliveryFrom = null;
 
-        if ($this->filterValueProvided($filters, 'liefer_datum_von')) {
+        if (InputFilter::filterValueProvided($filters, 'liefer_datum_von')) {
             $deliveryFrom = $this->normalizeBoundaryDate($filters['liefer_datum_von'], 'liefer_datum_von');
         }
 
         $deliveryTo = null;
-        if ($this->filterValueProvided($filters, 'liefer_datum_bis')) {
+        if (InputFilter::filterValueProvided($filters, 'liefer_datum_bis')) {
             $deliveryTo = $this->normalizeBoundaryDate($filters['liefer_datum_bis'], 'liefer_datum_bis');
         }
 
@@ -281,8 +279,7 @@ class OrderRepository
                 ca.article_id,
                 a.article_number,
                 a.name AS article_name,
-                c.id AS customer_id,
-                c.Nummer AS customer_number
+                c.id AS customer_id
                     
                 FROM {$this->ordersTable} o
                 LEFT JOIN {$this->customerTable} c
@@ -294,9 +291,6 @@ class OrderRepository
                 {$whereSql}
                 ORDER BY o.Id ASC, o.Kunde, o.Jahr, o.KW
         SQL;
-
-        Logger::info("Executing order selection query with WHERE: " . $whereSql, 'OrderRepository');
-        Logger::info("Query params: " . json_encode($params), 'OrderRepository');
 
         $stmt = $this->db->prepare($sql);
 
@@ -315,18 +309,8 @@ class OrderRepository
         // fetch all matching order rows with article info in one go
         $orderRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        Logger::info("Order selection query returned " . count($orderRows) . " rows", 'OrderRepository');
-        
         if (!$orderRows) {
-            Logger::info("No orders found matching criteria. Filters: " . json_encode($filters), 'OrderRepository');
             return [];
-        }
-        
-        // Check for rows with missing article mappings
-        $rowsWithoutArticle = array_filter($orderRows, fn($row) => empty($row['article_id']));
-        if (count($rowsWithoutArticle) > 0) {
-            $sampleRows = array_slice($rowsWithoutArticle, 0, 3);
-            Logger::info("WARNING: " . count($rowsWithoutArticle) . " order rows have no article mapping. Sample: " . json_encode($sampleRows), 'OrderRepository');
         }
 
         // Collect all unique article IDs from $orderRows
@@ -334,18 +318,7 @@ class OrderRepository
 
         // Fetch all articles with their most recent price in one call
         $articles = $this->articleRepository->searchArticles(['id' => $articleIds]);
-        
-        Logger::info("Fetched " . count($articles) . " articles for " . count($articleIds) . " article IDs", 'OrderRepository');
-        
-        $articleMap = [];
-
-        foreach ($articles as $articleRow) {
-            $hasPrice = isset($articleRow['net_amount']) && $articleRow['net_amount'] > 0;
-            if (!$hasPrice) {
-                Logger::info("WARNING: Article {$articleRow['id']} ({$articleRow['article_number']}) has no valid price. net_amount: " . ($articleRow['net_amount'] ?? 'NULL'), 'OrderRepository');
-            }
-            $articleMap[$articleRow['id']] = $articleRow;
-        }
+        $articleMap = array_column($articles, null, 'id');
 
         $results = [];
         $lineCountPerOrder = [];
@@ -353,25 +326,22 @@ class OrderRepository
         $missingArticles = [];
         $missingPrices = [];
 
-        Logger::info("Starting to process " . count($orderRows) . " order rows", 'OrderRepository');
-
         $formatList = static function (array $values): string {
 
-            $unique = array_values(array_unique(array_map(static fn($value) => (string) $value, $values)));
+        $unique = array_values(array_unique(array_map(static fn($value) => (string) $value, $values)));
             
-            if (!$unique) {
+            if (!$unique)  
                 return '-';
-            }
 
             $slice = array_slice($unique, 0, 5);
             $list = implode(', ', $slice);
 
-            if (count($unique) > 5) {
+            if (count($unique) > 5) 
                 $list .= ', ...';
-            }
 
             return $list;
         };
+
 
         // Process each order row to generate line items
         foreach ($orderRows as $orderRow) 
@@ -395,10 +365,10 @@ class OrderRepository
                 continue;
             }
 
-            // Start line_order counter
             $lineOrder = 0;
+            $orderLineItems = [];
 
-            foreach ($deliveryDates as $weekdayCode => $dateInfo) {
+            foreach ($deliveryDates as $weekdayCode => $dateInfo)  {
                 $deliveryDate = $dateInfo['date'];
                 $quantity = $dateInfo['quantity'];
 
@@ -416,55 +386,38 @@ class OrderRepository
                 $articleId = $orderRow['article_id'] !== null ? (int) $orderRow['article_id'] : null;
 
                 if ($articleId === null) {
-                    if (!isset($missingMappings[$customerKey])) {
-                        $missingMappings[$customerKey] = [
-                            'orders' => [],
-                        ];
-                    }
-
-                    $missingMappings[$customerKey]['orders'][$orderId] = true;
-                    Logger::info("Skipping order {$orderId} for customer {$customerKey}: No article mapping found", 'OrderRepository');
-                    continue 2;
+                    throw new \RuntimeException('Fuer Kunde ' . $customerKey . ' fehlt eine Artikelzuordnung');
                 }
-
-                // Logger::info(json_encode($lineItem, JSON_PRETTY_PRINT),'OrderRepository');
 
                 $article = $articleMap[$articleId] ?? null;
-                
                 if ($article === null) {
-                    Logger::info("No article found for article_id {$articleId} in order {$orderId}", 'OrderRepository');
+                    throw new \RuntimeException('Artikel-ID ' . $articleId . ' nicht gefunden');
                 }
-                
+
                 $lineItem = $this->lineItemBuilder->buildLineItemPayload($orderRow, $article, $deliveryDate, $quantityValue);
-                $persistResult = $this->lineItemRepository->persistLineItemsForCustomer([$lineItem]);
-                
-                Logger::info("Persist result for order {$orderId}: " . json_encode($persistResult), 'OrderRepository');
-                
-                $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + 1;
+
+                // Check for missing price
+                if (!isset($lineItem['net_amount']) || !isset($lineItem['gross_amount']) || $lineItem['net_amount'] === null || $lineItem['gross_amount'] === null) {
+                    throw new \RuntimeException('existiert kein gueltiger Preis');
+                }
+
+                $orderLineItems[] = $lineItem;
                 $results[$customerKey][] = $lineItem;
+            }
+
+            // Persist all line items for this order in a single call
+            if (!empty($orderLineItems)) {
+                $this->lineItemRepository->persistLineItemsForCustomer($orderLineItems);
+                $orderId = (int) $orderRow['order_id'];
+                $lineCountPerOrder[$orderId] = ($lineCountPerOrder[$orderId] ?? 0) + count($orderLineItems);
             }
         }
 
         $this->markOrdersAsProcessed($lineCountPerOrder);
 
-        Logger::info("Line items generation complete. Total line items: " . array_sum(array_map('count', $results)) . ", Orders processed: " . count($lineCountPerOrder), 'OrderRepository');
-
         return $results;
     }
 
-    /**
-     * @param array<string, mixed> $filters
-     */
-    private function filterValueProvided(array $filters, string $key): bool
-    {
-        if (!array_key_exists($key, $filters)) {
-            return false;
-        }
-
-        $value = $filters[$key];
-
-        return $value !== null && $value !== '';
-    }
 
     private function normalizeBoundaryDate(mixed $value, string $filterKey): DateTimeImmutable
     {
@@ -522,9 +475,14 @@ class OrderRepository
             $params[$placeholder] = $orderId;
         }
 
-        $inClause = implode(', ', $placeholders);
+
+        $sql = <<<SQL
+            UPDATE {$this->ordersTable}
+            SET verarbeitet = 1
+            WHERE Id IN (%s)
+        SQL;
         
-        $sql = "UPDATE {$this->ordersTable} SET verarbeitet = 1 WHERE Id IN ($inClause)";
+        $sql = sprintf($sql, implode(', ', $placeholders));
 
         $stmt = $this->db->prepare($sql);
 

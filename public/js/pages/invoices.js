@@ -160,12 +160,7 @@ class InvoicesPage {
                 }
                 this.updateInvoiceList(data.invoices);
                 this.renderPaginator();
-                if (isUserAction) {
-                    this.lexBridge.toastNotifier.show(
-                        `Loaded ${data.invoices.length} invoices`,
-                        'success'
-                    );
-                }
+                    // Only show toast for errors or sync/save actions, not for successful loads
             } else {
                 throw new Error('Failed to load invoices');
             }
@@ -373,10 +368,7 @@ class InvoicesPage {
                 this.lastQueryParams = params;
                 this.updateInvoiceList(data.invoices);
                 this.renderPaginator();
-                this.lexBridge.toastNotifier.show(
-                    `Loaded ${data.invoices.length} invoices`,
-                    'success'
-                );
+                    // Only show toast for errors or sync/save actions, not for successful loads
             } else {
                 throw new Error('Failed to load invoices');
             }

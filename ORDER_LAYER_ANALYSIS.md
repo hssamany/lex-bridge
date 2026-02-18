@@ -32,7 +32,7 @@ Analyzed OrderService and OrderRepository for potential separation of concerns i
 
 2. **Architectural Complexity**
    - Repository contains significant business logic tightly coupled with SQL
-   - `generateInvoiceLineItemsFromOrders()` is a 400+ line method with:
+   - `generateLineItemsFromOrders()` is a 400+ line method with:
      - Complex date math (ISO week → specific weekday dates)
      - Price catalog preloading and validation
      - Article-customer mapping verification

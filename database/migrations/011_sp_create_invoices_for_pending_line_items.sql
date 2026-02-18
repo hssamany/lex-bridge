@@ -167,8 +167,8 @@ BEGIN
                 total_gross_amount,
                 'net',
                 'draft',
-                NOW(),
-                NOW()
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP
             FROM tmp_customer_invoices;
 
             UPDATE invoice_line_items li
@@ -181,7 +181,7 @@ BEGIN
                 END,
                 li.line_total_net = COALESCE(t.computed_line_total_net, li.line_total_net),
                 li.line_total_gross = COALESCE(t.computed_line_total_gross, li.line_total_gross),
-                li.updated_at = NOW()
+                li.updated_at = CURRENT_TIMESTAMP
             WHERE li.invoice_id IS NULL OR li.invoice_id = '';
 
             INSERT IGNORE INTO tmp_skipped_line_items (line_item_id)
@@ -218,7 +218,7 @@ BEGIN
             INNER JOIN tmp_customer_invoices ci ON ci.invoice_id = i.id
             SET i.total_net_amount = ci.total_net_amount,
                 i.total_gross_amount = ci.total_gross_amount,
-                i.updated_at = NOW();
+                i.updated_at = CURRENT_TIMESTAMP;
 
             COMMIT;
 

@@ -13,6 +13,22 @@ use Luxullus\LexBridge\Logger;
 final class Database
 {
     private static ?PDO $connection = null;
+
+    /**
+     * Set the database connection (for testing)
+     */
+    public static function setConnection(PDO $pdo): void
+    {
+        self::$connection = $pdo;
+    }
+
+    /**
+     * Reset the database connection (for testing)
+     */
+    public static function resetConnection(): void
+    {
+        self::$connection = null;
+    }
     
     /**
      * Get database connection

@@ -99,8 +99,8 @@ final class OrderRepositoryTest extends TestCase
             'customer_id' => $otherCustomerId,
         ]);
 
-        self::assertCount(1, $orders);
-        $order = $orders[0];
+        self::assertCount(1, $orders['items']);
+        $order = $orders['items'][0];
         self::assertSame($secondOrderId, (int) $order['order_id']);
         self::assertSame($otherCustomerId, (int) $order['customer_id']);
         self::assertSame(2024, (int) $order['order_year']);
@@ -142,7 +142,7 @@ final class OrderRepositoryTest extends TestCase
             'GeaendertAm' => '2024-02-01 08:00:00',
         ]);
 
-        $results = $this->repository->generateInvoiceLineItemsFromOrders([
+        $results = $this->repository->generateLineItemsFromOrders([
             'order_ids' => [$orderId],
         ]);
 
@@ -194,7 +194,7 @@ final class OrderRepositoryTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Fuer Kunde ' . $customerId . ' fehlt eine Artikelzuordnung');
-        $this->repository->generateInvoiceLineItemsFromOrders([
+        $this->repository->generateLineItemsFromOrders([
             'order_ids' => [$orderId],
         ]);
 
@@ -202,7 +202,7 @@ final class OrderRepositoryTest extends TestCase
         self::assertSame('0', (string) $processed);
     }
 
-    public function testGenerateInvoiceLineItemsThrowsWhenArticleMissing(): void
+    public function testGenerateLineItemsThrowsWhenArticleMissing(): void
     {
         $customerId = $this->insertCustomer('Fehlartikel AG');
         $this->insertCustomerArticle($customerId, 999, enforceForeignKeys: false); // points to missing article
@@ -221,12 +221,12 @@ final class OrderRepositoryTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Artikel-ID 999');
-        $this->repository->generateInvoiceLineItemsFromOrders([
+        $this->repository->generateLineItemsFromOrders([
             'order_ids' => [$orderId],
         ]);
     }
 
-    public function testGenerateInvoiceLineItemsThrowsWhenPriceMissingForDate(): void
+    public function testGenerateLineItemsThrowsWhenPriceMissingForDate(): void
     {
         $customerId = $this->insertCustomer('Preislos KG');
         $articleId = $this->insertArticle([
@@ -262,7 +262,7 @@ final class OrderRepositoryTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('existiert kein gueltiger Preis');
-        $this->repository->generateInvoiceLineItemsFromOrders([
+        $this->repository->generateLineItemsFromOrders([
             'order_ids' => [$orderId],
         ]);
     }
@@ -317,28 +317,31 @@ final class OrderRepositoryTest extends TestCase
             FOREIGN KEY(customer_id) REFERENCES customer(id) ON DELETE CASCADE,
             FOREIGN KEY(article_id) REFERENCES articles(id) ON DELETE CASCADE
         )');
+
+        
+        $this->pdo->exec('DROP TABLE IF EXISTS invoice_line_items;');
+        $this->pdo->exec('CREATE TABLE invoice_line_items (
+            id CHAR(36) PRIMARY KEY,
+            order_id INTEGER,
+            line_order INTEGER,
+            article_id INTEGER,
+            article_number VARCHAR(84),
+            name VARCHAR(255),
+            description TEXT,
+            unit_name VARCHAR(50),
+            tax_rate_percentage DECIMAL(5,2),
+            quantity DECIMAL(10,3),
+            net_amount DECIMAL(10,2),
+            gross_amount DECIMAL(10,2),
+            currency VARCHAR(3),
+            order_delivery_date DATE,
+            line_total_net DECIMAL(10,2),
+            line_total_gross DECIMAL(10,2),
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP,
+            customer_id INTEGER
+        );');
     }
-
-    private function insertCustomer(string $name): int
-    {
-        $stmt = $this->pdo->prepare('INSERT INTO customer (Name) VALUES (:name)');
-        $stmt->execute([':name' => $name]);
-
-        $customerId = (int) $this->pdo->lastInsertId();
-        $number = (string) $customerId;
-
-        $update = $this->pdo->prepare('UPDATE customer SET Nummer = :number WHERE id = :id');
-        $update->execute([
-            ':number' => $number,
-            ':id' => $customerId,
-        ]);
-
-        return $customerId;
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
     private function insertOrder(array $data): int
     {
         $columns = ['Kunde', 'Jahr', 'KW', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'GeaendertAm'];
@@ -410,6 +413,13 @@ final class OrderRepositoryTest extends TestCase
             ':from' => $data['valid_from'] ?? null,
             ':until' => $data['valid_until'] ?? null,
         ]);
+    }
+
+    private function insertCustomer(string $name): int
+    {
+        $stmt = $this->pdo->prepare('INSERT INTO customer (Name) VALUES (:name)');
+        $stmt->execute([':name' => $name]);
+        return (int) $this->pdo->lastInsertId();
     }
 
     private function setDatabaseConnection(PDO $pdo): void

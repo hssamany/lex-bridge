@@ -9,6 +9,21 @@ use InvalidArgumentException;
 class InputFilter
 {
     /**
+     * Check if a filter value is provided (not null or empty string).
+     *
+     * @param array $filters
+     * @param string $key
+     * @return bool
+     */
+    public static function filterValueProvided(array $filters, string $key): bool
+    {
+        if (!array_key_exists($key, $filters)) {
+            return false;
+        }
+        $value = $filters[$key];
+        return $value !== null && $value !== '';
+    }
+    /**
      * Normalize and validate a date filter value from an array.
      *
      * @param array $filters

@@ -35,7 +35,10 @@ final class ArticleService
         }
 
         // Build filter array for text search
-        $filter = ['q' => $normalizedQuery];
+        $filter = [
+            'name' => $normalizedQuery,
+            'article_number' => $normalizedQuery,
+        ];
         $articles = $this->repository->searchArticles($filter);
 
         return $this->enrichArticleSearchResults($articles);
