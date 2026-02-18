@@ -369,7 +369,7 @@ class LineItemsPage {
             const tableRows = items.map((item) => {
                 const position = item.line_order != null ? item.line_order : '';
                 const quantity = item.quantity != null ? this.formatNumber(item.quantity, 3) : '';
-                const netAmount = item.net_amount != null ? this.formatNumber(item.net_amount, 2) : '';
+                const netAmount = item.line_total_net != null ? this.formatNumber(item.line_total_net, 2) : '';
                 const grossAmount = item.line_total_gross != null ? this.formatNumber(item.line_total_gross, 2) : '';
                 const taxRate = item.tax_rate_percentage != null ? this.formatNumber(item.tax_rate_percentage, 2) : '';
                 const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
@@ -387,6 +387,7 @@ class LineItemsPage {
                         <td>${this.escapeHtml(taxRate)}</td>
                         <td>${this.escapeHtml(createdDate)}</td>
                         <td>${this.escapeHtml(createdTime)}</td>
+                        
                     </tr>
                 `;
             }).join('');
@@ -471,10 +472,6 @@ class LineItemsPage {
         }
 
         const customerId = this.getSelectedCustomerId();
-        // if (!customerId) {
-        //     this.showToast('Bitte wählen Sie einen Kunden aus.', 'warning');
-        //     return;
-        // }
 
         try {
             const lineItems = selectedIds.map((id) => {

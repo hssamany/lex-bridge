@@ -196,7 +196,7 @@ final class ApiKernel {
                     $filters['customer_id'] = $customerId;
                 }
             }
-            Logger::info('XXXXXXXXXXXXXXXXXXXx-3: '. json_encode($filters), 'ApiKernel');
+            
             $pagination = $this->parsePagination();
             return $controller->getOrders($filters, $pagination);
         });
@@ -262,8 +262,7 @@ final class ApiKernel {
                     'error' => 'At least one order_id must be provided.',
                 ];
             }
-//---
-            Logger::info('XXXXXX2' . json_encode($orderIds), 'ApiKernel');
+            
             $orderController = ControllerFactory::makeOrderController();
             return $orderController->generateInvoicesFromOrders($orderIds);
         });

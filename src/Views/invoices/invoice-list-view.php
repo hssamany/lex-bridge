@@ -10,7 +10,8 @@
                 <th>Artikel</th>
                 <th>Status</th>
                 <th>Versuche</th>
-                <th>Gesamt</th>
+                <th title="Gesamt Netto">Netto (€)</th>
+                <th title="Gesamt Brutto">Brutto (€)</th>
             </tr>
         </thead>
         <tbody class="invoice-table-body">

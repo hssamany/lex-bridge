@@ -51,7 +51,7 @@ final class InvoiceService
         $result = $this->repository->findAll($validatedFilters, $paginationState);
         $rows = $result['items'] ?? [];
         $totalCount = (int) ($result['total_count'] ?? 0);
-
+        
         return [
             'isSuccess' => true,
             'invoices' => $this->enrichInvoiceList($rows),
@@ -338,6 +338,7 @@ final class InvoiceService
             $status = $row['status'] ?? 'draft';
             $itemCount = isset($row['item_count']) ? (int) $row['item_count'] : 0;
             $totalGross = isset($row['total_gross_amount']) ? (float) $row['total_gross_amount'] : null;
+            $totalNet = isset($row['total_net_amount']) ? (float) $row['total_net_amount'] : null;
             $currency = $row['currency'] ?? 'EUR';
 
             return [
@@ -346,6 +347,7 @@ final class InvoiceService
                 'title' => $row['title'] ?? 'Rechnung',
                 'status' => $status,
                 'total_gross_amount' => $totalGross,
+                'total_net_amount' => $totalNet,
                 'currency' => $currency,
                 'created_at' => $row['created_at'] ?? null,
                 'transmitted_at' => $row['transmitted_at'] ?? null,
@@ -357,7 +359,8 @@ final class InvoiceService
                 'item_count' => $itemCount,
                 'line_item_count' => $itemCount, // Alias for consistency
                 'display_status' => $this->formatStatusDisplay($status),
-                'formatted_total' => $this->formatCurrency($totalGross, $currency),
+                'formatted_total_gross' => $this->formatCurrency($totalGross, $currency),
+                'formatted_total_net' => $this->formatCurrency($totalNet, $currency),
             ];
         }, $rows);
     }

@@ -72,6 +72,7 @@ final class InvoiceRepository
                 i.voucher_date,
                 i.title,
                 i.status,
+                i.total_net_amount,
                 i.total_gross_amount,
                 i.currency,
                 i.created_at,

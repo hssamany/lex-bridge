@@ -9,8 +9,8 @@
                         <th>Pos.</th>
                         <th>Bezeichnung</th>
                         <th>Menge</th>
-                        <th>Netto</th>
-                        <th>Brutto</th>
+                        <th>Netto (€)</th>
+                        <th>Brutto (€)</th>
                         <th>Steuer %</th>
                         <th>Erstellt am</th>
                         <th>Uhrzeit</th>

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace Luxullus\LexBridge\Controllers;
+use Luxullus\LexBridge\Logger;
 use Luxullus\LexBridge\Services\InvoiceService;
 
 
@@ -28,7 +29,8 @@ final class InvoiceController
      */
     public function getInvoices(array $filters = [], array $pagination = []): array
     {
-        return $this->invoiceService->getInvoices($filters, $pagination);
+        $results = $this->invoiceService->getInvoices($filters, $pagination);
+        return $results;
     }
     
     /**

@@ -244,7 +244,8 @@ class InvoicesPage {
                 <td>${invoice.item_count || 0}</td>
                 <td>${invoice.status}</td>
                 <td>${invoice.transmission_attempts || 0}</td>
-                <td>${invoice.total_gross_amount} ${invoice.currency}</td>
+                <td>${invoice.formatted_total_net} </td>
+                <td>${invoice.formatted_total_gross}</td>
             </tr>
         `;
     }
