@@ -45,7 +45,7 @@
     border: none;
     border-bottom: 3px solid transparent;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: var(--font-size-header);
     font-weight: 500;
     transition: all 0.3s ease;
     color: #666;
@@ -89,7 +89,7 @@
         flex: 1;
         text-align: center;
         padding: 0.6rem 1rem;
-        font-size: 0.95rem;
+        font-size: var(--font-size-header);
     }
     
     .tab-actions {
