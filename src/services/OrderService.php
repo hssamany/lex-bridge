@@ -26,7 +26,6 @@ final class OrderService
      */
     public function getOrders(array $filters, array $pagination = []): array
     {
-        Logger::info('OrderService', 'XXXXXXXXXXXXXXXXXXXx-2: %s', json_encode($filters));
         $paginationState = Pagination::normalize($pagination);
 
         try {

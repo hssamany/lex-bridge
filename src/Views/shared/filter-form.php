@@ -79,11 +79,21 @@ $extraToggleInputStyle = $extraToggleInputStyle ?? '';
                 class="input-select"
             >
                 <option value="">Alle Status</option>
-                <option value="draft">Draft</option>
-                <option value="pending">Pending</option>
-                <option value="transmitting">Transmitting</option>
-                <option value="transmitted">Transmitted</option>
-                <option value="failed">Failed</option>
+                <?php
+                // Use provided translations/options if available
+                $statusTranslations = $statusTranslations ?? [
+                    'draft' => 'Draft',
+                    'pending' => 'Pending',
+                    'transmitting' => 'Transmitting',
+                    'transmitted' => 'Transmitted',
+                    'failed' => 'Failed'
+                ];
+                $statusOptions = $statusOptions ?? array_keys($statusTranslations);
+                foreach ($statusOptions as $status): ?>
+                    <option value="<?= htmlspecialchars($status) ?>">
+                        <?= htmlspecialchars($statusTranslations[$status] ?? $status) ?>
+                    </option>
+                <?php endforeach; ?>
             </select>
         </div>
         <?php endif; ?>

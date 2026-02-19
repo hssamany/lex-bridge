@@ -1,3 +1,6 @@
+// Use injected translation map from PHP
+const invoiceStatusTranslations = window.invoiceStatusTranslations || {};
+
 (function () {
 'use strict';
 
@@ -17,7 +20,6 @@ class InvoicesPage {
     }
     
     init() {
-        
         // Event delegation will be set up globally
         if (!InvoicesPage.handlerSetup) {
             this.setupRefreshButton();
@@ -32,6 +34,7 @@ class InvoicesPage {
     }
 
     setupPaginator() {
+
         const container = document.querySelector('.invoices-paginator');
         if (!container || !window.lexBridgeUtils || typeof window.lexBridgeUtils.Paginator !== 'function') {
             return;
@@ -65,14 +68,13 @@ class InvoicesPage {
      * Load invoices when tab is activated
      */
     async loadInvoicesOnTabActivation() {
-        console.log('InvoicesPage: loading invoices on tab activation');
+
         // Wait for the button to be available in the DOM
         const waitForButton = () => {
             return new Promise((resolve) => {
                 const checkButton = () => {
                     const button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
                     if (button) {
-                        console.log('Button found, proceeding with invoice load');
                         resolve();
                     } else {
                         setTimeout(checkButton, 50);
@@ -143,6 +145,7 @@ class InvoicesPage {
                 button.disabled = true;
                 button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
             }
+
             const params = new URLSearchParams();
             params.set('page', String(page));
             params.set('page_size', String(this.pageSize));
@@ -227,27 +230,29 @@ class InvoicesPage {
             ? companyName.substring(0, 20) + '...' 
             : companyName;
         
-        return `
-            <tr>
-                <td>
-                    <button 
-                        type="button" 
-                        class="btn btn-action transfer-btn" 
-                        data-invoice-id="${invoice.id}"
-                        title="Transfer to Lexware"
-                        style="padding: 2px 8px; line-height: 1;">
-                        ▶
-                    </button>
-                </td>
-                <td title="${this.escapeHtml(companyName)}">${this.escapeHtml(displayName)}</td>
-                <td>${invoice.voucher_date}</td>
-                <td>${invoice.item_count || 0}</td>
-                <td>${invoice.status}</td>
-                <td>${invoice.transmission_attempts || 0}</td>
-                <td>${invoice.formatted_total_net} </td>
-                <td>${invoice.formatted_total_gross}</td>
-            </tr>
-        `;
+        const translatedStatus = invoiceStatusTranslations[invoice.status] || invoice.status;
+            
+            return `
+                <tr>
+                    <td>
+                        <button 
+                            type="button" 
+                            class="btn btn-action transfer-btn" 
+                            data-invoice-id="${invoice.id}"
+                            title="Transfer to Lexware"
+                            style="padding: 2px 8px; line-height: 1;">
+                            ▶
+                        </button>
+                    </td>
+                    <td title="${this.escapeHtml(companyName)}">${this.escapeHtml(displayName)}</td>
+                    <td>${invoice.voucher_date}</td>
+                    <td>${invoice.item_count || 0}</td>
+                    <td>${translatedStatus}</td>
+                    <td>${invoice.transmission_attempts || 0}</td>
+                    <td>${invoice.formatted_total_net} </td>
+                    <td>${invoice.formatted_total_gross}</td>
+                </tr>
+            `;
     }
     
     /**
@@ -389,18 +394,20 @@ class InvoicesPage {
     }
     
     escapeHtml(text) {
+
         const div = document.createElement('div');
-            if (window.lexBridgeUtils && typeof window.lexBridgeUtils.escapeHtml === 'function') {
-                return window.lexBridgeUtils.escapeHtml(text);
-            }
-            div.textContent = text ? String(text) : '';
-            return div.innerHTML;
+        if (window.lexBridgeUtils && typeof window.lexBridgeUtils.escapeHtml === 'function') {
+            return window.lexBridgeUtils.escapeHtml(text);
+        }
+
+        div.textContent = text ? String(text) : '';
+        return div.innerHTML;
     }
 }
 
-if (!window.lexBridge) {
-    window.lexBridge = {};
-}
+    if (!window.lexBridge) {
+        window.lexBridge = {};
+    }
 
-window.lexBridge.InvoicesPage = InvoicesPage;
+    window.lexBridge.InvoicesPage = InvoicesPage;
 })();
