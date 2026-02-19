@@ -119,7 +119,6 @@ class InvoicesPage {
             if (e.target.matches('select[name="status"]')) {
                 const form = e.target.closest('form[name="get-invoices"]');
                 if (form) {
-                    console.log('Status changed, triggering invoice filter');
                     const button = form.querySelector('button[type="submit"]');
                     await this.processFilterForm(form, button);
                 }

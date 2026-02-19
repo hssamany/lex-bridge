@@ -1,7 +1,9 @@
 <?php
 $baseHref = lexbridge_base_path();
 $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
+$statusTranslations = require dirname(__DIR__, 2) . '/Config/invoice-status.php';
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -65,6 +67,7 @@ $basePath = $baseHref === '/' ? '/' : rtrim($baseHref, '/');
             'baseHref' => $baseHref,
             'basePath' => $basePath,
         ], JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>);
+        window.invoiceStatusTranslations = <?= json_encode($statusTranslations, JSON_UNESCAPED_UNICODE) ?>;
     </script>
     <!-- <script src="public/js/utils/form-interceptor.js"></script> -->
     <script src="public/js/components/toast-notifier/toast-notifier.js"></script>

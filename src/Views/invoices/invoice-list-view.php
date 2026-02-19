@@ -1,9 +1,7 @@
 <?php
-$statusTranslations = require __DIR__ . '/../../Config/invoice-status.php';
+    $statusTranslations = require __DIR__ . '/../../Config/invoice-status.php';
 ?>
-<script>
-window.invoiceStatusTranslations = <?= json_encode($statusTranslations, JSON_UNESCAPED_UNICODE) ?>;
-</script>
+
 <div class="invoices-container tab-content-container">
     <?php
     // Setup filter form variables
