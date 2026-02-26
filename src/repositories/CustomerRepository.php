@@ -60,7 +60,8 @@ final class CustomerRepository
             UPDATE {$this->customerTable}
             SET lex_contact_id = :lex_contact_id,
                 lex_customer_number = :lex_customer_number
-            WHERE Name = :company_name
+            WHERE (:customer_number - Nummer) = 10000
+            AND Nummer IS NOT NULL
         SQL;
 
         $stmt = $this->db->prepare($sql);
@@ -68,7 +69,7 @@ final class CustomerRepository
         $params = [
             ':lex_contact_id' => $contact->lexContactId,
             ':lex_customer_number' => $contact->lexCustomerNumber,
-            ':company_name' => $contact->companyName
+            ':customer_number' => $contact->lexCustomerNumber
         ];
 
         $success = $stmt->execute($params);
