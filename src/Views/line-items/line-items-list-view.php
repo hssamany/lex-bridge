@@ -6,6 +6,7 @@
                 <thead>
                     <tr>
                         <th><input type="checkbox" class="line-items-select-all"></th>
+                        <th>Kunde</th>
                         <th>Pos.</th>
                         <th>Bezeichnung</th>
                         <th>Menge</th>
@@ -14,11 +15,12 @@
                         <th>Steuer %</th>
                         <th>Erstellt am</th>
                         <th>Uhrzeit</th>
+                        <th>Lieferdatum</th>
                     </tr>
                 </thead>
                 <tbody class="line-items-table-body">
                     <tr class="line-items-empty-row">
-                        <td colspan="9" style="text-align: center;">Keine Positionen vorhanden.</td>
+                        <td colspan="11" style="text-align: center;">Keine Positionen vorhanden.</td>
                     </tr>
                 </tbody>
             </table>

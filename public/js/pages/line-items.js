@@ -357,7 +357,7 @@ class LineItemsPage {
         this.cachedLineItems = items; // Cache for filtering
         // Create a Map for fast lookups during filtering
         this.lineItemsMap = new Map(items.map(item => [String(item.id), item]));
-        const columnCount = container.querySelectorAll('thead th').length || 9;
+        const columnCount = container.querySelectorAll('thead th').length || 11;
 
         if (items.length === 0) {
             tableBody.innerHTML = `
@@ -367,11 +367,13 @@ class LineItemsPage {
             `;
         } else {
             const tableRows = items.map((item) => {
+                const customerNumber = item.customer_number != null ? String(item.customer_number) : '';
                 const position = item.line_order != null ? item.line_order : '';
                 const quantity = item.quantity != null ? this.formatNumber(item.quantity, 3) : '';
                 const netAmount = item.line_total_net != null ? this.formatNumber(item.line_total_net, 2) : '';
                 const grossAmount = item.line_total_gross != null ? this.formatNumber(item.line_total_gross, 2) : '';
                 const taxRate = item.tax_rate_percentage != null ? this.formatNumber(item.tax_rate_percentage, 2) : '';
+                const deliveryDate = this.formatIsoDate(item.order_delivery_date);
                 const { date: createdDate, time: createdTime } = this.splitDateTime(item.created_at);
 
                 const checkbox = `<input type="checkbox" class="line-item-select-checkbox" data-line-item-id="${this.escapeHtml(item.id)}">`;
@@ -379,6 +381,7 @@ class LineItemsPage {
                 return `
                     <tr>
                         <td>${checkbox}</td>
+                        <td>${this.escapeHtml(customerNumber)}</td>
                         <td>${this.escapeHtml(position)}</td>
                         <td>${this.escapeHtml(item.name || '')}</td>
                         <td>${this.escapeHtml(quantity)}</td>
@@ -387,6 +390,7 @@ class LineItemsPage {
                         <td>${this.escapeHtml(taxRate)}</td>
                         <td>${this.escapeHtml(createdDate)}</td>
                         <td>${this.escapeHtml(createdTime)}</td>
+                        <td>${this.escapeHtml(deliveryDate)}</td>
                         
                     </tr>
                 `;
