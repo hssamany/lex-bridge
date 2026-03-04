@@ -36,11 +36,17 @@ final class CustomerRepository
             return [];
         }
 
-        $sql = "SELECT id, Nummer AS customer_number, Name AS company_name 
-                FROM {$this->customerTable}
-                WHERE Nummer LIKE :customerNumber OR Name LIKE :companyName
-                ORDER BY Nummer ASC 
-                LIMIT 20";
+        $sql = <<<SQL
+            SELECT 
+                id, 
+                Nummer AS customer_number, 
+                Name AS company_name 
+                
+            FROM {$this->customerTable}
+            WHERE Nummer LIKE :customerNumber OR Name LIKE :companyName
+            ORDER BY Nummer ASC 
+            LIMIT 20
+        SQL;
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
@@ -54,13 +60,13 @@ final class CustomerRepository
     /**
      * Update contact metadata for a customer row.
      */
-    public function updateContact(Contact $contact): bool
+    public function updateContact(Contact $contact): int
     {
         $sql = <<<SQL
             UPDATE {$this->customerTable}
             SET lex_contact_id = :lex_contact_id,
                 lex_customer_number = :lex_customer_number
-            WHERE (:customer_number - Nummer) = 10000
+            WHERE (:customer_number - CAST(Nummer AS UNSIGNED)) = 10000
             AND Nummer IS NOT NULL
         SQL;
 
@@ -84,7 +90,7 @@ final class CustomerRepository
             'executeSuccess' => $success
         ]));
 
-        return $success;
+        return $rowCount;
     }
 
     /**

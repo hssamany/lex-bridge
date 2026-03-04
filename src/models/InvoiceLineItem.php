@@ -40,7 +40,7 @@ final class InvoiceLineItem
         $item->lineOrder = (int) $row['line_order'];
         $item->type = $row['type'];
         $item->name = $row['name'];
-        $item->description = $row['description'] ?? null;
+        $item->description = 'Lieferdatum: '. $row['order_delivery_date'] ?? null . " ". $row['description'] ?? null;
         $item->quantity = isset($row['quantity']) ? (float)$row['quantity'] : null;
         $item->unitName = $row['unit_name'] ?? null;
         $item->currency = $row['currency'] ?? 'EUR';

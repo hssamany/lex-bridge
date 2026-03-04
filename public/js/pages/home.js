@@ -228,6 +228,7 @@
                 this.currentPage = 1;
                 const syncData = await this.syncContacts(this.currentPage);
                 const contacts = Array.isArray(syncData.contacts) ? syncData.contacts : [];
+                const rows_affected = Number.isFinite(Number(syncData.rows_affected)) ? Number(syncData.syncData) : 0;
 
                 this.totalCount = Number.isFinite(Number(syncData.total_count)) ? Number(syncData.total_count) : contacts.length;
                 if (Number(syncData.page) > 0) {

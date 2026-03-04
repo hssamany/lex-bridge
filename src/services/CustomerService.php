@@ -47,8 +47,13 @@ final class CustomerService
             return [];
         }
 
+        Logger::info('YYY - query: ' . $normalizedQuery, "CustomerService - Search Customers");
+
         $rows = $this->repository->searchCustomers($normalizedQuery);
-        
+        Logger::info('XXX performed - ' . json_encode([
+            'query' => $normalizedQuery,
+            'resultCount' => count($rows)
+        ]), "CustomerService - Search Customers");
         return $this->transformToCustomerModels($rows);
     }
 
@@ -114,7 +119,7 @@ final class CustomerService
 
         if ($response->isSuccess()) {
             $contacts = $this->extractContactsFromResponse($response);
-            $this->persistContacts($contacts);
+            $rowsAffected = $this->persistContacts($contacts);
         } else {
             $errorMessage = $response->getMessage() ?? 'Failed to synchronize contacts from Lexware.';
             Logger::info('Contact sync failed - ' . json_encode(['page' => $page, 'error' => $errorMessage]));
@@ -127,6 +132,7 @@ final class CustomerService
             'response' => $response,
             'error' => $errorMessage,
             'contacts' => $enrichedContacts,
+            'rows_affected' => $rowsAffected,
             'total_count' => $listResult['total_count'],
             'page' => $listResult['page'],
             'page_size' => $listResult['page_size'],
@@ -353,15 +359,15 @@ final class CustomerService
      *
      * @param array<int, Contact> $contacts
      */
-    private function persistContacts(array $contacts): void
+    private function persistContacts(array $contacts): int
     {
         $successCount = 0;
         $errorCount = 0;
 
         foreach ($contacts as $contact) {
             try {
-                $this->repository->updateContact($contact);
-                $successCount++;
+               $rowsAffected = $this->repository->updateContact($contact);
+                $successCount += $rowsAffected;
             } catch (Exception $e) {
                 $errorCount++;
                 $companyName = $contact->companyName ?? '(unknown)';
@@ -369,10 +375,6 @@ final class CustomerService
             }
         }
 
-        Logger::info('Contact persistence completed - ' . json_encode([
-            'total' => count($contacts),
-            'success' => $successCount,
-            'errors' => $errorCount
-        ]));
+        return $successCount;
     }
 }
