@@ -235,13 +235,21 @@
                 return;
             }
 
-            hidden.value = '';
-            if (!datalist) {
+            const value = input.value.trim();
+            if (value === '') {
+                hidden.value = '';
+                input.dataset.selectedCustomerId = '';
                 return;
             }
 
-            const value = input.value.trim();
-            if (value === '') {
+            // First check if we have a cached selection on the input
+            if (input.dataset.selectedCustomerId && input.dataset.selectedValue === value) {
+                hidden.value = input.dataset.selectedCustomerId;
+                return;
+            }
+
+            hidden.value = '';
+            if (!datalist) {
                 return;
             }
 
@@ -250,6 +258,10 @@
                 : Array.from(datalist.children);
             const lowerValue = value.toLowerCase();
             let matchedId = '';
+            let matchedByNumber = '';
+
+            // Extract customer number from input (e.g., "12345 - Company" => "12345")
+            const inputCustomerNumber = CustomerSearchController.extractCustomerNumber(value);
 
             for (const optionElement of options) {
                 if (!(optionElement instanceof HTMLOptionElement)) {
@@ -263,16 +275,26 @@
 
                 const optionLower = optionValue.toLowerCase();
                 const optionId = optionElement.dataset.customerId || optionElement.getAttribute('data-customer-id') || '';
+                const optionNumber = optionElement.dataset.customerNumber || optionElement.getAttribute('data-customer-number') || '';
 
-                // Match by label (displayed value)
+                // Exact match by label (displayed value)
                 if (optionValue === value || optionLower === lowerValue) {
                     matchedId = optionId;
                     break;
                 }
+
+                // Fallback: match by customer number prefix
+                if (inputCustomerNumber && optionNumber === inputCustomerNumber && !matchedByNumber) {
+                    matchedByNumber = optionId;
+                }
             }
 
-            if (matchedId) {
-                hidden.value = matchedId;
+            const finalId = matchedId || matchedByNumber;
+            if (finalId) {
+                hidden.value = finalId;
+                // Cache the selection on the input element
+                input.dataset.selectedCustomerId = finalId;
+                input.dataset.selectedValue = value;
             }
         }
 

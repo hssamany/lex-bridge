@@ -72,7 +72,7 @@ final class OrderRepository
      */
     public function getOrders(array $filters, array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        
+        Logger::log('XXXXXPP: '. json_encode($filters,JSON_PRETTY_PRINT), 'OrderRepository::getOrders');
         // Use InputFilter utility for date normalization and validation
         $changedFrom = InputFilter::filterDateValueProvided($filters, 'geaendertAm_from', true, false);
         $changedTo = InputFilter::filterDateValueProvided($filters, 'geaendertAm_to', false, true)

@@ -202,6 +202,12 @@
 
         setupCustomerSearchController() 
         {
+            // Reuse the global controller if available
+            if (window.lexBridge?.customerSearchController) {
+                this.customerSearchController = window.lexBridge.customerSearchController;
+                return;
+            }
+
             if (!window.lexBridgeUtils || typeof window.lexBridgeUtils.createCustomerSearchController !== 'function') {
                 return;
             }
@@ -210,6 +216,8 @@
             .lexBridgeUtils.createCustomerSearchController({
                 hiddenFieldName: 'customer_id'
             });
+
+            this.customerSearchController.attach();
         }
 
 
