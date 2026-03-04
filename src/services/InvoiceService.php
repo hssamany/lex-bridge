@@ -89,12 +89,7 @@ final class InvoiceService
         }
         
         $payload = $invoice->toLexwarePayload();
-        
-        // Log the payload for debugging
-        Logger::info('Lexware API payload: ' . json_encode($payload, JSON_PRETTY_PRINT), 'InvoiceService');
-        Logger::info('Invoice has ' . count($invoice->lineItems ?? []) . ' line items', 'InvoiceService');
-        Logger::info('Invoice contact ID: ' . $invoice->contactId . ', Lex contact ID: ' . ($invoice->lexContactId ?? 'NULL'), 'InvoiceService');
-        
+                
         return $this->client->post('/invoices', $payload);
     }
     

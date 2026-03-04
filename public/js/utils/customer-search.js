@@ -2,12 +2,26 @@
 
 (function () {
 
+    /**
+     * CustomerSearchController
+     * 
+     * Manages customer search combobox inputs with datalist autocomplete.
+     * Handles debounced API searches, populates datalist options, and syncs
+     * selected customer IDs to hidden form fields.
+     * 
+     * Uses event delegation so it works with dynamically added inputs.
+     */
     class CustomerSearchController 
     {
         static DEFAULT_SELECTOR = '.customer-search-combobox';
         static DEFAULT_HIDDEN_NAME = 'customer_id';
         static DEFAULT_DATALIST_OPTION = '<option value="">Alle Kunden</option>';
 
+        /**
+         * Extracts customer number from a display value like "12345 - Company Name"
+         * @param {string} value - The input value to parse
+         * @returns {string} The numeric customer number prefix, or empty string if not found
+         */
         static extractCustomerNumber(value) {
             if (typeof value !== 'string') {
                 return '';
@@ -17,6 +31,11 @@
             return /^\d+$/.test(prefix) ? prefix : '';
         }
 
+        /**
+         * Normalises a value to a trimmed string
+         * @param {*} value - Any value to normalise
+         * @returns {string} Trimmed string representation
+         */
         static normaliseString(value) {
             if (value === null || value === undefined) {
                 return '';
@@ -24,6 +43,15 @@
             return String(value).trim();
         }
 
+        /**
+         * Creates a new CustomerSearchController instance
+         * @param {Object} options - Configuration options
+         * @param {string} [options.inputSelector='.customer-search-combobox'] - CSS selector for search inputs
+         * @param {string|null} [options.formSelector=null] - Optional CSS selector to find parent form
+         * @param {string} [options.hiddenFieldName='customer_id'] - Name attribute of hidden field to populate
+         * @param {number} [options.debounceMs=250] - Debounce delay for API calls in milliseconds
+         * @param {Object} [options.requestHeaders={}] - Additional headers for fetch requests
+         */
         constructor(options = {}) {
             this.inputSelector = options.inputSelector || CustomerSearchController.DEFAULT_SELECTOR;
             this.formSelector = options.formSelector || null;
@@ -38,6 +66,10 @@
             this.boundHandleChange = this.handleChange.bind(this);
         }
 
+        /**
+         * Attaches event listeners to the document for event delegation.
+         * Safe to call multiple times - will only attach once.
+         */
         attach() {
             if (this.attached) {
                 return;
@@ -48,6 +80,10 @@
             this.attached = true;
         }
 
+        /**
+         * Removes event listeners from the document.
+         * Safe to call multiple times.
+         */
         detach() {
             if (!this.attached) {
                 return;
@@ -58,6 +94,11 @@
             this.attached = false;
         }
 
+        /**
+         * Ensures the hidden field is synced with the current input selection.
+         * Call this before form submission to guarantee the customer_id is set.
+         * @param {HTMLFormElement|HTMLInputElement} formOrInput - The form or input element
+         */
         ensureSelection(formOrInput) {
             if (!formOrInput) {
                 return;
@@ -76,6 +117,11 @@
             }
         }
 
+        /**
+         * Handles input events on customer search fields.
+         * Triggers debounced API search and syncs selection.
+         * @param {Event} event - The input event
+         */
         handleInput(event) {
             const target = event.target;
             if (!(target instanceof HTMLInputElement)) {
@@ -103,6 +149,11 @@
             this.scheduleFetch(target, datalist, query);
         }
 
+        /**
+         * Handles change events on customer search fields.
+         * Syncs the selection when user selects from datalist.
+         * @param {Event} event - The change event
+         */
         handleChange(event) {
             const target = event.target;
             if (!(target instanceof HTMLInputElement)) {
@@ -121,6 +172,13 @@
             this.syncSelection(target, datalist);
         }
 
+        /**
+         * Schedules a debounced API fetch for customer search.
+         * Cancels any pending fetch for the same input.
+         * @param {HTMLInputElement} input - The search input element
+         * @param {HTMLDataListElement} datalist - The associated datalist
+         * @param {string} query - The search query
+         */
         scheduleFetch(input, datalist, query) {
             const existingTimer = this.timerMap.get(input);
             if (existingTimer) {
@@ -142,6 +200,10 @@
             this.timerMap.set(input, timer);
         }
 
+        /**
+         * Clears any pending debounce timer for an input
+         * @param {HTMLInputElement} input - The input element
+         */
         clearTimer(input) {
             const existingTimer = this.timerMap.get(input);
             if (existingTimer) {
@@ -150,6 +212,12 @@
             }
         }
 
+        /**
+         * Fetches customers from the API matching the query
+         * @param {string} query - The search query
+         * @returns {Promise<Array>} Array of customer objects
+         * @throws {Error} If the HTTP request fails
+         */
         async fetchCustomers(query) {
             const url = window.LexBridge.resolveApiUrl(`customers/search?q=${encodeURIComponent(query)}`);
             const response = await fetch(url, {
@@ -176,6 +244,12 @@
             }
         }
 
+        /**
+         * Populates a datalist with customer options.
+         * Deduplicates by customer number and label.
+         * @param {HTMLDataListElement} datalist - The datalist to populate
+         * @param {Array} customers - Array of customer objects from API
+         */
         populateOptions(datalist, customers) {
             datalist.innerHTML = CustomerSearchController.DEFAULT_DATALIST_OPTION;
             if (!Array.isArray(customers) || customers.length === 0) {
@@ -220,6 +294,19 @@
             });
         }
 
+        /**
+         * Synchronises the hidden field value with the current input selection.
+         * 
+         * Matching strategy:
+         * 1. Use cached selection if input value unchanged
+         * 2. Exact match against datalist option values (case-insensitive)
+         * 3. Fallback: match by customer number prefix extracted from input
+         * 
+         * Caches successful matches on the input element for form submission.
+         * 
+         * @param {HTMLInputElement} input - The search input element
+         * @param {HTMLDataListElement|null} datalist - The associated datalist (may be null)
+         */
         syncSelection(input, datalist) {
             if (!(input instanceof HTMLInputElement)) {
                 return;
@@ -298,6 +385,12 @@
             }
         }
 
+        /**
+         * Resolves the parent form for an input element.
+         * Uses formSelector if configured, otherwise falls back to input.form.
+         * @param {HTMLInputElement} input - The input element
+         * @returns {HTMLFormElement|null} The parent form, or null if not found
+         */
         resolveForm(input) {
             if (!(input instanceof HTMLInputElement)) {
                 return null;
@@ -314,6 +407,11 @@
             return form instanceof HTMLFormElement ? form : null;
         }
 
+        /**
+         * Gets the datalist element associated with an input via its 'list' attribute
+         * @param {HTMLInputElement} input - The input element
+         * @returns {HTMLDataListElement|null} The datalist element, or null if not found
+         */
         getDatalist(input) {
             if (!(input instanceof HTMLInputElement)) {
                 return null;
@@ -332,6 +430,20 @@
         window.lexBridgeUtils = {};
     }
 
+    /**
+     * Factory function to create or retrieve the global CustomerSearchController instance.
+     * Implements singleton pattern - returns existing controller if already created.
+     * Automatically attaches event listeners on first creation.
+     * 
+     * @param {Object} options - Configuration options (see CustomerSearchController constructor)
+     * @returns {CustomerSearchController} The singleton controller instance
+     * 
+     * @example
+     * const controller = window.lexBridgeUtils.createCustomerSearchController({
+     *     hiddenFieldName: 'customer_id',
+     *     debounceMs: 300
+     * });
+     */
     window.lexBridgeUtils.createCustomerSearchController = function createCustomerSearchController(options) {
         // Always return or create a single global instance
         if (!window.lexBridge) {
@@ -351,6 +463,7 @@
         return controller;
     };
 
+    // Expose class for direct instantiation if needed
     window.lexBridgeUtils.CustomerSearchController = CustomerSearchController;
 
 })();
