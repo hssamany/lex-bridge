@@ -25,6 +25,7 @@ final class InvoiceLineItem
     public ?float $discountPercentage = 0;
     public ?float $lineTotalNet = null;
     public ?float $lineTotalGross = null;
+    public ?string $orderDeliveryDate = null;
     public ?string $createdAt = null;
     public ?string $updatedAt = null;
     
@@ -40,7 +41,8 @@ final class InvoiceLineItem
         $item->lineOrder = (int) $row['line_order'];
         $item->type = $row['type'];
         $item->name = $row['name'];
-        $item->description = 'Lieferdatum: '. $row['order_delivery_date'] ?? null . " ". $row['description'] ?? null;
+        $item->orderDeliveryDate = $row['order_delivery_date'] ?? null;
+        $item->description = 'Lieferdatum: '. $item->orderDeliveryDate . " ". ($row['description'] ?? '');
         $item->quantity = isset($row['quantity']) ? (float)$row['quantity'] : null;
         $item->unitName = $row['unit_name'] ?? null;
         $item->currency = $row['currency'] ?? 'EUR';
