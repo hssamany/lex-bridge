@@ -6,16 +6,16 @@
                 <thead>
                     <tr>
                         <th><input type="checkbox" class="line-items-select-all"></th>
-                        <th>Kunde</th>
-                        <th>Pos.</th>
-                        <th>Bezeichnung</th>
-                        <th>Menge</th>
-                        <th>Netto (€)</th>
-                        <th>Brutto (€)</th>
-                        <th>Steuer %</th>
-                        <th>Erstellt am</th>
-                        <th>Uhrzeit</th>
-                        <th>Lieferdatum</th>
+                        <th title="Kunde">Kunde</th>
+                        <th title="Position">Pos.</th>
+                        <th title="Bezeichnung">Bezeichnung</th>
+                        <th title="Menge">Menge</th>
+                        <th title="Netto-Betrag in Euro">Netto (€)</th>
+                        <th title="Brutto-Betrag in Euro">Brutto (€)</th>
+                        <th title="Steuersatz in Prozent">Steuer %</th>
+                        <th title="Erstellt am">Erstellt am</th>
+                        <th title="Uhrzeit der Erstellung">Uhrzeit</th>
+                        <th title="Lieferdatum">Lieferdatum</th>
                     </tr>
                 </thead>
                 <tbody class="line-items-table-body">
