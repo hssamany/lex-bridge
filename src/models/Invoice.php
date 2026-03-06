@@ -37,7 +37,8 @@ final class Invoice
     
     // Shipping conditions
     public ?string $shippingDate = null;
-    public ?string $shippingType = 'delivery';
+    public ?string $shippingEndDate = null;
+    public ?string $shippingType = 'deliveryperiod';
     
     // Status tracking
     public string $status = 'draft';
@@ -134,7 +135,8 @@ final class Invoice
         $invoice->paymentDiscountRange = isset($row['payment_discount_range']) ? (int)$row['payment_discount_range'] : null;
         
         $invoice->shippingDate = $row['shipping_date'] ?? null;
-        $invoice->shippingType = $row['shipping_type'] ?? 'delivery';
+        $invoice->shippingEndDate = isset($row['shipping_end_date']) ? (string)$row['shipping_end_date'] : null;
+        $invoice->shippingType = isset($row['shipping_type']) ? (string)$row['shipping_type'] : 'deliveryperiod';
         
         $invoice->status = $row['status'] ?? 'draft';
         
@@ -215,6 +217,7 @@ final class Invoice
             'paymentDiscountPercentage' => $this->paymentDiscountPercentage,
             'paymentDiscountRange' => $this->paymentDiscountRange,
             'shippingDate' => $this->shippingDate,
+            'shippingEndDate' => $this->shippingEndDate, // Alias for shippingDate
             'shippingType' => $this->shippingType,
             'status' => $this->status,
             'transmissionAttempts' => $this->transmissionAttempts,
@@ -236,12 +239,8 @@ final class Invoice
         }
         
         // Build line items array
-        $lineItemsPayload = [];
-        if ($this->lineItems) {
-            foreach ($this->lineItems as $item) {
-                $lineItemsPayload[] = $item->toLexwarePayload();
-            }
-        }
+        $lineItemsPayload = array_map(fn($item) => $item->toLexwarePayload(), $this->lineItems ?? []);
+        
         
         $payload = [
             'archived' => $this->archived,
@@ -276,13 +275,25 @@ final class Invoice
             }
         }
         
-        // Add shipping conditions if present
-        if ($this->shippingDate || $this->shippingType) {
-            $payload['shippingConditions'] = [
-                'shippingDate' => $this->formatDateForLexware($this->shippingDate),
-                'shippingType' => $this->shippingType
-            ];
+        // Compute shipping dates from line items (min/max of order_delivery_date)
+        $deliveryDates = [];
+        if ($this->lineItems) {
+            foreach ($this->lineItems as $item) {
+                if (!empty($item->orderDeliveryDate)) {
+                    $deliveryDates[] = $item->orderDeliveryDate;
+                }
+            }
         }
+        
+        $computedShippingDate = !empty($deliveryDates) ? min($deliveryDates) : $this->shippingDate;
+        $computedShippingEndDate = !empty($deliveryDates) ? max($deliveryDates) : $this->shippingEndDate;
+        
+        // Add shipping conditions if present
+        $payload['shippingConditions'] = [
+            'shippingDate' => $this->formatDateForLexware($computedShippingDate),
+            'shippingEndDate' => $this->formatDateForLexware($computedShippingEndDate),
+            'shippingType' => $this->shippingType
+        ];
         
         return $payload;
     }
