@@ -238,9 +238,20 @@ final class Invoice
             throw new \Exception('Lex contact ID is required for Lexware API');
         }
         
-        // Build line items array
-        $lineItemsPayload = array_map(fn($item) => $item->toLexwarePayload(), $this->lineItems ?? []);
+        // Build line items array and collect delivery dates in one pass
+        $lineItemsPayload = [];
+        $deliveryDates = [];
         
+        foreach ($this->lineItems ?? [] as $item) {
+            $lineItemsPayload[] = $item->toLexwarePayload();
+            if (!empty($item->orderDeliveryDate)) {
+                $deliveryDates[] = $item->orderDeliveryDate;
+            }
+        }
+        
+        // Compute shipping dates from collected delivery dates
+        $computedShippingDate = $deliveryDates ? min($deliveryDates) : $this->shippingDate;
+        $computedShippingEndDate = $deliveryDates ? max($deliveryDates) : $this->shippingEndDate;
         
         $payload = [
             'archived' => $this->archived,
@@ -257,7 +268,12 @@ final class Invoice
             ],
             'title' => $this->title,
             'introduction' => $this->introduction ?? '',
-            'remark' => $this->remark ?? ''
+            'remark' => $this->remark ?? '',
+            'shippingConditions' => [
+                'shippingDate' => $this->formatDateForLexware($computedShippingDate),
+                'shippingEndDate' => $this->formatDateForLexware($computedShippingEndDate),
+                'shippingType' => $this->shippingType
+            ]
         ];
         
         // Add payment conditions if present
@@ -274,26 +290,6 @@ final class Invoice
                 ];
             }
         }
-        
-        // Compute shipping dates from line items (min/max of order_delivery_date)
-        $deliveryDates = [];
-        if ($this->lineItems) {
-            foreach ($this->lineItems as $item) {
-                if (!empty($item->orderDeliveryDate)) {
-                    $deliveryDates[] = $item->orderDeliveryDate;
-                }
-            }
-        }
-        
-        $computedShippingDate = !empty($deliveryDates) ? min($deliveryDates) : $this->shippingDate;
-        $computedShippingEndDate = !empty($deliveryDates) ? max($deliveryDates) : $this->shippingEndDate;
-        
-        // Add shipping conditions if present
-        $payload['shippingConditions'] = [
-            'shippingDate' => $this->formatDateForLexware($computedShippingDate),
-            'shippingEndDate' => $this->formatDateForLexware($computedShippingEndDate),
-            'shippingType' => $this->shippingType
-        ];
         
         return $payload;
     }
