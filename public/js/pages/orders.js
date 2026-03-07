@@ -387,7 +387,7 @@
         {
             this.ensureCustomerSelection(form);
 
-            const fromInput = form.querySelector('input[name="geaendertAm_from"]');
+            const fromInput = form.querySelector('input[name="order_date_from"]');
             
             if (fromInput && fromInput.value.trim() === '') 
             {
@@ -561,7 +561,7 @@
                     positionCells.push(`<td>${this.escapeHtml(this.formatNumber(quantities[day] ?? null))}</td>`);
                 });
 
-                positionCells.push(`<td>${this.escapeHtml(this.formatDateTime(order.geaendert_am))}</td>`);
+                positionCells.push(`<td>${this.escapeHtml(this.formatDateTime(order.order_date))}</td>`);
                 positionCells.push(`<td>${this.escapeHtml(this.safeText(order.article_number))}</td>`);
                 positionCells.push(`<td style="text-align:center;"><input type="checkbox" ${order.verarbeitet ? 'checked' : ''} disabled></td>`);
 

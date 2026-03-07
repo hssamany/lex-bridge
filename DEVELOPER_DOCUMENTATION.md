@@ -670,8 +670,8 @@ All endpoints are RESTful JSON APIs under `/api/` path. Responses are JSON encod
 **GET /api/orders**
 - **Purpose:** Retrieve orders with date filtering
 - **Query Parameters:**
-  - `geaendertAm_from` (date) - **Required** - Start date
-  - `geaendertAm_to` (date) - **Required** - End date
+  - `order_date_from` (date) - **Required** - Start date (immutable order creation date)
+  - `order_date_to` (date) - **Optional** - End date (defaults to today)
   - `customer_id` (int) - Optional - Filter by customer
 - **Response:**
   ```json

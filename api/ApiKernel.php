@@ -168,21 +168,21 @@ final class ApiKernel {
 
             $filters = [];
 
-            $changedFromRaw = isset($_GET['geaendertAm_from']) ? trim((string) $_GET['geaendertAm_from']) : '';
+            $orderDateFromRaw = isset($_GET['order_date_from']) ? trim((string) $_GET['order_date_from']) : '';
             
-            if ($changedFromRaw === '') {
+            if ($orderDateFromRaw === '') {
                 return [
                     'isSuccess' => false,
-                    'error' => 'geaendertAm_from is required',
+                    'error' => 'order_date_from is required',
                 ];
             }
 
-            $filters['geaendertAm_from'] = $changedFromRaw;
+            $filters['order_date_from'] = $orderDateFromRaw;
 
-            $changedToRaw = isset($_GET['geaendertAm_to']) ? trim((string) $_GET['geaendertAm_to']) : '';
+            $orderDateToRaw = isset($_GET['order_date_to']) ? trim((string) $_GET['order_date_to']) : '';
             
-            if ($changedToRaw !== '') {
-                $filters['geaendertAm_to'] = $changedToRaw;
+            if ($orderDateToRaw !== '') {
+                $filters['order_date_to'] = $orderDateToRaw;
             }
 
             $customerIdRaw = $_GET['customer_id'] ?? null;

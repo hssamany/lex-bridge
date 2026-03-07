@@ -78,7 +78,7 @@ final class OrderRepositoryTest extends TestCase
             'Mi' => 0,
             'Do' => 0,
             'Fr' => 0,
-            'GeaendertAm' => '2024-01-15 10:00:00',
+            'order_date' => '2024-01-15',
         ]);
 
         $secondOrderId = $this->insertOrder([
@@ -90,12 +90,12 @@ final class OrderRepositoryTest extends TestCase
             'Mi' => 1.00,
             'Do' => 1.00,
             'Fr' => 1.00,
-            'GeaendertAm' => '2024-01-24 09:00:00',
+            'order_date' => '2024-01-24',
         ]);
 
         $orders = $this->repository->getOrders([
-            'geaendertAm_from' => '2024-01-01',
-            'geaendertAm_to' => '2024-01-31',
+            'order_date_from' => '2024-01-01',
+            'order_date_to' => '2024-01-31',
             'customer_id' => $otherCustomerId,
         ]);
 
@@ -139,7 +139,7 @@ final class OrderRepositoryTest extends TestCase
             'Mi' => 0,
             'Do' => 0,
             'Fr' => 0,
-            'GeaendertAm' => '2024-02-01 08:00:00',
+            'order_date' => '2024-02-01',
         ]);
 
         $results = $this->repository->generateLineItemsFromOrders([
@@ -189,7 +189,7 @@ final class OrderRepositoryTest extends TestCase
             'Mi' => 0,
             'Do' => 0,
             'Fr' => 0,
-            'GeaendertAm' => '2024-03-18 10:00:00',
+            'order_date' => '2024-03-18',
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -216,7 +216,7 @@ final class OrderRepositoryTest extends TestCase
             'Mi' => 0,
             'Do' => 0,
             'Fr' => 0,
-            'GeaendertAm' => '2024-04-08 12:00:00',
+            'order_date' => '2024-04-08',
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -257,7 +257,7 @@ final class OrderRepositoryTest extends TestCase
             'Mi' => 0,
             'Do' => 0,
             'Fr' => 0,
-            'GeaendertAm' => '2024-01-02 07:30:00',
+            'order_date' => '2024-01-02',
         ]);
 
         $this->expectException(RuntimeException::class);
@@ -286,7 +286,7 @@ final class OrderRepositoryTest extends TestCase
             Mi REAL,
             Do REAL,
             Fr REAL,
-            GeaendertAm TEXT,
+            order_date DATE,
             verarbeitet INTEGER DEFAULT 0,
             FOREIGN KEY(Kunde) REFERENCES customer(id)
         )');
@@ -344,7 +344,7 @@ final class OrderRepositoryTest extends TestCase
     }
     private function insertOrder(array $data): int
     {
-        $columns = ['Kunde', 'Jahr', 'KW', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'GeaendertAm'];
+        $columns = ['Kunde', 'Jahr', 'KW', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'order_date'];
 
         $placeholders = [];
         $params = [];

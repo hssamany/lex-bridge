@@ -1,9 +1,9 @@
 <?php
 $formName = 'get-bestellg';
-$dateFromId = 'orders_changed_from';
-$dateFromName = 'geaendertAm_from';
-$dateToId = 'orders_changed_to';
-$dateToName = 'geaendertAm_to';
+$dateFromId = 'orders_date_from';
+$dateFromName = 'order_date_from';
+$dateToId = 'orders_date_to';
+$dateToName = 'order_date_to';
 $customerSearchId = 'orders_customer_search';
 $datalistId = 'orders-customer-options';
 $dateFromRequired = true;

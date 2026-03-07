@@ -60,11 +60,11 @@ final class OrderRepository
     }
 
     /**
-     * Retrieve orders filtered by change date and optional customer.
+     * Retrieve orders filtered by order date and optional customer.
      *
      * @param array{
-     *     geaendertAm_from: mixed,
-     *     geaendertAm_to?: mixed,
+     *     order_date_from: mixed,
+     *     order_date_to?: mixed,
      *     customer_id?: mixed
      * } $filters
      * @param array{limit:int,offset:int} $pagination
@@ -74,21 +74,21 @@ final class OrderRepository
     {
         Logger::log('XXXXXPP: '. json_encode($filters,JSON_PRETTY_PRINT), 'OrderRepository::getOrders');
         // Use InputFilter utility for date normalization and validation
-        $changedFrom = InputFilter::filterDateValueProvided($filters, 'geaendertAm_from', true, false);
-        $changedTo = InputFilter::filterDateValueProvided($filters, 'geaendertAm_to', false, true)
-            ?? new DateTimeImmutable('now', $changedFrom->getTimezone());
+        $orderDateFrom = InputFilter::filterDateValueProvided($filters, 'order_date_from', true, false);
+        $orderDateTo = InputFilter::filterDateValueProvided($filters, 'order_date_to', false, true)
+            ?? new DateTimeImmutable('now', $orderDateFrom->getTimezone());
 
-        if ($changedTo < $changedFrom) {
-            throw new InvalidArgumentException('Filter "geaendertAm_to" must be on or after "geaendertAm_from".');
+        if ($orderDateTo < $orderDateFrom) {
+            throw new InvalidArgumentException('Filter "order_date_to" must be on or after "order_date_from".');
         }
 
         $conditions = [
-            'o.GeaendertAm >= :changed_from',
-            'o.GeaendertAm <= :changed_to',
+            'o.order_date >= :order_date_from',
+            'o.order_date <= :order_date_to',
         ];
         $params = [
-            ':changed_from' => $changedFrom->format('Y-m-d H:i:s'),
-            ':changed_to' => $changedTo->format('Y-m-d H:i:s'),
+            ':order_date_from' => $orderDateFrom->format('Y-m-d'),
+            ':order_date_to' => $orderDateTo->format('Y-m-d'),
         ];
 
         $customerReference = $filters['customer_id'] ?? null;
@@ -106,8 +106,8 @@ final class OrderRepository
         $countSql = <<<SQL
             SELECT 
                 COUNT(*) as total,
-                MIN(GeaendertAm) as min_date,
-                MAX(GeaendertAm) as max_date
+                MIN(order_date) as min_date,
+                MAX(order_date) as max_date
             FROM {$this->ordersTable}
         SQL;
 
@@ -155,14 +155,14 @@ final class OrderRepository
                 o.Fr,
                 ca.article_id,
                 a.article_number,
-                o.GeaendertAm,
+                o.order_date,
                 c.Nummer AS customer_number,
                 c.lex_customer_number,
                 c.id AS customer_id,
                 {$verarbeitetSelect}
 
             {$fromSql}
-            ORDER BY o.GeaendertAm ASC, o.Id ASC
+            ORDER BY o.order_date ASC, o.Id ASC
             LIMIT :limit OFFSET :offset 
         SQL;
 
