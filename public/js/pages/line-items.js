@@ -650,7 +650,11 @@ class LineItemsPage {
         const parsedDate = new Date(value);
         if (!Number.isNaN(parsedDate.getTime())) {
             return {
-                date: parsedDate.toLocaleDateString('de-DE'),
+                date: parsedDate.toLocaleDateString('de-DE', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                }),
                 time: parsedDate.toLocaleTimeString('de-DE', {
                     hour: '2-digit',
                     minute: '2-digit'
