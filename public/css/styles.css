@@ -883,7 +883,8 @@ input[list]::-webkit-calendar-picker-indicator {
     background-color: var(--color-secondary-hover);
 }
 
-.line-items-toolbar-btn {
+.line-items-toolbar-btn,
+.line-items-toolbar-btn .btn {
     height: 32px;
 }
 

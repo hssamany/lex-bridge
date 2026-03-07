@@ -153,6 +153,7 @@ class LexBridge {
     async initializeTabManager() {
         // Get tab content from templates
         const contactsContent = document.getElementById('contacts-tab-content')?.innerHTML || '<p>Loading contacts...</p>';
+        const contactsAction = document.getElementById('contacts-filter-template')?.innerHTML || '';
         const invoicesContent = document.getElementById('invoices-tab-content')?.innerHTML || '<p>Invoice management coming soon...</p>';
         const lineItemsContent = document.getElementById('line-items-tab-content')?.innerHTML || '<p>Loading line items...</p>';
         const lineItemsAction = document.getElementById('line-items-filter-template')?.innerHTML || '';
@@ -165,11 +166,7 @@ class LexBridge {
                 id: 'kontakte',
                 label: 'Kontakte',
                 content: contactsContent,
-                action: {
-                    name: 'get-kontakte',
-                    icon: '↻',
-                    label: 'Kontakte synchronisieren'
-                }
+                action: contactsAction
             },
             {
                 id: 'bestellg',

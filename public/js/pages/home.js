@@ -24,12 +24,13 @@
         {
             // Event delegation will be set up globally
             if (!ContactsPage.handlerSetup) {
-                this.setupRefreshButton();
                 ContactsPage.handlerSetup = true;
             }
 
             this.setupArticleHandlers();
             this.setupPaginator();
+            this.setupSyncContactsButton();
+            this.setupSyncArticlesButton();
             this.autoLoadIfEmpty();
         }
 
@@ -118,6 +119,99 @@
                         await this.syncAndReload(1);
                     });
                 }
+            }
+        }
+
+        /**
+         * Setup sync contacts button
+         */
+        setupSyncContactsButton() {
+            const button = document.getElementById('sync-contacts-btn');
+            if (!button || button.dataset.ajaxHandlerAttached === 'true') {
+                return;
+            }
+
+            button.dataset.ajaxHandlerAttached = 'true';
+            button.addEventListener('click', async () => {
+                await this.syncAndReload(1);
+            });
+        }
+
+        /**
+         * Setup sync articles button
+         */
+        setupSyncArticlesButton() {
+            const button = document.getElementById('sync-articles-btn');
+            if (!button || button.dataset.ajaxHandlerAttached === 'true') {
+                return;
+            }
+
+            button.dataset.ajaxHandlerAttached = 'true';
+            button.addEventListener('click', async () => {
+                await this.handleArticlesSync();
+            });
+        }
+
+        /**
+         * Handle articles sync
+         */
+        async handleArticlesSync() {
+            const button = document.getElementById('sync-articles-btn');
+            if (!button) {
+                return;
+            }
+
+            const originalDisabled = button.disabled;
+            const originalHtml = button.innerHTML;
+
+            try {
+                button.disabled = true;
+                button.innerHTML = '<span class=\"btn-icon spinning\">↻</span><span>Synchronisiere...</span>';
+
+                const response = await fetch(LexBridge.resolveApiUrl('articles/sync'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.isSuccess === false) {
+                    const errors = Array.isArray(data.errors) && data.errors.length ? data.errors.join(', ') : null;
+                    const message = data.error || errors || `Synchronisierung fehlgeschlagen (Status ${response.status}).`;
+                    throw new Error(message);
+                }
+
+                const created = typeof data.created === 'number' ? data.created : 0;
+                const updated = typeof data.updated === 'number' ? data.updated : 0;
+                const priceUpdates = typeof data.price_updates === 'number' ? data.price_updates : 0;
+
+                const summaryParts = [];
+                if (created > 0) {
+                    summaryParts.push(`${created} neu`);
+                }
+                if (updated > 0) {
+                    summaryParts.push(`${updated} aktualisiert`);
+                }
+                if (priceUpdates > 0) {
+                    summaryParts.push(`${priceUpdates} Preisänderungen`);
+                }
+
+                const suffix = summaryParts.length ? ` (${summaryParts.join(', ')})` : '';
+                
+                if (this.lexBridge && this.lexBridge.toastNotifier) {
+                    this.lexBridge.toastNotifier.show(`Artikel synchronisiert${suffix}`, 'success');
+                }
+            } catch (error) {
+                console.error('Article sync failed:', error);
+                if (this.lexBridge && this.lexBridge.toastNotifier) {
+                    this.lexBridge.toastNotifier.show(error.message || 'Artikel konnten nicht synchronisiert werden.', 'error');
+                }
+            } finally {
+                button.disabled = originalDisabled;
+                button.innerHTML = originalHtml;
             }
         }
         
@@ -216,13 +310,13 @@
         }
 
         async syncAndReload(page = 1) {
-            const button = document.querySelector('form[name="get-kontakte"] button');
+            const button = document.getElementById('sync-contacts-btn');
             const originalText = button ? button.innerHTML : '';
 
             try {
                 if (button) {
                     button.disabled = true;
-                    button.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronizing...';
+                    button.innerHTML = '<span class="btn-icon spinning">↻</span><span>Synchronisiere...</span>';
                 }
 
                 this.currentPage = 1;

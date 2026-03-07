@@ -8,7 +8,6 @@ class LineItemsPage {
         this.lexBridge = lexBridge;
         this.filterForm = null;
         this.sendInvoiceButton = null;
-        this.syncArticlesButton = null;
         this.customerSearchController = null;
         this.cachedLineItems = []; // Store all fetched line items
         this.lineItemsMap = new Map(); // Fast lookup map for filtering
@@ -33,11 +32,9 @@ class LineItemsPage {
     initialize() {
         this.filterForm = document.querySelector('form[name="get-line-items"]');
         this.sendInvoiceButton = document.getElementById('send-invoice-btn');
-        this.syncArticlesButton = document.getElementById('sync-articles-btn');
 
         this.setupFilterFormDirect();
         this.setupSendInvoiceButton();
-        this.setupSyncArticlesButton();
         this.setupInvoicedFilterCheckbox();
         this.setupPaginator();
     }
@@ -146,17 +143,6 @@ class LineItemsPage {
         }
 
         this.updateSendInvoiceButtonState();
-    }
-
-    setupSyncArticlesButton() {
-        if (!this.syncArticlesButton || this.syncArticlesButton.dataset.ajaxHandlerAttached === 'true') {
-            return;
-        }
-
-        this.syncArticlesButton.dataset.ajaxHandlerAttached = 'true';
-        this.syncArticlesButton.addEventListener('click', async () => {
-            await this.handleArticlesSync();
-        });
     }
 
     setupInvoicedFilterCheckbox() {
@@ -407,64 +393,6 @@ class LineItemsPage {
         if (totalLabel) {
             const totalValue = Number.isFinite(Number(this.totalCount)) ? Number(this.totalCount) : items.length;
             totalLabel.textContent = `Gesammt: ${totalValue}`;
-        }
-    }
-
-    async handleArticlesSync() {
-        const button = this.syncArticlesButton;
-        if (!button) {
-            return;
-        }
-
-        const originalDisabled = button.disabled;
-        const originalHtml = button.innerHTML;
-
-        try {
-            button.disabled = true;
-            button.innerHTML = '<span class="btn-icon spinning">↻</span><span>Synchronisiere...</span>';
-
-            const response = await fetch(LexBridge.resolveApiUrl('articles/sync'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({})
-            });
-
-            const text = await response.text();
-            const data = this.parseJsonSafely(text);
-
-            if (!response.ok || data.isSuccess === false) {
-                const errors = Array.isArray(data.errors) && data.errors.length ? data.errors.join(', ') : null;
-                const message = data.error || errors || `Synchronisierung fehlgeschlagen (Status ${response.status}).`;
-                throw new Error(message);
-            }
-
-            const created = typeof data.created === 'number' ? data.created : 0;
-            const updated = typeof data.updated === 'number' ? data.updated : 0;
-            const priceUpdates = typeof data.price_updates === 'number' ? data.price_updates : 0;
-
-            const summaryParts = [];
-            if (created > 0) {
-                summaryParts.push(`${created} neu`);
-            }
-            if (updated > 0) {
-                summaryParts.push(`${updated} aktualisiert`);
-            }
-            if (priceUpdates > 0) {
-                summaryParts.push(`${priceUpdates} Preisänderungen`);
-            }
-
-            const suffix = summaryParts.length ? ` (${summaryParts.join(', ')})` : '';
-            this.showToast(`Artikel synchronisiert${suffix}`, 'success');
-
-            await this.reloadCurrentLineItems();
-        } catch (error) {
-            console.error('Article sync failed:', error);
-            this.showToast(error.message || 'Artikel konnten nicht synchronisiert werden.', 'error');
-        } finally {
-            button.disabled = originalDisabled;
-            button.innerHTML = originalHtml;
         }
     }
 

@@ -121,6 +121,11 @@ final class HomeView
         include __DIR__ . '/../orders/orders-toolbar-view.php';
     }
 
+    public function renderContactsToolbar(): void
+    {
+        include __DIR__ . '/../contacts/contacts-toolbar-view.php';
+    }
+
     public function renderInvoicesFilter(): void
     {
         include __DIR__ . '/../invoices/invoices-filter-form.php';

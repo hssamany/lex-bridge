@@ -50,6 +50,10 @@ $statusTranslations = require dirname(__DIR__, 2) . '/Config/invoice-status.php'
         <template id="orders-filter-template">
             <?php $homeView->renderOrdersToolbar(); ?>
         </template>
+
+        <template id="contacts-filter-template">
+            <?php $homeView->renderContactsToolbar(); ?>
+        </template>
         
         <template id="invoices-filter-template">
             <?php $homeView->renderInvoicesFilter(); ?>
