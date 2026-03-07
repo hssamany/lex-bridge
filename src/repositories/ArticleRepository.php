@@ -161,10 +161,7 @@ final class ArticleRepository
             ) p ON a.id = p.article_id
             $where
             ORDER BY a.name ASC
-        SQL;
-
-        Logger::info('#########-1', implode(', ', $params));   
-        Logger::info('#########-1', $sql);   
+        SQL; 
 
         return [
             'sql' => $sql,

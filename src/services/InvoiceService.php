@@ -89,7 +89,6 @@ final class InvoiceService
         }
         
         $payload = $invoice->toLexwarePayload();
-        Logger::info('Transferring XXXX: ' . json_encode($payload, JSON_PRETTY_PRINT), 'InvoiceService'); 
         return $this->client->post('/invoices', $payload);
     }
     

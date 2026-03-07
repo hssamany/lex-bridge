@@ -72,7 +72,7 @@ final class OrderRepository
      */
     public function getOrders(array $filters, array $pagination = ['limit' => 25, 'offset' => 0]): array
     {
-        Logger::log('XXXXXPP: '. json_encode($filters,JSON_PRETTY_PRINT), 'OrderRepository::getOrders');
+        
         // Use InputFilter utility for date normalization and validation
         $orderDateFrom = InputFilter::filterDateValueProvided($filters, 'order_date_from', true, false);
         $orderDateTo = InputFilter::filterDateValueProvided($filters, 'order_date_to', false, true)

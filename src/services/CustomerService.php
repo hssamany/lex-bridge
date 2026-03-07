@@ -117,12 +117,13 @@ final class CustomerService
         $response = $this->getContacts($page);
         $errorMessage = null;
 
+        $rowsAffected = 0;
+
         if ($response->isSuccess()) {
             $contacts = $this->extractContactsFromResponse($response);
             $rowsAffected = $this->persistContacts($contacts);
         } else {
             $errorMessage = $response->getMessage() ?? 'Failed to synchronize contacts from Lexware.';
-            Logger::info('Contact sync failed - ' . json_encode(['page' => $page, 'error' => $errorMessage]));
         }
 
         $listResult = $this->listContacts($pagination);
