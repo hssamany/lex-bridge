@@ -17,8 +17,7 @@ final class ArticleController
     }
 
     public function searchArticles(?string $query): array
-    {
-        Logger::info("AAAAAAAAAA: " . ($query ?? 'null'));   
+    {  
         return $this->articleService->searchArticles($query);
     }
 

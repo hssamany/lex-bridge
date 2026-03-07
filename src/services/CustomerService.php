@@ -47,13 +47,8 @@ final class CustomerService
             return [];
         }
 
-        Logger::info('YYY - query: ' . $normalizedQuery, "CustomerService - Search Customers");
-
         $rows = $this->repository->searchCustomers($normalizedQuery);
-        Logger::info('XXX performed - ' . json_encode([
-            'query' => $normalizedQuery,
-            'resultCount' => count($rows)
-        ]), "CustomerService - Search Customers");
+        
         return $this->transformToCustomerModels($rows);
     }
 
