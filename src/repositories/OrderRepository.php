@@ -269,12 +269,12 @@ final class OrderRepository
         $deliveryFrom = null;
 
         if (InputFilter::filterValueProvided($filters, 'liefer_datum_von')) {
-            $deliveryFrom = $this->normalizeBoundaryDate($filters['liefer_datum_von'], 'liefer_datum_von');
+            $deliveryFrom = InputFilter::filterDateValueProvided($filters, 'liefer_datum_von', true, false);
         }
 
         $deliveryTo = null;
         if (InputFilter::filterValueProvided($filters, 'liefer_datum_bis')) {
-            $deliveryTo = $this->normalizeBoundaryDate($filters['liefer_datum_bis'], 'liefer_datum_bis');
+            $deliveryTo = InputFilter::filterDateValueProvided($filters, 'liefer_datum_bis', false, true);
         }
 
         // fetch raw orders rows for the selected customers/weeks
@@ -431,37 +431,7 @@ final class OrderRepository
     }
 
 
-    private function normalizeBoundaryDate(mixed $value, string $filterKey): DateTimeImmutable
-    {
-        if ($value instanceof DateTimeImmutable) {
-            return $value;
-        }
-
-        if ($value instanceof DateTimeInterface) {
-            return DateTimeImmutable::createFromInterface($value);
-        }
-
-        if (is_string($value)) {
-            $trimmed = trim($value);
-
-            if ($trimmed === '') {
-                throw new InvalidArgumentException(sprintf('Filter "%s" expects a non-empty string.', $filterKey));
-            }
-
-            $date = DateTimeImmutable::createFromFormat('Y-m-d', $trimmed);
-            if ($date instanceof DateTimeImmutable) {
-                return $date;
-            }
-
-            try {
-                return new DateTimeImmutable($trimmed);
-            } catch (\Exception $e) {
-                throw new InvalidArgumentException(sprintf('Filter "%s" contains an invalid date: %s', $filterKey, $trimmed));
-            }
-        }
-
-        throw new InvalidArgumentException(sprintf('Unsupported value provided for filter "%s".', $filterKey));
-    }
+    
     
 
     /**

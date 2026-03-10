@@ -112,7 +112,7 @@ class LineItemRepository
             {$selectSql}
             {$fromSql}
             {$whereSql}
-            ORDER BY li.created_at DESC
+            ORDER BY c.id, li.created_at DESC, li.line_order ASC
             LIMIT :limit OFFSET :offset
         SQL;
 
