@@ -14,3 +14,4 @@ vendor/
 
 # Log files
 *.log
+config-prod.php
