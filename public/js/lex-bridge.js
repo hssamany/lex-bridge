@@ -231,9 +231,6 @@ class LexBridge {
      * Attach handlers to forms (sync, post, etc.)
      */
     attachFormHandlers() {
-        // Note: Contact sync is now handled by ContactsPage class via AJAX
-        // Note: Invoice refresh is now handled by InvoicesPage class via AJAX
-        // No need for form submission handlers here
         
         // Handle post invoices form
         const postForm = document.querySelector('form[action*="post-invoices"]');

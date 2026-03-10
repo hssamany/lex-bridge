@@ -285,10 +285,12 @@
             }
         }
 
-        async syncContacts(page = 1) {
+        async syncContacts(page = 1) 
+        {
             const params = new URLSearchParams();
             params.set('page', String(page));
             params.set('page_size', String(this.pageSize));
+
             const response = await fetch(LexBridge.resolveApiUrl(`contacts/sync?${params.toString()}`), {
                 method: 'POST',
                 headers: {
@@ -309,11 +311,13 @@
             return data;
         }
 
-        async syncAndReload(page = 1) {
+        async syncAndReload(page = 1) 
+        {
             const button = document.getElementById('sync-contacts-btn');
             const originalText = button ? button.innerHTML : '';
 
             try {
+
                 if (button) {
                     button.disabled = true;
                     button.innerHTML = '<span class="btn-icon spinning">↻</span><span>Synchronisiere...</span>';
@@ -325,6 +329,7 @@
                 const rows_affected = Number.isFinite(Number(syncData.rows_affected)) ? Number(syncData.syncData) : 0;
 
                 this.totalCount = Number.isFinite(Number(syncData.total_count)) ? Number(syncData.total_count) : contacts.length;
+
                 if (Number(syncData.page) > 0) {
                     this.currentPage = Number(syncData.page);
                 }
@@ -335,24 +340,24 @@
                 this.updateContactList({ contacts });
                 this.renderPaginator();
 
+                let msg = '';
                 if (syncData.isSuccess) {
-                    this.lexBridge.toastNotifier.show(
-                        `Synchronized ${contacts.length} contacts`,
-                        'success'
-                    );
+                    msg = `Synchronized ${rows_affected} contacts`;
+                    this.lexBridge.toastNotifier.show(msg, 'success');
                 } else {
-                    const warningMessage = syncData.error
-                        ? `Synchronized ${contacts.length} contacts (with warnings: ${syncData.error})`
+                    msg = syncData.error
+                        ? `Synchronized ${rows_affected} contacts (with warnings: ${syncData.error})`
                         : `Synchronized ${contacts.length} contacts (with warnings)`;
-                    this.lexBridge.toastNotifier.show(warningMessage, 'warning');
+
+                    this.lexBridge.toastNotifier.show(msg, 'warning');
                 }
             } catch (error) {
-                console.error('Contact sync failed:', error);
-                this.lexBridge.toastNotifier.show(
-                    'Contact synchronization failed: ' + error.message,
-                    'error'
-                );
+
+                msg = 'Contact synchronization failed: ' + error.message;
+                console.error(msg);
+                this.lexBridge.toastNotifier.show(msg,'error');
                 await this.loadContacts(page);
+
             } finally {
                 if (button) {
                     button.disabled = false;
@@ -364,8 +369,10 @@
         /**
          * Update contact list in DOM
          */
-        updateContactList(data) {
+        updateContactList(data) 
+        {
             const tbody = document.querySelector('.contacts-container tbody');
+
             if (!tbody) {
                 return;
             }
