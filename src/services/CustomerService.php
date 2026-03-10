@@ -23,6 +23,8 @@ final class CustomerService
     private HttpClient $client;
     private ?Closure $contactFetcher;
 
+    private const CONTACTS_PAGE_SIZE = 250;
+
     public function __construct(
         HttpClient $client,
         ?CustomerRepository $repository = null,
@@ -71,11 +73,12 @@ final class CustomerService
 
         Logger::info('Fetching contacts from Lexware - ' . json_encode([
             'uiPage' => $page,
-            'apiPage' => $apiPage
+            'apiPage' => $apiPage,
+            'size' => self::CONTACTS_PAGE_SIZE
         ]));
 
-        return $this->client->get('/contacts?page=' . $apiPage);
-    }
+            return $this->client->get('/contacts?page=' . $apiPage . '&size=' . self::CONTACTS_PAGE_SIZE);
+        }
 
     /**
      * Return the contacts persisted locally in the customer table.

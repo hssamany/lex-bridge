@@ -59,15 +59,20 @@ final class CustomerRepository
 
     /**
      * Update contact metadata for a customer row.
+     * Matches base customer and all branches (e.g., 245, 2451, 2452).
      */
     public function updateContact(Contact $contact): int
     {
+        // Calculate the base customer number from Lexware number
+        // e.g., lex_customer_number 10245 → base 245
+        $baseNumber = ((int) $contact->lexCustomerNumber) - 10000;
+
         $sql = <<<SQL
             UPDATE {$this->customerTable}
             SET lex_contact_id = :lex_contact_id,
                 lex_customer_number = :lex_customer_number
-            WHERE (:customer_number - CAST(Nummer AS UNSIGNED)) = 10000
-            AND Nummer IS NOT NULL
+            WHERE Nummer LIKE :base_pattern
+              AND Nummer IS NOT NULL
         SQL;
 
         $stmt = $this->db->prepare($sql);
@@ -75,7 +80,7 @@ final class CustomerRepository
         $params = [
             ':lex_contact_id' => $contact->lexContactId,
             ':lex_customer_number' => $contact->lexCustomerNumber,
-            ':customer_number' => $contact->lexCustomerNumber
+            ':base_pattern' => $baseNumber . '%'
         ];
 
         $success = $stmt->execute($params);
@@ -86,6 +91,7 @@ final class CustomerRepository
             'companyName' => $contact->companyName,
             'lexContactId' => $contact->lexContactId,
             'lexCustomerNumber' => $contact->lexCustomerNumber,
+            'baseNumber' => $baseNumber,
             'rowsAffected' => $rowCount,
             'executeSuccess' => $success
         ]));
