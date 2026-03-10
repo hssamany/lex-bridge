@@ -114,6 +114,7 @@ final class CustomerService
 
         $rowsAffected = 0;
 
+        $contacts = [];
         if ($response->isSuccess()) {
             $contacts = $this->extractContactsFromResponse($response);
             $rowsAffected = $this->persistContacts($contacts);
@@ -128,6 +129,7 @@ final class CustomerService
             'response' => $response,
             'error' => $errorMessage,
             'contacts' => $enrichedContacts,
+            'lexware_contacts_count' => count($contacts),
             'rows_affected' => $rowsAffected,
             'total_count' => $listResult['total_count'],
             'page' => $listResult['page'],

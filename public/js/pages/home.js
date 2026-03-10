@@ -13,6 +13,8 @@
             this.totalCount = 0;
             this.paginator = null;
             this.currentContacts = [];
+            this.lexware_contacts_count = 0;
+            this.rows_affected
             this.articleSearchTimers = new WeakMap();
             this.articleCache = new Map();
             this.articleCacheTtl = 5 * 60 * 1000;
@@ -303,11 +305,13 @@
 
             const contacts = Array.isArray(data.contacts) ? data.contacts : [];
             const hasContacts = contacts.length > 0;
+            this.lexware_contacts_count = Number.isFinite(Number(data.lexware_contacts_count)) ? Number(data.lexware_contacts_count) : 0;
+            this.rows_affected = Number.isFinite(Number(data.rows_affected)) ? Number(data.rows_affected) : 0;  
 
             if (!response.ok || (!data.isSuccess && !hasContacts)) {
                 throw new Error(data.error || 'Failed to sync contacts');
             }
-
+console.log('YYYYY:', data);
             return data;
         }
 
@@ -326,7 +330,8 @@
                 this.currentPage = 1;
                 const syncData = await this.syncContacts(this.currentPage);
                 const contacts = Array.isArray(syncData.contacts) ? syncData.contacts : [];
-                const rows_affected = Number.isFinite(Number(syncData.rows_affected)) ? Number(syncData.syncData) : 0;
+                const rows_affected = Number.isFinite(Number(syncData.rows_affected)) ? Number(syncData.rows_affected) : 0;
+                const lex_contacts_count = Number.isFinite(Number(syncData.lexware_contacts_count)) ? Number(syncData.lexware_contacts_count) : 0;
 
                 this.totalCount = Number.isFinite(Number(syncData.total_count)) ? Number(syncData.total_count) : contacts.length;
 
@@ -342,7 +347,7 @@
 
                 let msg = '';
                 if (syncData.isSuccess) {
-                    msg = `Synchronized ${rows_affected} contacts`;
+                    msg = `Kontakte gefunden: ${lex_contacts_count}. Aktualisiert: ${rows_affected}`;
                     this.lexBridge.toastNotifier.show(msg, 'success');
                 } else {
                     msg = syncData.error
