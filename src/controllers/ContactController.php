@@ -88,6 +88,8 @@ final class ContactController
             'page' => $result['page'] ?? 1,
             'page_size' => $result['page_size'] ?? 25,
             'total_pages' => $result['total_pages'] ?? 1,
+            'rows_affected' => $result['rows_affected'] ?? 0,
+            'lexware_contacts_count' => $result['lexware_contacts_count'] ?? 0,
         ];
     }
 
