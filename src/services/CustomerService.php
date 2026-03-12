@@ -131,16 +131,6 @@ final class CustomerService
         $listResult = $this->listContacts($pagination);
         $enrichedContacts = $listResult['contacts'];
 
-        Logger::info('Sync contacts result - ' . json_encode([
-            'error' => $errorMessage,
-            'contacts' => $enrichedContacts,
-            'lexware_contacts_count' => count($contacts),
-            'rows_affected' => $rowsAffected,
-            'total_count' => $listResult['total_count'],
-            'page' => $listResult['page'],
-            'page_size' => $listResult['page_size'],
-            'total_pages' => $listResult['total_pages'],
-        ], JSON_PRETTY_PRINT));
         return [
             'response' => $response,
             'error' => $errorMessage,
@@ -354,16 +344,7 @@ final class CustomerService
             'error' => $response->getError()
         ]));
 
-        // Debug: Log first 500 chars of body
-        Logger::info('API Response Body (first 500 chars): ' . substr($response->getBody(), 0, 500));
-
         $contacts = $response->getData(fn($d) => Contact::fromResponseData($d)) ?? [];
-
-        if (empty($contacts)) {
-            Logger::info('No contacts returned from API - parsed array: ' . json_encode($response->toArray()));
-        } else {
-            Logger::info('Successfully parsed contacts - count: ' . count($contacts));
-        }
 
         return $contacts;
     }

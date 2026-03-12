@@ -348,19 +348,10 @@ final class ArticleService
         if (!empty($summary['errors'])) {
             $summary['errors'] = array_values(array_unique($summary['errors']));
             $summary['isSuccess'] = false;
+        } else {
+            $summary['isSuccess'] = true;
         }
-
-        Logger::info(
-            'Article sync completed: ' . json_encode([
-                'fetched' => $summary['fetched'],
-                'created' => $summary['created'],
-                'updated' => $summary['updated'],
-                'unchanged' => $summary['unchanged'],
-                'price_updates' => $summary['price_updates'],
-                'error_count' => count($summary['errors'])
-            ]),
-            'ArticleService'
-        );
+        
 
         return $summary;
     }
