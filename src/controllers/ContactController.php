@@ -72,12 +72,8 @@ final class ContactController
         $result = $this->customerService->syncContacts($page, $pagination);
         $response = $result['response'];
         $contacts = $result['contacts'];
-        $isSuccess = $response->isSuccess();
-
-        $error = null;
-        if (!$isSuccess) {
-            $error = $result['error'] ?? $response->getMessage() ?? 'Sync failed with status ' . $response->getStatusCode();
-        }
+        $error = $result['error'];
+        $isSuccess = $response->isSuccess();        
 
         return [
             'statusCode' => $response->getStatusCode(),

@@ -116,11 +116,14 @@ final class CustomerService
         $errorMessage = null;
 
         $rowsAffected = 0;
+        $errorCount = 0;
 
         $contacts = [];
         if ($response->isSuccess()) {
             $contacts = $this->extractContactsFromResponse($response);
-            $rowsAffected = $this->persistContacts($contacts);
+            [$rowsAffected, $errorCount] = $this->persistContacts($contacts);
+            $errorMessage = $errorCount > 0 ? "$errorCount exception(s) while persisting contacts: " . implode('; ', $errorMessages ?? []) : null;
+
         } else {
             $errorMessage = $response->getMessage() ?? 'Failed to synchronize contacts from Lexware.';
         }
@@ -128,6 +131,16 @@ final class CustomerService
         $listResult = $this->listContacts($pagination);
         $enrichedContacts = $listResult['contacts'];
 
+        Logger::info('Sync contacts result - ' . json_encode([
+            'error' => $errorMessage,
+            'contacts' => $enrichedContacts,
+            'lexware_contacts_count' => count($contacts),
+            'rows_affected' => $rowsAffected,
+            'total_count' => $listResult['total_count'],
+            'page' => $listResult['page'],
+            'page_size' => $listResult['page_size'],
+            'total_pages' => $listResult['total_pages'],
+        ], JSON_PRETTY_PRINT));
         return [
             'response' => $response,
             'error' => $errorMessage,
@@ -360,7 +373,7 @@ final class CustomerService
      *
      * @param array<int, Contact> $contacts
      */
-    private function persistContacts(array $contacts): int
+    private function persistContacts(array $contacts): array
     {
         $successCount = 0;
         $errorCount = 0;
@@ -376,6 +389,6 @@ final class CustomerService
             }
         }
 
-        return $successCount;
+        return [$successCount, $errorCount];
     }
 }

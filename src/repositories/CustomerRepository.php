@@ -82,7 +82,7 @@ final class CustomerRepository
         $params = [
             ':lex_contact_id' => $contact->lexContactId,
             ':lex_customer_number' => $contact->lexCustomerNumber,
-            ':base_pattern' => $baseNumber . '%'
+            ':base_pattern' => $baseNumber . '_'
         ];
 
         $success = $stmt->execute($params);

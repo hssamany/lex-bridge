@@ -305,13 +305,11 @@
 
             const contacts = Array.isArray(data.contacts) ? data.contacts : [];
             const hasContacts = contacts.length > 0;
-            this.lexware_contacts_count = Number.isFinite(Number(data.lexware_contacts_count)) ? Number(data.lexware_contacts_count) : 0;
-            this.rows_affected = Number.isFinite(Number(data.rows_affected)) ? Number(data.rows_affected) : 0;  
-
+     
             if (!response.ok || (!data.isSuccess && !hasContacts)) {
                 throw new Error(data.error || 'Failed to sync contacts');
             }
-console.log('YYYYY:', data);
+            
             return data;
         }
 
@@ -344,9 +342,15 @@ console.log('YYYYY:', data);
 
                 this.updateContactList({ contacts });
                 this.renderPaginator();
+                
+                const partialSuccess = syncData.isSuccess && syncData.error?.length>0;
 
                 let msg = '';
-                if (syncData.isSuccess) {
+                if (partialSuccess) {
+                    msg = `Kontakte gefunden: ${lex_contacts_count}. Aktualisiert: ${rows_affected}. (with warnings: ${syncData.error})`;
+                    this.lexBridge.toastNotifier.show(msg, 'warning');
+                } 
+                else if(syncData.isSuccess) {
                     msg = `Kontakte gefunden: ${lex_contacts_count}. Aktualisiert: ${rows_affected}`;
                     this.lexBridge.toastNotifier.show(msg, 'success');
                 } else {
