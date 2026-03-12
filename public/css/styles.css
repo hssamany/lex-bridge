@@ -792,14 +792,16 @@ input[list]::-webkit-calendar-picker-indicator {
 
 .orders-container > .orders-filter-container,
 .line-items-container > .line-items-filter-container,
-.invoices-container > .invoices-filter-container {
+.invoices-container > .invoices-filter-container,
+.contacts-container > .contacts-filter-container {
     margin: 0 0 12px 0;
     padding: 0;
 }
 
 .orders-container > .orders-filter-container .line-items-filter-form,
 .line-items-container > .line-items-filter-container .line-items-filter-form,
-.invoices-container > .invoices-filter-container .line-items-filter-form {
+.invoices-container > .invoices-filter-container .line-items-filter-form,
+.contacts-container > .contacts-filter-container .line-items-filter-form {
     margin: 0;
     gap: 1.2rem;
 }

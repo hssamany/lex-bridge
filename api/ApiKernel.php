@@ -274,7 +274,13 @@ final class ApiKernel {
         $this->router -> get('/contacts', function() {
             $controller = ControllerFactory::makeContactController($this->httpClient);
             $pagination = $this->parsePagination();
-            return $controller->getContacts($pagination);
+            $filters = [
+                'customer_number' => trim($_GET['customer_number'] ?? ''),
+                'customer_name' => trim($_GET['customer_name'] ?? ''),
+            ];
+            // Remove empty filters
+            $filters = array_filter($filters, fn($v) => $v !== '');
+            return $controller->getContacts($pagination, $filters);
         });
     }
     

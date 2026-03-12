@@ -19,6 +19,8 @@
             this.articleCache = new Map();
             this.articleCacheTtl = 5 * 60 * 1000;
             this.articleCacheCleanupTimer = null;
+            this.lastFilterParams = new URLSearchParams(); // Store filter state
+            this.isLoading = false; // Prevent overlapping requests
             this.init();
         }
         
@@ -31,6 +33,7 @@
 
             this.setupArticleHandlers();
             this.setupPaginator();
+            this.setupFilterForm();
             this.setupSyncContactsButton();
             this.setupSyncArticlesButton();
             this.autoLoadIfEmpty();
@@ -47,11 +50,57 @@
                 onChange: ({ page, pageSize }) => {
                     this.currentPage = page;
                     this.pageSize = pageSize;
-                    this.loadContacts(this.currentPage);
+                    this.loadContactsWithFilters(this.lastFilterParams);
                 }
             });
 
             this.renderPaginator();
+        }
+
+        /**
+         * Setup contacts filter form handler
+         */
+        setupFilterForm() {
+            // Handle form submit
+            document.addEventListener('submit', async (e) => {
+                if (e.target.matches('form[name="get-contacts"]')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const form = e.target;
+                    const button = form.querySelector('button[type="submit"]');
+                    
+                    // Build filter params from form
+                    const params = new URLSearchParams();
+                    const formData = new FormData(form);
+                    
+                    for (const [key, value] of formData.entries()) {
+                        if (typeof value === 'string' && value.trim() !== '') {
+                            params.append(key, value.trim());
+                        }
+                    }
+                    
+                    // Reset to page 1 when filtering
+                    this.currentPage = 1;
+                    this.lastFilterParams = params;
+                    
+                    await this.loadContactsWithFilters(params, button);
+                }
+            }, true);
+            
+            // Handle reset button
+            document.addEventListener('reset', async (e) => {
+                if (e.target.matches('form[name="get-contacts"]')) {
+                    // Clear filter params and reload
+                    this.currentPage = 1;
+                    this.lastFilterParams = null;
+                    
+                    // Wait for form to be reset, then reload
+                    setTimeout(async () => {
+                        await this.loadContactsWithFilters(null);
+                    }, 10);
+                }
+            }, true);
         }
 
         renderPaginator() {
@@ -218,14 +267,30 @@
         }
         
         /**
-         * Load contacts via AJAX
+         * Load contacts via AJAX with optional filter params
          */
-        async loadContacts(page = 1) 
+        async loadContactsWithFilters(filterParams = null, button = null) 
         {
+            if (this.isLoading) return;
+            this.isLoading = true;
+            
+            // Handle button state
+            if (button && window.FilterButtonManager) {
+                window.FilterButtonManager.setLoading(button);
+            }
+            
             try {
             const params = new URLSearchParams();
-            params.set('page', String(page));
+            params.set('page', String(this.currentPage));
             params.set('page_size', String(this.pageSize));
+            
+            // Add filter params if provided
+            if (filterParams) {
+                for (const [key, value] of filterParams.entries()) {
+                    params.append(key, value);
+                }
+            }
+            
             const contactUrl = LexBridge.resolveApiUrl(`contacts?${params.toString()}`);                
                 const response = await fetch(contactUrl);
                 
@@ -284,7 +349,20 @@
                 this.renderPaginator();
                 
                 return [];
+            } finally {
+                this.isLoading = false;
+                if (button && window.FilterButtonManager) {
+                    window.FilterButtonManager.setIdle(button);
+                }
             }
+        }
+
+        /**
+         * Load contacts (wrapper for backward compatibility)
+         */
+        async loadContacts(page = 1) {
+            this.currentPage = page;
+            return this.loadContactsWithFilters(this.lastFilterParams);
         }
 
         async syncContacts(page = 1) 

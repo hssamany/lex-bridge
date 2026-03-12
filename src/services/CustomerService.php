@@ -84,12 +84,13 @@ final class CustomerService
      * Return the contacts persisted locally in the customer table.
      *
      * @param array<string, mixed> $pagination
+     * @param array{customer_number?:string,customer_name?:string} $filters
      * @return array{contacts:array<int,array<string,string|null>>,total_count:int,page:int,page_size:int,total_pages:int}
      */
-    public function listContacts(array $pagination = []): array
+    public function listContacts(array $pagination = [], array $filters = []): array
     {
         $paginationState = Pagination::normalize($pagination);
-        $result = $this->repository->getCustomerContacts($paginationState);
+        $result = $this->repository->getCustomerContacts($paginationState, $filters);
         $rows = $result['items'] ?? [];
         $totalCount = (int) ($result['total_count'] ?? 0);
 

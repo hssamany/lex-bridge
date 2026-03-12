@@ -4,6 +4,7 @@
     class="contacts-container tab-content-container"
     data-contacts='<?php echo htmlspecialchars(json_encode($contactsData), ENT_QUOTES, 'UTF-8'); ?>'
 >
+    <?php require __DIR__ . '/contacts-filter-form.php'; ?>
     <table class="contact-table">
         <thead>
             <tr>

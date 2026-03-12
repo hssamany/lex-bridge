@@ -22,12 +22,14 @@ final class ContactController
     /**
      * Retrieve and display contacts
      * 
+     * @param array $pagination Pagination parameters
+     * @param array $filters Filter parameters (customer_number, customer_name)
      * @return array Formatted contact data
      */
-    public function getContacts(array $pagination = []): array
+    public function getContacts(array $pagination = [], array $filters = []): array
     {
         try {
-            $result = $this->customerService->listContacts($pagination);
+            $result = $this->customerService->listContacts($pagination, $filters);
             $contacts = $result['contacts'] ?? [];
 
             return [

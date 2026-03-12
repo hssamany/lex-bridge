@@ -95,9 +95,10 @@ final class CustomerRepository
      * Fetch contacts with article mappings from the customer table.
      *
      * @param array{limit:int,offset:int} $pagination
+     * @param array{customer_number?:string,customer_name?:string} $filters
      * @return array{items:array<int,array<string,mixed>>,total_count:int}
      */
-    public function getCustomerContacts(array $pagination): array
+    public function getCustomerContacts(array $pagination, array $filters = []): array
     {
         $baseSql = <<<SQL
             FROM {$this->customerTable} AS c
@@ -105,8 +106,32 @@ final class CustomerRepository
             LEFT JOIN {$this->articleTable} AS a ON a.id = ca.article_id
         SQL;
 
-        $countSql = "SELECT COUNT(*) AS total {$baseSql}";
-        $countStmt = $this->db->query($countSql);
+        // Build WHERE clause from filters
+        $whereClauses = [];
+        $params = [];
+
+        if (!empty($filters['customer_number'])) {
+            $whereClauses[] = 'c.Nummer LIKE :customer_number';
+            $params[':customer_number'] = $filters['customer_number'] . '%';
+        }
+
+        if (!empty($filters['customer_name'])) {
+            $whereClauses[] = 'c.Name LIKE :customer_name';
+            $params[':customer_name'] = '%' . $filters['customer_name'] . '%';
+        }
+
+        $whereSQL = '';
+        if (!empty($whereClauses)) {
+            $whereSQL = ' WHERE ' . implode(' AND ', $whereClauses);
+        }
+
+        // Count query with filters
+        $countSql = "SELECT COUNT(*) AS total {$baseSql}{$whereSQL}";
+        $countStmt = $this->db->prepare($countSql);
+        foreach ($params as $key => $value) {
+            $countStmt->bindValue($key, $value);
+        }
+        $countStmt->execute();
         $totalCount = (int) ($countStmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0);
 
         $sql = <<<SQL
@@ -118,12 +143,15 @@ final class CustomerRepository
                    ca.article_id,
                    a.article_number,
                    a.name AS article_name
-              {$baseSql}
+              {$baseSql}{$whereSQL}
              ORDER BY c.Nummer ASC
              LIMIT :limit OFFSET :offset
         SQL;
 
         $stmt = $this->db->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue($key, $value);
+        }
         $stmt->bindValue(':limit', $pagination['limit'], PDO::PARAM_INT);
         $stmt->bindValue(':offset', $pagination['offset'], PDO::PARAM_INT);
         $stmt->execute();
