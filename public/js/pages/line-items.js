@@ -37,6 +37,39 @@ class LineItemsPage {
         this.setupSendInvoiceButton();
         this.setupInvoicedFilterCheckbox();
         this.setupPaginator();
+        this.loadLineItemsOnTabActivation();
+    }
+
+    /**
+     * Auto-load line items when tab is activated
+     */
+    async loadLineItemsOnTabActivation() {
+        // Wait for the form to be available in the DOM
+        const waitForForm = () => {
+            return new Promise((resolve) => {
+                const checkForm = () => {
+                    const form = document.querySelector('form[name="get-line-items"]');
+                    if (form) {
+                        resolve(form);
+                    } else {
+                        setTimeout(checkForm, 50);
+                    }
+                };
+                checkForm();
+            });
+        };
+        
+        const form = await waitForForm();
+        const params = this.buildFilterParams(form);
+        
+        try {
+            const data = await this.fetchLineItems(params);
+            this.updateLineItemsList(data);
+            this.updateSendInvoiceButtonState();
+            this.applyInvoicedFilter();
+        } catch (error) {
+            console.error('Auto-load line items error:', error);
+        }
     }
 
     setupPaginator() {
