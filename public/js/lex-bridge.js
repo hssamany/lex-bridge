@@ -219,6 +219,16 @@ class LexBridge {
         document.addEventListener('invoiceCreated', (e) => {
             this.notify('Invoice created successfully!', 'success');
         });
+
+        // Generic reset handler for all filter forms - clears fields then reloads data
+        document.addEventListener('reset', (e) => {
+            if (e.target.matches('.line-items-filter-form')) {
+                // Allow browser to clear fields first, then trigger submit to reload data
+                setTimeout(() => {
+                    e.target.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+                }, 0);
+            }
+        });
     }
     
     /**

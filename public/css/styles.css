@@ -566,9 +566,10 @@ body {
 .filter-form .filter-btn-group,
 .line-items-filter-form .filter-btn-group {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: flex-end;
     align-items: flex-end;
+    gap: var(--space-sm);
     min-width: auto;
     width: auto;
     flex: 0 0 auto;
@@ -902,8 +903,7 @@ input[list]::-webkit-calendar-picker-indicator {
     font-size: var(--font-size-control);
     line-height: 1;
 }
-
-.filter-submit-btn {
+.filter-btn {
     width: 40px;
     height: 40px;
     padding: 0;
@@ -912,7 +912,7 @@ input[list]::-webkit-calendar-picker-indicator {
     justify-content: center;
 }
 
-.filter-submit-btn .btn-icon {
+.filter-btn .btn-icon {
     font-size: var(--font-size-control);
     line-height: 1;
     color: var(--header-bg);

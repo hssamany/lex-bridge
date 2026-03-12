@@ -241,12 +241,10 @@ class LineItemsPage {
         const params = this.buildFilterParams(form);
         this.currentPage = 1;
         const submitButton = form.querySelector('button[type="submit"]');
-        const originalLabel = submitButton ? submitButton.innerHTML : null;
 
         try {
             if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<span class="btn-icon spinning">↻</span> Filtern...';
+                FilterButtonManager.setLoading(submitButton);
             }
 
             const data = await this.fetchLineItems(params);
@@ -260,10 +258,7 @@ class LineItemsPage {
             this.totalCount = 0;
             this.renderPaginator();
         } finally {
-            if (submitButton && originalLabel !== null) {
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalLabel;
-            }
+            FilterButtonManager.setIdle(submitButton);
         }
     }
 

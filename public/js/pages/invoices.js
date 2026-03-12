@@ -16,6 +16,7 @@ class InvoicesPage {
         this.totalCount = 0;
         this.paginator = null;
         this.lastQueryParams = null;
+        this.isLoading = false; // Prevent overlapping requests
         this.init();
     }
     
@@ -130,18 +131,22 @@ class InvoicesPage {
      */
     async loadInvoices(page = 1, isUserAction = false, button = null) {
 
+        // Prevent overlapping requests
+        if (this.isLoading) {
+            return;
+        }
+
         // Use provided button or try to find it
         if (!button) {
             button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
         }
         
-        const originalText = button?.innerHTML;
+        this.isLoading = true;
         
         try {
             
             if (button) {
-                button.disabled = true;
-                button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
+                FilterButtonManager.setLoading(button);
             }
 
             const params = new URLSearchParams();
@@ -178,10 +183,10 @@ class InvoicesPage {
                 );
             }
         } finally {
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = originalText;
-            }
+            this.isLoading = false;
+            // Always restore button state - re-query in case reference was lost
+            const submitBtn = button || document.querySelector('form[name="get-invoices"] button[type="submit"]');
+            FilterButtonManager.setIdle(submitBtn);
         }
     }
     
@@ -341,17 +346,21 @@ class InvoicesPage {
      * Load invoices with filter parameters
      */
     async loadInvoicesWithParams(params, button = null) {
+        // Prevent overlapping requests
+        if (this.isLoading) {
+            return;
+        }
+
         // Use provided button or try to find it
         if (!button) {
             button = document.querySelector('form[name="get-invoices"] button[type="submit"]');
         }
         
-        const originalText = button?.innerHTML;
+        this.isLoading = true;
         
         try {
             if (button) {
-                button.disabled = true;
-                button.innerHTML = '<span class="btn-icon spinning">↻</span> Loading...';
+                FilterButtonManager.setLoading(button);
             }
             
             params.set('page', String(this.currentPage));
@@ -384,10 +393,10 @@ class InvoicesPage {
                 'error'
             );
         } finally {
-            if (button) {
-                button.disabled = false;
-                button.innerHTML = originalText;
-            }
+            this.isLoading = false;
+            // Always restore button state - re-query in case reference was lost
+            const submitBtn = button || document.querySelector('form[name="get-invoices"] button[type="submit"]');
+            FilterButtonManager.setIdle(submitBtn);
         }
     }
     

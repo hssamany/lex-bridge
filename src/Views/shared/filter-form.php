@@ -98,9 +98,11 @@ $extraToggleInputStyle = $extraToggleInputStyle ?? '';
         </div>
         <?php endif; ?>
         <div class="filter-group-col filter-btn-group">
-            <label style="visibility:hidden">Filtern</label>
-            <button type="submit" class="btn btn-primary filter-submit-btn" title="Filter Senden" aria-label="Filter Senden">
+            <button type="submit" class="btn btn-primary filter-btn filter-submit-btn" title="Filter Senden" aria-label="Filter Senden">
                 <span class="btn-icon" aria-hidden="true">⌕</span>
+            </button>
+            <button type="reset" class="btn btn-secondary filter-btn" title="Filter zurücksetzen" aria-label="Filter zurücksetzen">
+                <span class="btn-icon" aria-hidden="true">✕</span>
             </button>
         </div>
         <?php if ($extraToggleInputClass !== '' && $extraToggleLabel !== ''): ?>

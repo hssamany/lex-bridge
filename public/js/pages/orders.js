@@ -446,12 +446,8 @@
                 `;
             }
 
-            let originalButtonLabel = null;
-
             if (submitButton) {
-                originalButtonLabel = submitButton.innerHTML;
-                submitButton.disabled = true;
-                submitButton.innerHTML = '<span class="btn-icon spinning">↻</span> Filtern...';
+                FilterButtonManager.setLoading(submitButton);
             }
 
             try 
@@ -500,10 +496,7 @@
 
                 container.setAttribute('aria-busy', 'false');
 
-                if (submitButton && originalButtonLabel !== null) {
-                    submitButton.disabled = false;
-                    submitButton.innerHTML = originalButtonLabel;
-                }
+                FilterButtonManager.setIdle(submitButton);
             }
         }
 
