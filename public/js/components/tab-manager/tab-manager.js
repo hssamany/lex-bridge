@@ -45,9 +45,6 @@ class TabManager {
             
             this.ready = true;
             
-            if (this.config.debug) {
-                console.log('TabManager initialized successfully');
-            }
         } catch (error) {
             console.error('TabManager initialization error:', error);
             this.ready = false;
@@ -59,9 +56,6 @@ class TabManager {
      */
     async loadCSS() {
         if (document.querySelector(`link[href="${this.config.cssUrl}"]`)) {
-            if (this.config.debug) {
-                console.log('TabManager CSS already loaded');
-            }
             return;
         }
         
@@ -71,9 +65,6 @@ class TabManager {
             link.href = this.config.cssUrl;
             
             link.onload = () => {
-                if (this.config.debug) {
-                    console.log('TabManager CSS loaded successfully');
-                }
                 resolve();
             };
             
@@ -91,9 +82,6 @@ class TabManager {
     async loadTemplate() {
         try {
             if (document.getElementById('tab-manager-template')) {
-                if (this.config.debug) {
-                    console.log('TabManager template already exists in DOM');
-                }
                 return;
             }
             
@@ -111,10 +99,6 @@ class TabManager {
             templates.forEach(template => {
                 document.body.appendChild(template);
             });
-            
-            if (this.config.debug) {
-                console.log('TabManager templates loaded successfully');
-            }
             
         } catch (error) {
             console.error('Error loading TabManager template:', error);
@@ -172,10 +156,6 @@ class TabManager {
         const defaultTab = tabFromUrl || this.config.defaultTab || this.tabsData[0]?.id;
         if (defaultTab) {
             this.activateTab(defaultTab);
-        }
-        
-        if (this.config.debug) {
-            console.log(`TabManager built: ${this.tabsData.length} tabs created`);
         }
     }
     
@@ -331,10 +311,6 @@ class TabManager {
         if (this.onTabChangeCallback && typeof this.onTabChangeCallback === 'function') {
             this.onTabChangeCallback(tabName);
         }
-        
-        if (this.config.debug) {
-            console.log(`Tab activated: ${tabName}`);
-        }
     }
     
     /**
@@ -382,10 +358,6 @@ class TabManager {
         this.tabsData = [];
         this.activeTab = null;
         this.onTabChangeCallback = null;
-        
-        if (this.config.debug) {
-            console.log('TabManager destroyed');
-        }
     }
 }
 

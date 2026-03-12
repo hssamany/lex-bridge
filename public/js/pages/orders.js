@@ -154,7 +154,6 @@
         async autoLoadOrdersOnFirstOpen() {
             // Auto-load orders if this is the first time and list is empty
             if (!this.hasLoadedOnce && this.allOrders.length === 0) {
-                console.log('OrdersPage: Auto-loading orders on first open');
                 setTimeout(async () => {
                     const form = document.querySelector(OrdersPage.SELECTORS.filterForm);
                     if (form) {

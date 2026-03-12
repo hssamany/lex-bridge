@@ -43,10 +43,6 @@ class ToastNotifier {
                 this.loadCSS()
             ]);
             this.ready = true;
-            
-            if (this.config.debug) {
-                console.log('ToastNotifier initialized successfully');
-            }
         } catch (error) {
             console.error('ToastNotifier initialization error:', error);
             this.ready = false;
@@ -60,9 +56,6 @@ class ToastNotifier {
         try {
             // Check if template already exists in DOM
             if (document.getElementById(this.config.templateId)) {
-                if (this.config.debug) {
-                    console.log('Toast template already exists in DOM');
-                }
                 return;
             }
             
@@ -81,10 +74,6 @@ class ToastNotifier {
             const template = temp.querySelector('template');
             if (template) {
                 document.body.appendChild(template);
-                
-                if (this.config.debug) {
-                    console.log('Toast template loaded successfully');
-                }
             } else {
                 throw new Error('Template element not found in HTML file');
             }
@@ -101,9 +90,6 @@ class ToastNotifier {
     async loadCSS() {
         // Check if CSS already loaded
         if (document.querySelector(`link[href="${this.config.cssUrl}"]`)) {
-            if (this.config.debug) {
-                console.log('Toast CSS already loaded');
-            }
             return;
         }
         
@@ -113,9 +99,6 @@ class ToastNotifier {
             link.href = this.config.cssUrl;
             
             link.onload = () => {
-                if (this.config.debug) {
-                    console.log('Toast CSS loaded successfully');
-                }
                 resolve();
             };
             
@@ -182,10 +165,6 @@ class ToastNotifier {
             setTimeout(() => {
                 this.remove(toast);
             }, finalDuration);
-            
-            if (this.config.debug) {
-                console.log(`Toast shown: [${type}] ${message}`);
-            }
             
         } catch (error) {
             console.error('Toast notification error:', error.message);

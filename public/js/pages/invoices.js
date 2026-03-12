@@ -96,8 +96,6 @@ class InvoicesPage {
         document.addEventListener('submit', async (e) => {
 
             if (e.target.matches('form[name="get-invoices"]')) {
-                console.log('Invoices filter form submit intercepted - loading via AJAX');
-                e.preventDefault();
                 e.stopPropagation();
                 e.stopImmediatePropagation();
                 

@@ -111,11 +111,6 @@ class LexBridge {
         await this.initializeTabManager();
         this.setupEventListeners();
         this.attachFormHandlers();
-        // checkForNotifications() is now handled by HomePage
-        
-        if (this.config.debug) {
-            console.log('LexBridge application initialized');
-        }
     }
     
       
@@ -208,7 +203,6 @@ class LexBridge {
         // Manually trigger onTabChange for the initially active tab
         const activeTab = this.tabManager.getActiveTab();
         if (activeTab) {
-            console.log('Triggering onTabChange for initial tab:', activeTab);
             this.onTabChange(activeTab);
         }
     }
@@ -253,11 +247,7 @@ class LexBridge {
             button.disabled = true;            
             button.dataset.originalText = button.innerHTML;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Synchronizing...';
-        }
-        
-        if (this.config.debug) {
-            console.log('Starting contact synchronization...');
-        }
+        }        
     }
     
     /**
@@ -275,10 +265,6 @@ class LexBridge {
             button.dataset.originalText = button.innerHTML;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Refreshing...';
         }
-        
-        if (this.config.debug) {
-            console.log('Starting invoice refresh...');
-        }
     }
     
     /**
@@ -295,11 +281,7 @@ class LexBridge {
             button.disabled = true;
             button.dataset.originalText = button.innerHTML;
             button.innerHTML = '<span class="btn-icon spinning">↻</span> Posting...';
-        }
-        
-        if (this.config.debug) {
-            console.log('Starting invoice posting...');
-        }
+        }        
     }
     
     /**
@@ -307,34 +289,26 @@ class LexBridge {
      * @param {string} tabName - Name of activated tab
      */
     onTabChange(tabName) {
-
-        if (this.config.debug) {
-            console.log('Tab changed to:', tabName);
-        }
         
         // Initialize page-specific functionality
         if (tabName === 'kontakte' && !this.contactsPage) {
             const ContactsPageCtor = LexBridge.resolvePageClass('ContactsPage');
             if (ContactsPageCtor) {
-                console.log('Creating ContactsPage instance');
                 this.contactsPage = new ContactsPageCtor(this);
             }
         } else if (tabName === 'rechn' && !this.invoicesPage) {
             const InvoicesPageCtor = LexBridge.resolvePageClass('InvoicesPage');
             if (InvoicesPageCtor) {
-                console.log('Creating InvoicesPage instance');
                 this.invoicesPage = new InvoicesPageCtor(this);
             }
         } else if (tabName === 'bestellg' && !this.ordersPage) {
             const OrdersPageCtor = LexBridge.resolvePageClass('OrdersPage');
             if (OrdersPageCtor) {
-                console.log('Creating OrdersPage instance');
                 this.ordersPage = new OrdersPageCtor(this);
             }
         } else if (tabName === 'posn' && !this.lineItemsPage) {
             const LineItemsPageCtor = LexBridge.resolvePageClass('LineItemsPage');
             if (LineItemsPageCtor) {
-                console.log('Creating LineItemsPage instance');
                 this.lineItemsPage = new LineItemsPageCtor(this);
             }
         }
@@ -382,9 +356,6 @@ class LexBridge {
         
         // If no invoices data is present, trigger automatic load
         if (!hasInvoices) {
-            if (this.config.debug) {
-                console.log('No invoices loaded, triggering automatic load...');
-            }
             
             // Find and submit the refresh invoices form
             const refreshForm = document.querySelector('form[name="get-rechn"]');
@@ -422,7 +393,6 @@ class LexBridge {
                 info: 'ℹ️',
                 warning: '⚠️'
             };
-            console.log(`${emoji[type] || 'ℹ️'} [${type.toUpperCase()}]`, message);
         }
     }
     
@@ -451,11 +421,7 @@ class LexBridge {
             }
             
             const data = await response.json();
-            
-            if (this.config.debug) {
-                console.log('API Response:', data);
-            }
-            
+                        
             return data;
             
         } catch (error) {

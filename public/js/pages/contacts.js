@@ -12,7 +12,6 @@ class ContactsPage {
     }
     
     init() {
-        console.log('ContactsPage initialized');
         
         // Set up any contacts-specific functionality here
         if (!ContactsPage.handlerSetup) {
