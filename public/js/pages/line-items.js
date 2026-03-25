@@ -3,19 +3,24 @@ class LineItemsPage {
     static handlerSetup = false;
     static activeInstance = null;
 
-    constructor(lexBridge) 
-    {
+    // DOM element references
+    filterForm = null;
+    sendInvoiceButton = null;
+    customerSearchController = null;
+    paginator = null;
+
+    // Internal state (private)
+    #cachedLineItems = [];
+    #lineItemsMap = new Map();
+    #showInvoiced = true;
+
+    // Pagination state (private)
+    #currentPage = 1;
+    #pageSize = 25;
+    #totalCount = 0;
+
+    constructor(lexBridge) {
         this.lexBridge = lexBridge;
-        this.filterForm = null;
-        this.sendInvoiceButton = null;
-        this.customerSearchController = null;
-        this.cachedLineItems = []; // Store all fetched line items
-        this.lineItemsMap = new Map(); // Fast lookup map for filtering
-        this.showInvoiced = true; // Default: show all items
-        this.currentPage = 1;
-        this.pageSize = 25;
-        this.totalCount = 0;
-        this.paginator = null;
 
         this.setupCustomerSearchController();
 
@@ -79,10 +84,10 @@ class LineItemsPage {
         }
 
         this.paginator = new window.lexBridgeUtils.Paginator(container, {
-            pageSize: this.pageSize,
+            pageSize: this.#pageSize,
             onChange: ({ page, pageSize }) => {
-                this.currentPage = page;
-                this.pageSize = pageSize;
+                this.#currentPage = page;
+                this.#pageSize = pageSize;
                 this.reloadCurrentLineItems();
             }
         });
@@ -96,9 +101,9 @@ class LineItemsPage {
         }
 
         this.paginator.render({
-            page: this.currentPage,
-            pageSize: this.pageSize,
-            totalCount: this.totalCount
+            page: this.#currentPage,
+            pageSize: this.#pageSize,
+            totalCount: this.#totalCount
         });
     }
 
@@ -186,16 +191,16 @@ class LineItemsPage {
         }
 
         // Set default state (checked = show all items including invoiced)
-        checkbox.checked = this.showInvoiced;
+        checkbox.checked = this.#showInvoiced;
 
         checkbox.addEventListener('change', (event) => {
-            this.showInvoiced = event.target.checked;
+            this.#showInvoiced = event.target.checked;
             this.applyInvoicedFilter();
         });
     }
 
     applyInvoicedFilter() {
-        if (!Array.isArray(this.cachedLineItems) || this.cachedLineItems.length === 0) {
+        if (!Array.isArray(this.#cachedLineItems) || this.#cachedLineItems.length === 0) {
             return;
         }
 
@@ -216,7 +221,7 @@ class LineItemsPage {
 
             const lineItemId = checkboxInRow.dataset.lineItemId;
             // Use Map for O(1) lookup instead of O(n) find
-            const lineItem = this.lineItemsMap.get(lineItemId);
+            const lineItem = this.#lineItemsMap.get(lineItemId);
             
             if (!lineItem) {
                 // If line item not found in cache, hide the row to be safe
@@ -229,7 +234,7 @@ class LineItemsPage {
 
             const hasInvoice = lineItem.invoice_id != null && lineItem.invoice_id !== '';
             
-            if (this.showInvoiced) {
+            if (this.#showInvoiced) {
                 // Show all items when checkbox is checked
                 row.style.display = '';
                 visibleCount++;
@@ -251,8 +256,8 @@ class LineItemsPage {
         // Update total label to reflect visible items
         const totalLabel = document.querySelector('.line-items-total');
         if (totalLabel) {
-            const totalValue = Number.isFinite(Number(this.totalCount)) ? Number(this.totalCount) : this.cachedLineItems.length;
-            const totalText = this.showInvoiced
+            const totalValue = Number.isFinite(Number(this.#totalCount)) ? Number(this.#totalCount) : this.#cachedLineItems.length;
+            const totalText = this.#showInvoiced
                 ? `Gesammt: ${totalValue}`
                 : `Gesammt: ${visibleCount} von ${totalValue}`;
             totalLabel.textContent = totalText;
@@ -272,7 +277,7 @@ class LineItemsPage {
         this.ensureCustomerSelection(form);
 
         const params = this.buildFilterParams(form);
-        this.currentPage = 1;
+        this.#currentPage = 1;
         const submitButton = form.querySelector('button[type="submit"]');
 
         try {
@@ -288,7 +293,7 @@ class LineItemsPage {
         } catch (error) {
             console.error('Line items filter error:', error);
             this.showToast(error.message || 'Fehler beim Laden der Positionen', 'error');
-            this.totalCount = 0;
+            this.#totalCount = 0;
             this.renderPaginator();
         } finally {
             FilterButtonManager.setIdle(submitButton);
@@ -313,8 +318,8 @@ class LineItemsPage {
     }
 
     async fetchLineItems(params) {
-        params.set('page', String(this.currentPage));
-        params.set('page_size', String(this.pageSize));
+        params.set('page', String(this.#currentPage));
+        params.set('page_size', String(this.#pageSize));
         const query = params.toString();
         const url = query ? LexBridge.resolveApiUrl(`line-items?${query}`) : LexBridge.resolveApiUrl('line-items');
 
@@ -339,12 +344,12 @@ class LineItemsPage {
             throw new Error(message);
         }
 
-        this.totalCount = Number.isFinite(Number(data.total_count)) ? Number(data.total_count) : 0;
+        this.#totalCount = Number.isFinite(Number(data.total_count)) ? Number(data.total_count) : 0;
         if (Number(data.page) > 0) {
-            this.currentPage = Number(data.page);
+            this.#currentPage = Number(data.page);
         }
         if (Number(data.page_size) > 0) {
-            this.pageSize = Number(data.page_size);
+            this.#pageSize = Number(data.page_size);
         }
         this.renderPaginator();
 
@@ -368,9 +373,9 @@ class LineItemsPage {
         }
 
         const items = Array.isArray(data?.lineItems) ? data.lineItems : [];
-        this.cachedLineItems = items; // Cache for filtering
+        this.#cachedLineItems = items; // Cache for filtering
         // Create a Map for fast lookups during filtering
-        this.lineItemsMap = new Map(items.map(item => [String(item.id), item]));
+        this.#lineItemsMap = new Map(items.map(item => [String(item.id), item]));
         const columnCount = container.querySelectorAll('thead th').length || 11;
 
         if (items.length === 0) {
@@ -419,7 +424,7 @@ class LineItemsPage {
         }
 
         if (totalLabel) {
-            const totalValue = Number.isFinite(Number(this.totalCount)) ? Number(this.totalCount) : items.length;
+            const totalValue = Number.isFinite(Number(this.#totalCount)) ? Number(this.#totalCount) : items.length;
             totalLabel.textContent = `Gesammt: ${totalValue}`;
         }
     }
@@ -435,7 +440,7 @@ class LineItemsPage {
 
         try {
             const lineItems = selectedIds.map((id) => {
-                const item = this.lineItemsMap.get(String(id));
+                const item = this.#lineItemsMap.get(String(id));
                 return {
                     id,
                     article_id: item?.article_id ?? null,
